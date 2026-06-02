@@ -1,0 +1,1 @@
+ALTER TABLE `businesses` ADD `scrape_failure_type` varchar(64);

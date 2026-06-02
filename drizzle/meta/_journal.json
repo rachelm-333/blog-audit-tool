@@ -22,6 +22,13 @@
       "when": 1780386722382,
       "tag": "0002_early_prism",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1780391773207,
+      "tag": "0003_lowly_korvac",
+      "breakpoints": true
     }
   ]
 }

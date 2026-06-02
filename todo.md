@@ -61,3 +61,27 @@
 - [ ] ⚠️  RESEND EMAIL SENDER: Update `RESEND_FROM_EMAIL` in Settings → Secrets to a real verified sender address (e.g. noreply@iaudit.com.au). Go to resend.com → Domains → Add Domain, verify DNS records, then update the secret. Without this, NO emails (verification, password reset) will be delivered to users.
 - [ ] Connect Stripe live keys (replace test keys) when pricing is finalised
 - [ ] Verify all environment variables are set for production
+
+## Layer 3: Business Profile & Website Scrape (Section 7 of Scope)
+
+- [x] Install puppeteer-core + @sparticuz/chromium for serverless-compatible headless scraping
+- [x] Build scrape engine: fetch homepage, about, services, contact (max 10 pages, 30s timeout)
+- [x] Implement all 5 scrape failure states: 404/unreachable, JS-rendered fallback, timeout (partial data), non-English (AI translates), robots.txt blocked (manual fill)
+- [x] Build AI brand voice inference: invokeLLM with scraped copy → brand_voice paragraph + tone label
+- [x] Build businesses DB helpers: createBusiness, getBusinessByUserId, updateBusiness
+- [x] Build tRPC `business.startScrape` procedure (creates pending business row, triggers scrape)
+- [x] Build tRPC `business.getScrapeStatus` procedure (poll scrape progress)
+- [x] Build tRPC `business.saveBusiness` procedure (save partial or complete profile)
+- [x] Build tRPC `business.confirmBusiness` procedure (validates required fields, sets stage1_complete=true)
+- [x] Build frontend: URL input screen (single field + Begin button)
+- [x] Build frontend: scrape progress indicator ("Analysing your website...")
+- [x] Build frontend: editable review form with all 14 fields, red border on empty required fields
+- [x] Build frontend: Continue button disabled until all required fields filled
+- [x] Build frontend: Save Progress button always visible
+- [x] Verify: scrape runs on a real website and populates fields correctly
+- [x] Verify: brand voice inferred by AI and pre-filled
+- [x] Verify: all required fields enforced (Continue button disabled)
+- [x] Verify: Save Progress works at all times
+- [x] Verify: stage1_complete sets to true on confirmation
+- [x] Verify: all 5 scrape failure states display correct messages
+- [x] Vitest tests for scrape engine, AI inference, and all tRPC procedures (123/123 pass)

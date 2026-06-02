@@ -109,6 +109,8 @@ export const businesses = mysqlTable(
     scrapeStatus: mysqlEnum("scrape_status", ["pending", "complete", "failed"])
       .notNull()
       .default("pending"),
+    // Scrape failure reason — persisted so UI can show the correct failure banner
+    scrapeFailureType: varchar("scrape_failure_type", { length: 64 }),
     stage1Complete: boolean("stage1_complete").notNull().default(false),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),

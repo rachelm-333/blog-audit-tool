@@ -357,6 +357,14 @@ export const iauthRouter = router({
       success: true,
       accessToken,
       expiresIn: 15 * 60,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        accountType: user.accountType,
+        emailVerified: user.emailVerified,
+        creditsRemaining: user.creditsRemaining,
+      },
     };
   }),
 
