@@ -11,6 +11,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import BusinessSetup from "./pages/BusinessSetup";
+import CmsConnect from "./pages/CmsConnect";
 
 function Router() {
   return (
@@ -22,6 +23,7 @@ function Router() {
       <Route path="/reset-password" component={ResetPassword} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/business/setup" component={BusinessSetup} />
+      <Route path="/cms/connect" component={CmsConnect} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

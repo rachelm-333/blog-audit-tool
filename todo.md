@@ -85,3 +85,32 @@
 - [x] Verify: stage1_complete sets to true on confirmation
 - [x] Verify: all 5 scrape failure states display correct messages
 - [x] Vitest tests for scrape engine, AI inference, and all tRPC procedures (123/123 pass)
+
+## Layer 4: CMS Connection & Post Import (Section 8)
+
+- [ ] Extend `posts` table: add `featured_image_url`, `featured_image_alt`, `body_image_alts` (JSONB), `categories` (JSONB), `tags` (JSONB) columns
+- [ ] Run migration for new posts columns
+- [ ] Build AES-256-GCM encryption service for CMS credentials at rest
+- [ ] Build WordPress REST API import engine (Application Password auth, all 3 statuses, Yoast keyword, all fields)
+- [ ] Build CMS connections DB helpers: createConnection, getConnection, updateConnectionStatus, listConnections
+- [ ] Build posts DB helpers: upsertPost, listPostsByBusiness, getPostById
+- [ ] Build tRPC `cms.connect` procedure (WordPress only — validates credentials, saves encrypted to DB)
+- [ ] Build tRPC `cms.testConnection` procedure
+- [ ] Build tRPC `cms.importPosts` procedure (post type filter, no trash, upserts by cms_post_id)
+- [ ] Build tRPC `cms.getConnection` and `cms.listConnections` procedures
+- [ ] Build tRPC `cms.disconnectConnection` procedure
+- [ ] Stub Wix, Shopify, Zapier connection flows (platform selector shows them, connection form says "Coming soon" or shows Zapier webhook URL)
+- [ ] Build all 5 error states from Section 8.4 / Table 12
+- [ ] Build frontend: platform selector screen
+- [ ] Build frontend: WordPress connection form (URL, username, application password)
+- [ ] Build frontend: import options (Published / Scheduled / Draft / All)
+- [ ] Build frontend: import progress indicator ("Connecting to WordPress... Importing your posts...")
+- [ ] Build frontend: post import results screen (count by status)
+- [ ] Build frontend: all 5 error state messages
+- [ ] Verify: WordPress connection works with real credentials
+- [ ] Verify: published, scheduled, draft posts all import correctly
+- [ ] Verify: trash posts never imported
+- [ ] Verify: author ID, author name, CMS post ID, focus keyword stored accurately
+- [ ] Verify: credentials encrypted in DB (never plain text)
+- [ ] Verify: all 5 error states display correct messages
+- [ ] Vitest tests for encryption, WP import engine, and all tRPC procedures

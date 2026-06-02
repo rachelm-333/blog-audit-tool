@@ -226,6 +226,14 @@ export const posts = mysqlTable(
     ]),
     postBackAt: timestamp("post_back_at"),
     cannibalizationFlag: boolean("cannibalization_flag").notNull().default(false),
+    // Featured image — stored from CMS import
+    featuredImageUrl: text("featured_image_url"),
+    featuredImageAlt: text("featured_image_alt"),
+    // All image alt texts within the post body — JSONB array of strings
+    bodyImageAlts: json("body_image_alts"),
+    // Taxonomy — JSONB arrays of {id, name} objects
+    categories: json("categories"),
+    tags: json("tags"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
   },
