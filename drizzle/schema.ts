@@ -265,3 +265,77 @@ export const creditTransactions = mysqlTable(
 
 export type CreditTransaction = typeof creditTransactions.$inferSelect;
 export type InsertCreditTransaction = typeof creditTransactions.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// email_verification_tokens — One-time tokens sent via Resend on registration
+// ---------------------------------------------------------------------------
+export const emailVerificationTokens = mysqlTable(
+  "email_verification_tokens",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(), // UUID
+    userId: varchar("user_id", { length: 36 })
+      .notNull()
+      .references(() => iauditUsers.id),
+    token: varchar("token", { length: 64 }).notNull().unique(), // Secure random hex token
+    expiresAt: timestamp("expires_at").notNull(), // 24-hour expiry
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("evt_user_id_idx").on(table.userId),
+    uniqueIndex("evt_token_unique").on(table.token),
+  ]
+);
+
+export type EmailVerificationToken = typeof emailVerificationTokens.$inferSelect;
+export type InsertEmailVerificationToken = typeof emailVerificationTokens.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// password_reset_tokens — One-time tokens sent via Resend for password reset
+// ---------------------------------------------------------------------------
+export const passwordResetTokens = mysqlTable(
+  "password_reset_tokens",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(), // UUID
+    userId: varchar("user_id", { length: 36 })
+      .notNull()
+      .references(() => iauditUsers.id),
+    token: varchar("token", { length: 64 }).notNull().unique(), // Secure random hex token
+    expiresAt: timestamp("expires_at").notNull(), // 1-hour expiry (scope requirement)
+    used: boolean("used").notNull().default(false), // Marked true after single use
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("prt_user_id_idx").on(table.userId),
+    uniqueIndex("prt_token_unique").on(table.token),
+  ]
+);
+
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+export type InsertPasswordResetToken = typeof passwordResetTokens.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// refresh_tokens — Rotating refresh tokens (30-day expiry, one per session)
+// Invalidated on logout, password change, or account suspension.
+// ---------------------------------------------------------------------------
+export const refreshTokens = mysqlTable(
+  "refresh_tokens",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(), // UUID
+    userId: varchar("user_id", { length: 36 })
+      .notNull()
+      .references(() => iauditUsers.id),
+    tokenHash: varchar("token_hash", { length: 64 }).notNull().unique(), // SHA-256 hash of the raw token
+    expiresAt: timestamp("expires_at").notNull(), // 30-day expiry
+    revokedAt: timestamp("revoked_at"), // Set on logout / password change / suspension
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    // Rotation chain: tracks which token this replaced (for replay-attack detection)
+    replacedByTokenHash: varchar("replaced_by_token_hash", { length: 64 }),
+  },
+  (table) => [
+    index("rt_user_id_idx").on(table.userId),
+    uniqueIndex("rt_token_hash_unique").on(table.tokenHash),
+  ]
+);
+
+export type RefreshToken = typeof refreshTokens.$inferSelect;
+export type InsertRefreshToken = typeof refreshTokens.$inferInsert;

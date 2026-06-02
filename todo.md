@@ -33,3 +33,31 @@
 - [ ] Layer 15: Admin Panel
 - [ ] Layer 16: Support Centre
 - [ ] Layer 17: Onboarding flow & UX polish
+
+## Layer 2: Authentication (Section 4 of Scope)
+
+- [x] Add DB tables: `email_verification_tokens`, `password_reset_tokens`, `refresh_tokens`
+- [x] Run migration for the 3 new auth token tables
+- [x] Set up Resend API key secret
+- [x] Build auth service: bcrypt password hashing, UUID generation, JWT signing/verification
+- [x] Build email service: send verification email, send password reset email via Resend
+- [x] Build tRPC `iauth.register` procedure (solo/agency only — admin blocked on public form)
+- [x] Build tRPC `iauth.verifyEmail` procedure (sets email_verified=true, deletes token)
+- [x] Build tRPC `iauth.login` procedure (returns access JWT + refresh token, sets HttpOnly cookie)
+- [x] Build tRPC `iauth.logout` procedure (invalidates refresh token)
+- [x] Build tRPC `iauth.refresh` procedure (rotates refresh token, issues new access token)
+- [x] Build tRPC `iauth.forgotPassword` procedure (sends reset link via Resend, 1-hour expiry)
+- [x] Build tRPC `iauth.resetPassword` procedure (validates token, hashes new password, invalidates all tokens)
+- [x] Verify: registration creates iaudit_users row
+- [x] Verify: email verification link works end-to-end
+- [x] Verify: login returns valid JWT
+- [x] Verify: logout invalidates refresh token
+- [x] Verify: password reset sends email and link works
+- [x] Verify: account_type=admin blocked on public signup
+- [x] 99 vitest tests pass with zero TypeScript errors (50 Layer 2 + 48 Layer 1 + 1 scaffold)
+
+## Pre-Launch Checklist (MUST complete before going live)
+
+- [ ] ⚠️  RESEND EMAIL SENDER: Update `RESEND_FROM_EMAIL` in Settings → Secrets to a real verified sender address (e.g. noreply@iaudit.com.au). Go to resend.com → Domains → Add Domain, verify DNS records, then update the secret. Without this, NO emails (verification, password reset) will be delivered to users.
+- [ ] Connect Stripe live keys (replace test keys) when pricing is finalised
+- [ ] Verify all environment variables are set for production
