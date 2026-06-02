@@ -20,7 +20,7 @@
 - [ ] Layer 2: Auth (registration, email verification, login, JWT)
 - [ ] Layer 3: Stage 1 — Business Profile & Website Scrape
 - [ ] Layer 4: Stage 2 — CMS Connection & Post Import
-- [ ] Layer 5: Stage 3 — Keyword Identification
+- [x] Layer 5: Stage 3 — Keyword Identification
 - [ ] Layer 6: Stage 4 — Audit Engine
 - [ ] Layer 7: Stage 5 — Rewrite Engine
 - [ ] Layer 8: Stage 6 — Review & Edit
@@ -114,3 +114,24 @@
 - [ ] Verify: credentials encrypted in DB (never plain text)
 - [ ] Verify: all 5 error states display correct messages
 - [ ] Vitest tests for encryption, WP import engine, and all tRPC procedures
+
+## Layer 5: Keyword Identification (Section 9)
+
+- [x] Add `keyword_source` column to posts table (TEXT: cms_scraped / ai_suggested / user_entered)
+- [x] Update Layer 4 WordPress import to set keyword_source=cms_scraped when focus_keyword found
+- [x] Build AI keyword suggestion service: LLM call with post title + first 500 words → top 3 keywords with rationale
+- [x] Build cannibalisation detection: scan all posts for same business for duplicate focus_keyword, set cannibalization_flag=true on all affected posts
+- [x] Build tRPC `keyword.suggest` procedure (returns 3 AI suggestions for a post with no keyword)
+- [x] Build tRPC `keyword.confirm` procedure (sets focus_keyword + keyword_source on post)
+- [x] Build tRPC `keyword.runCannibalisationScan` procedure (scans all posts for business, sets flags)
+- [x] Frontend: keyword status indicator on post list (cms_scraped / ai_suggested / user_entered / missing)
+- [x] Frontend: AI keyword suggestion modal with 3 clickable options + text field for custom keyword
+- [x] Frontend: exact warning message from spec: "No focus keyword was found for this post..."
+- [x] Frontend: cannibalisation warning banner linking to both conflicting posts
+- [x] Frontend: Fix button disabled with tooltip "Resolve the duplicate keyword before rewriting." on flagged posts
+- [x] Verify: post with CMS keyword shows keyword_source=cms_scraped
+- [x] Verify: post with no keyword shows 3 AI suggestions
+- [x] Verify: user can confirm suggestion or type their own
+- [x] Verify: two posts sharing same keyword both show cannibalisation warning + cannibalization_flag=true in DB
+- [x] Verify: Fix button disabled on flagged posts
+- [x] Vitest tests for all Layer 5 flows (189 tests pass — 28 Layer 5 + all prior layers)
