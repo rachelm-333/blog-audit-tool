@@ -272,3 +272,23 @@
 - [x] Add "Free Audit" link to nav/sidebar for unauthenticated users
 - [x] Write Layer 10 vitest tests (20 new tests, 311 total)
 - [x] Run full test suite — all 311 tests pass, zero TypeScript errors
+
+## Layer 11: Dashboard (Sections 10.4, 20.3, 20.4)
+
+- [x] Build `server/dashboard.db.ts` — getDashboardStats(businessId): overall health score, score potential, post counts by status, grade breakdown counts, cannibalisation count, credits remaining
+- [x] Build `server/routers/dashboard.ts` — tRPC procedures: getStats, getPostTable, listBusinesses
+- [x] Wire dashboard router into `server/routers.ts`
+- [x] Frontend: Dashboard page at /dashboard (authenticated) — 4 stat cards (health score, score potential, total posts, credits remaining)
+- [x] Frontend: Grade breakdown row — 4 cards (Optimised, Strong, Needs Work, Poor/Critical) with correct badge colours from spec
+- [x] Frontend: Cannibalisation warning banner (orange) — appears when cannibalization_flag posts exist
+- [x] Frontend: Score potential banner (blue) — appears when Poor/Critical posts exist, shows exact spec message
+- [x] Frontend: Post table — title, keyword, status, score bar, grade badge, issues count, Fix/View button
+- [x] Frontend: Post table filter buttons — All, Optimised, Strong, Needs Work, Poor, Critical + Published, Scheduled, Draft
+- [x] Frontend: Post table sort — by score, grade, title
+- [x] Frontend: Fix button disabled with tooltip on cannibalised posts
+- [x] Frontend: Empty state 1 — no businesses added ("Add your first business to get started...")
+- [x] Frontend: Empty state 2 — business added but no posts imported ("No posts found. Make sure your CMS connection is working...")
+- [x] Frontend: Empty state 3 — posts imported but no audit run ("Your posts are ready. Click Start Audit...")
+- [x] Frontend: Skeleton loader while data fetches
+- [x] Write Layer 11 vitest tests (24 new tests, 335 total)
+- [x] Run full test suite — all 335 tests pass, zero TypeScript errors
