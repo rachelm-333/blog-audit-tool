@@ -13,6 +13,7 @@ import Dashboard from "./pages/Dashboard";
 import BusinessSetup from "./pages/BusinessSetup";
 import CmsConnect from "./pages/CmsConnect";
 import PostList from "./pages/PostList";
+import ReviewEdit from "./pages/ReviewEdit";
 
 function Router() {
   return (
@@ -26,6 +27,7 @@ function Router() {
       <Route path="/business/setup" component={BusinessSetup} />
       <Route path="/cms/connect" component={CmsConnect} />
       <Route path="/posts" component={PostList} />
+      <Route path="/review/:postId" component={ReviewEdit} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

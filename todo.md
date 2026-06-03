@@ -204,3 +204,34 @@
 - [ ] Verify: schema generated and stored
 - [ ] Verify: zero credits remaining blocks the rewrite
 - [ ] Vitest tests for all Layer 7 flows
+
+## Layer 8: Review and Edit (Sections 12 and 20)
+
+- [ ] Layer 8: Stage 6 — Review and Edit
+- [ ] Build review.db.ts: getPostForReview, saveApprovedContent, setApprovedStatus
+- [ ] Build tRPC review router: getPost, saveEdits, rescore, approveForPostBack
+- [ ] Wire review router into routers.ts
+- [ ] Install TipTap rich-text editor (pnpm add @tiptap/react @tiptap/starter-kit @tiptap/extension-link @tiptap/extension-image)
+- [ ] Frontend: ReviewEdit page (/review/:postId) with rich-text body editor
+- [ ] Frontend: meta title field with live character counter (red over 60)
+- [ ] Frontend: meta description field with live counter (green 140-160, warn outside)
+- [ ] Frontend: read-only fields: URL (with tooltip), author name, publish/scheduled date, post status
+- [ ] Frontend: image alt text list (every img in body listed with individual editable alt text field)
+- [ ] Frontend: auto-save every 30 seconds with visual indicator ("Saved" / "Saving...")
+- [ ] Frontend: manual Save button always visible
+- [ ] Frontend: re-score on save — updates score/grade badge; shows point-specific warning on regression
+- [ ] Frontend: before/after score comparison (original audit score vs rewrite score) with grade badges
+- [ ] Frontend: export buttons — Plain Text, HTML, Markdown — always visible, download on click
+- [ ] Frontend: Approve and Post Back button (prominent, advances to Layer 9)
+- [ ] Add ReviewEdit route to App.tsx
+- [ ] Add "Review" link from PostList to ReviewEdit page for posts with completed rewrites
+- [ ] Verify: inline body edits persist on save
+- [ ] Verify: meta title counter turns red over 60 chars
+- [ ] Verify: meta description counter shows green 140-160, warns outside range
+- [ ] Verify: URL field visible but not editable
+- [ ] Verify: auto-save fires every 30 seconds
+- [ ] Verify: re-score runs on manual save and updates displayed score
+- [ ] Verify: deliberate bad edit (delete meta description) triggers point-specific warning
+- [ ] Verify: all three export formats download correctly
+- [ ] Verify: Approve and Post Back button present and functional
+- [ ] Vitest tests for all Layer 8 flows

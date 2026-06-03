@@ -1421,6 +1421,17 @@ export default function PostList() {
                           Rewrite
                         </Button>
                       )}
+                      {/* Review & Edit button — navigates to the full review screen */}
+                      {post.rewriteStatus === "complete" && (
+                        <Button
+                          size="sm"
+                          className="text-xs h-7 px-2.5 gap-1 bg-violet-600 hover:bg-violet-500 text-white"
+                          onClick={() => navigate(`/review/${post.id}`)}
+                        >
+                          <ExternalLink size={12} />
+                          Review
+                        </Button>
+                      )}
                     </div>
                   </div>
 
