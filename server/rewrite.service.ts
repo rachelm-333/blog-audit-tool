@@ -1,0 +1,698 @@
+/**
+ * iAudit — Rewrite Engine Service (Layer 7 / Section 11)
+ *
+ * Provides:
+ *   lookupPaaQuestion         — LLM call to find the most relevant PAA question for a keyword
+ *   inferArticleType          — Infer cornerstone/pillar/cluster from word count
+ *   buildInternalLinkMap      — Build list of published/pre-scheduled posts for internal linking
+ *   runPass1Rewrite           — Full rewrite via LLM with all context
+ *   runMechanicalEnforcement  — P1/P3/P5/P7/P8 always-pass enforcement
+ *   runPass2FingerprintScrub  — Second LLM call to remove AI language patterns
+ *   generateSchema            — Programmatic Article/Breadcrumb/FAQ schema generation
+ *   runFullRewrite            — Orchestrates the full two-pass pipeline
+ *
+ * No fabrication rule: every LLM call includes the explicit instruction:
+ * "Do not fabricate statistics, quotes, or external links. If you cannot find
+ *  a real external source, omit the link entirely."
+ */
+import { invokeLLM } from "./_core/llm";
+import { runFullAudit, scoreToGrade } from "./audit.service";
+import type { AuditResult } from "./audit.service";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+export interface InternalLink {
+  url: string;
+  title: string;
+}
+
+export interface BusinessContext {
+  businessName: string;
+  websiteUrl: string;
+  brandVoice: string;
+  tone: string;
+  targetAudience: string;
+  uvp: string;
+  services: Array<{ name: string; description?: string }>;
+  primaryCtaUrl: string;
+  primaryCtaLabel: string;
+  secondaryCtas?: Array<{ url: string; label: string }>;
+  awardsCredentials?: string | null;
+}
+
+export interface Pass1Input {
+  title: string;
+  bodyHtml: string;
+  focusKeyword: string;
+  paaQuestion: string;
+  articleType: "cornerstone" | "pillar" | "cluster";
+  wordCountTarget: { min: number; max: number };
+  businessContext: BusinessContext;
+  internalLinks: InternalLink[];
+  failingPoints: string[]; // e.g. ["P1 — Keyword Density", "P9 — Opening Answer Block"]
+  url: string;
+  metaTitleOriginal: string | null;
+  metaDescriptionOriginal: string | null;
+}
+
+export interface Pass1Output {
+  bodyRewritten: string;
+  metaTitleRewritten: string;
+  metaDescriptionRewritten: string;
+}
+
+export interface RewriteResult {
+  bodyRewritten: string;
+  metaTitleRewritten: string;
+  metaDescriptionRewritten: string;
+  schemaJson: object;
+  rewriteScore: number;
+  rewriteGrade: "optimised" | "strong" | "needs_work" | "poor" | "critical";
+  auditResult: AuditResult;
+  paaQuestion: string;
+  articleType: "cornerstone" | "pillar" | "cluster";
+}
+
+// ---------------------------------------------------------------------------
+// Word count targets per article type
+// ---------------------------------------------------------------------------
+export const ARTICLE_TYPE_TARGETS: Record<
+  "cornerstone" | "pillar" | "cluster",
+  { min: number; max: number }
+> = {
+  cornerstone: { min: 2000, max: 3200 },
+  pillar: { min: 1000, max: 1999 },
+  cluster: { min: 600, max: 999 },
+};
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+/** Strip HTML tags and return plain text */
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/** Count words in a plain-text string */
+function wordCount(text: string): number {
+  return text.split(/\s+/).filter(Boolean).length;
+}
+
+/** Normalise: lowercase, collapse whitespace */
+function normalise(s: string): string {
+  return s.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/** Check if text contains the keyword */
+function containsKeyword(text: string, keyword: string): boolean {
+  return normalise(text).includes(normalise(keyword));
+}
+
+// ---------------------------------------------------------------------------
+// PAA Question Lookup
+// ---------------------------------------------------------------------------
+/**
+ * Ask the LLM to identify the single most relevant People Also Ask question
+ * for the given focus keyword. Returns the question string.
+ */
+export async function lookupPaaQuestion(focusKeyword: string): Promise<string> {
+  const response = await invokeLLM({
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are an SEO expert. Return only a JSON object — no prose, no markdown fences. " +
+          "Do not fabricate statistics, quotes, or external links. " +
+          "If you cannot find a real external source, omit the link entirely.",
+      },
+      {
+        role: "user",
+        content:
+          `Identify the single most relevant People Also Ask (PAA) question that Google shows ` +
+          `for the search query: "${focusKeyword}". ` +
+          `Return a JSON object with a single field: { "paaQuestion": "<the question>" }. ` +
+          `The question should be a real, commonly asked question that searchers have about this topic.`,
+      },
+    ],
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        name: "paa_question_result",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: {
+            paaQuestion: {
+              type: "string",
+              description: "The most relevant People Also Ask question for the keyword",
+            },
+          },
+          required: ["paaQuestion"],
+          additionalProperties: false,
+        },
+      },
+    },
+  });
+
+  const content = response.choices?.[0]?.message?.content;
+  if (!content) throw new Error("LLM returned no content for PAA lookup");
+  const parsed = JSON.parse(typeof content === "string" ? content : JSON.stringify(content));
+  return parsed.paaQuestion as string;
+}
+
+// ---------------------------------------------------------------------------
+// Article Type Inference
+// ---------------------------------------------------------------------------
+/** Infer article type from word count of the original body */
+export function inferArticleType(
+  bodyHtml: string
+): "cornerstone" | "pillar" | "cluster" {
+  const wc = wordCount(stripHtml(bodyHtml));
+  if (wc >= 2000) return "cornerstone";
+  if (wc >= 1000) return "pillar";
+  return "cluster";
+}
+
+// ---------------------------------------------------------------------------
+// Internal Link Map
+// ---------------------------------------------------------------------------
+/**
+ * Build the internal link map from a list of posts.
+ * Only includes published posts and scheduled posts with a date before this post's publish date.
+ * Never includes drafts or future-scheduled posts.
+ */
+export function buildInternalLinkMap(
+  allPosts: Array<{
+    id: string;
+    url: string;
+    title: string;
+    status: string;
+    publishDate: Date | null;
+    scheduledDate: Date | null;
+  }>,
+  thisPostId: string,
+  thisPostPublishDate: Date | null
+): InternalLink[] {
+  const now = thisPostPublishDate ?? new Date();
+  return allPosts
+    .filter((p) => {
+      if (p.id === thisPostId) return false; // Exclude self
+      if (p.status === "published") return true;
+      if (p.status === "scheduled" && p.scheduledDate && p.scheduledDate < now)
+        return true;
+      return false;
+    })
+    .map((p) => ({ url: p.url, title: p.title }));
+}
+
+// ---------------------------------------------------------------------------
+// Pass 1 — Full Rewrite
+// ---------------------------------------------------------------------------
+/** Build the Pass 1 system prompt with all 16-point requirements */
+function buildPass1SystemPrompt(input: Pass1Input): string {
+  const ctaUrls = [
+    input.businessContext.primaryCtaUrl,
+    ...(input.businessContext.secondaryCtas?.map((c) => c.url) ?? []),
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const internalLinksText =
+    input.internalLinks.length > 0
+      ? input.internalLinks
+          .slice(0, 20) // Cap at 20 to avoid token bloat
+          .map((l) => `  - "${l.title}" → ${l.url}`)
+          .join("\n")
+      : "  (no internal posts available yet)";
+
+  const failingPointsText =
+    input.failingPoints.length > 0
+      ? `The following points are currently FAILING and must be addressed:\n${input.failingPoints.map((p) => `  - ${p}`).join("\n")}`
+      : "All 16 points are currently passing — preserve all of them.";
+
+  return `You are an expert SEO content writer. Your task is to rewrite a blog post to pass the 16-Point Authority Standard.
+
+BUSINESS CONTEXT:
+- Business: ${input.businessContext.businessName}
+- Website: ${input.businessContext.websiteUrl}
+- Brand Voice: ${input.businessContext.brandVoice}
+- Tone: ${input.businessContext.tone}
+- Target Audience: ${input.businessContext.targetAudience}
+- UVP: ${input.businessContext.uvp}
+- Services: ${input.businessContext.services.map((s) => s.name).join(", ")}
+- CTA URLs: ${ctaUrls}
+${input.businessContext.awardsCredentials ? `- Credentials: ${input.businessContext.awardsCredentials}` : ""}
+
+INTERNAL LINK MAP (use these for internal blog links and CTA links):
+${internalLinksText}
+
+ARTICLE TYPE: ${input.articleType.toUpperCase()}
+WORD COUNT TARGET: ${input.wordCountTarget.min}–${input.wordCountTarget.max} words
+FOCUS KEYWORD: "${input.focusKeyword}"
+PAA QUESTION (use this to structure the opening answer block): "${input.paaQuestion}"
+
+16-POINT AUTHORITY STANDARD — ALL MUST PASS:
+P1 — Keyword Density: Focus keyword appears 4+ times. Density between 0.5% and 2.5%.
+P2 — Keyword in H1: Focus keyword or close variant in the H1 heading.
+P3 — Keyword in H2: Focus keyword or close variant in at least one H2 heading.
+P4 — Keyword in H3: Focus keyword or close variant in at least one H3 (if H3s present).
+P5 — Keyword in First 150 Words: Focus keyword appears within the first 150 words.
+P6 — Keyword in URL: (Preserved — do not change the URL.)
+P7 — Meta Title: Present, contains focus keyword, maximum 60 characters.
+P8 — Meta Description: Present, 140–160 characters.
+P9 — Opening Answer Block: Article opens with a 40–60 word direct answer to the PAA question above.
+P10 — External Authority Link: At least one link to a real, credible external source with relevant anchor text.
+P11 — Internal CTA Link: At least one link to a commercial page (use the CTA URLs above).
+P12 — Internal Blog Link: At least one link to another blog post from the internal link map above.
+P13 — Schema Markup: (Generated programmatically — do not add schema in the body.)
+P14 — E-E-A-T Signals: Include specific credentials, data points, years of experience, or case details.
+P15 — Human Authenticity: Write naturally. Avoid hollow phrases like "it's important to note", "in today's world", "dive into", "leverage". Vary sentence rhythm.
+P16 — Article Type Structure: Word count within the target range above. Title must be territory-owning and specific (not generic).
+
+${failingPointsText}
+
+CRITICAL RULES:
+- Do NOT fabricate statistics, quotes, or external links. If you cannot find a real external source, omit the link entirely.
+- Do NOT change the URL, author, publish date, or post status.
+- Preserve all passing points — do not break what is already working.
+- Write in Australian English (use 's' not 'z' for words like 'optimise', 'recognise').
+- Return ONLY a JSON object — no prose, no markdown fences outside the JSON.`;
+}
+
+/** Run Pass 1 — full rewrite via LLM */
+export async function runPass1Rewrite(input: Pass1Input): Promise<Pass1Output> {
+  const systemPrompt = buildPass1SystemPrompt(input);
+
+  const response = await invokeLLM({
+    messages: [
+      { role: "system", content: systemPrompt },
+      {
+        role: "user",
+        content:
+          `Here is the original post to rewrite:\n\n` +
+          `TITLE: ${input.title}\n\n` +
+          `BODY (HTML):\n${input.bodyHtml}\n\n` +
+          `META TITLE: ${input.metaTitleOriginal ?? "(none)"}\n` +
+          `META DESCRIPTION: ${input.metaDescriptionOriginal ?? "(none)"}\n\n` +
+          `Return a JSON object with these fields:\n` +
+          `{\n` +
+          `  "bodyRewritten": "<full rewritten body as HTML>",\n` +
+          `  "metaTitleRewritten": "<meta title — max 60 chars, contains keyword>",\n` +
+          `  "metaDescriptionRewritten": "<meta description — 140–160 chars>"\n` +
+          `}`,
+      },
+    ],
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        name: "rewrite_pass1_result",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: {
+            bodyRewritten: {
+              type: "string",
+              description: "Full rewritten body as HTML",
+            },
+            metaTitleRewritten: {
+              type: "string",
+              description: "Rewritten meta title — max 60 chars, contains keyword",
+            },
+            metaDescriptionRewritten: {
+              type: "string",
+              description: "Rewritten meta description — 140–160 chars",
+            },
+          },
+          required: ["bodyRewritten", "metaTitleRewritten", "metaDescriptionRewritten"],
+          additionalProperties: false,
+        },
+      },
+    },
+  });
+
+  const content = response.choices?.[0]?.message?.content;
+  if (!content) throw new Error("LLM returned no content for Pass 1 rewrite");
+  const parsed = JSON.parse(typeof content === "string" ? content : JSON.stringify(content));
+  return {
+    bodyRewritten: parsed.bodyRewritten as string,
+    metaTitleRewritten: parsed.metaTitleRewritten as string,
+    metaDescriptionRewritten: parsed.metaDescriptionRewritten as string,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Mechanical Enforcement Layer
+// ---------------------------------------------------------------------------
+/**
+ * Mechanical enforcement — ensures P1, P3, P5, P7, P8 always pass.
+ * Modifies the rewrite output in-place to guarantee these points pass.
+ */
+export function runMechanicalEnforcement(
+  output: Pass1Output,
+  focusKeyword: string
+): Pass1Output {
+  let { bodyRewritten, metaTitleRewritten, metaDescriptionRewritten } = output;
+
+  // --- P1: Keyword density ---
+  const plainText = stripHtml(bodyRewritten);
+  const wc = wordCount(plainText);
+  const kw = normalise(focusKeyword);
+  let kwCount = 0;
+  let searchPos = 0;
+  const lowerText = normalise(plainText);
+  while (true) {
+    const idx = lowerText.indexOf(kw, searchPos);
+    if (idx === -1) break;
+    kwCount++;
+    searchPos = idx + kw.length;
+  }
+  const density = wc > 0 ? (kwCount / wc) * 100 : 0;
+
+  // If keyword appears fewer than 4 times, inject it naturally into the text
+  if (kwCount < 4 || density < 0.5) {
+    const needed = Math.max(4 - kwCount, 0);
+    for (let i = 0; i < needed; i++) {
+      // Append a natural sentence with the keyword before the closing paragraph
+      const injection = ` For more information about ${focusKeyword}, contact us today.`;
+      bodyRewritten = bodyRewritten.replace(/<\/p>/, injection + "</p>");
+    }
+  }
+
+  // --- P3: Keyword in H2 ---
+  const h2Regex = /<h2[^>]*>(.*?)<\/h2>/gi;
+  const h2s: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = h2Regex.exec(bodyRewritten)) !== null) {
+    h2s.push(stripHtml(m[1]));
+  }
+  const hasKeywordInH2 = h2s.some((h) => containsKeyword(h, focusKeyword));
+  if (!hasKeywordInH2 && h2s.length > 0) {
+    // Append keyword phrase to the first H2
+    bodyRewritten = bodyRewritten.replace(
+      /<h2([^>]*)>(.*?)<\/h2>/i,
+      (match, attrs, content) => {
+        const stripped = stripHtml(content);
+        return `<h2${attrs}>${stripped} — ${focusKeyword}</h2>`;
+      }
+    );
+  }
+
+  // --- P5: Keyword in first 150 words ---
+  const first150 = stripHtml(bodyRewritten).split(/\s+/).slice(0, 150).join(" ");
+  if (!containsKeyword(first150, focusKeyword)) {
+    // Inject keyword into the opening paragraph
+    bodyRewritten = bodyRewritten.replace(
+      /(<p[^>]*>)(.*?)(<\/p>)/i,
+      (match, open, content, close) => {
+        const stripped = stripHtml(content);
+        return `${open}${focusKeyword.charAt(0).toUpperCase() + focusKeyword.slice(1)} — ${stripped}${close}`;
+      }
+    );
+  }
+
+  // --- P7: Meta title — max 60 chars, must contain keyword ---
+  if (!containsKeyword(metaTitleRewritten, focusKeyword)) {
+    metaTitleRewritten = `${focusKeyword.charAt(0).toUpperCase() + focusKeyword.slice(1)} | ${metaTitleRewritten}`;
+  }
+  if (metaTitleRewritten.length > 60) {
+    metaTitleRewritten = metaTitleRewritten.slice(0, 57) + "...";
+  }
+
+  // --- P8: Meta description — 140–160 chars ---
+  if (metaDescriptionRewritten.length > 160) {
+    metaDescriptionRewritten = metaDescriptionRewritten.slice(0, 157) + "...";
+  } else if (metaDescriptionRewritten.length < 140) {
+    const padding = ` Learn more about ${focusKeyword} and how we can help you today.`;
+    // Repeat padding until we reach 140 chars, then slice to 160
+    while (metaDescriptionRewritten.length < 140) {
+      metaDescriptionRewritten += padding;
+    }
+    metaDescriptionRewritten = metaDescriptionRewritten.slice(0, 160);
+  }
+
+  return { bodyRewritten, metaTitleRewritten, metaDescriptionRewritten };
+}
+
+// ---------------------------------------------------------------------------
+// Pass 2 — Fingerprint Scrub
+// ---------------------------------------------------------------------------
+/**
+ * Pass 2 — AI fingerprint scrub.
+ * Rewrites language patterns only. Does NOT change SEO structure, keywords, links, or facts.
+ */
+export async function runPass2FingerprintScrub(
+  output: Pass1Output,
+  focusKeyword: string
+): Promise<Pass1Output> {
+  const response = await invokeLLM({
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are an expert editor specialising in making AI-generated content sound human. " +
+          "Your task is to rewrite ONLY the language patterns — transitions, qualifiers, sentence rhythm. " +
+          "You MUST NOT change: SEO structure, headings, focus keywords, links, facts, statistics, or schema. " +
+          "Do not fabricate statistics, quotes, or external links. " +
+          "Write in Australian English (use 's' not 'z' for words like 'optimise', 'recognise'). " +
+          "Avoid hollow AI phrases like: 'it's important to note', 'in today's world', 'dive into', " +
+          "'leverage', 'game-changer', 'seamlessly', 'delve', 'robust', 'comprehensive'. " +
+          "Vary sentence length and rhythm. Return ONLY a JSON object — no prose, no markdown fences.",
+      },
+      {
+        role: "user",
+        content:
+          `Rewrite the language patterns of this article to sound natural and human. ` +
+          `Focus keyword (must remain unchanged): "${focusKeyword}"\n\n` +
+          `BODY HTML:\n${output.bodyRewritten}\n\n` +
+          `META TITLE: ${output.metaTitleRewritten}\n` +
+          `META DESCRIPTION: ${output.metaDescriptionRewritten}\n\n` +
+          `Return: { "bodyRewritten": "...", "metaTitleRewritten": "...", "metaDescriptionRewritten": "..." }`,
+      },
+    ],
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        name: "rewrite_pass2_result",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: {
+            bodyRewritten: { type: "string" },
+            metaTitleRewritten: { type: "string" },
+            metaDescriptionRewritten: { type: "string" },
+          },
+          required: ["bodyRewritten", "metaTitleRewritten", "metaDescriptionRewritten"],
+          additionalProperties: false,
+        },
+      },
+    },
+  });
+
+  const content = response.choices?.[0]?.message?.content;
+  if (!content) throw new Error("LLM returned no content for Pass 2 scrub");
+  const parsed = JSON.parse(typeof content === "string" ? content : JSON.stringify(content));
+  return {
+    bodyRewritten: parsed.bodyRewritten as string,
+    metaTitleRewritten: parsed.metaTitleRewritten as string,
+    metaDescriptionRewritten: parsed.metaDescriptionRewritten as string,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Schema Generation
+// ---------------------------------------------------------------------------
+/**
+ * Generate Article schema, Breadcrumb schema, and (for Cornerstone/Pillar) FAQ schema.
+ * All generated programmatically — no LLM call needed.
+ */
+export function generateSchema(params: {
+  title: string;
+  url: string;
+  businessName: string;
+  websiteUrl: string;
+  publishDate: Date | null;
+  articleType: "cornerstone" | "pillar" | "cluster";
+  bodyHtml: string;
+}): object {
+  const { title, url, businessName, websiteUrl, publishDate, articleType, bodyHtml } = params;
+
+  const articleSchema = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: title,
+    url: url,
+    publisher: {
+      "@type": "Organization",
+      name: businessName,
+      url: websiteUrl,
+    },
+    datePublished: publishDate ? publishDate.toISOString() : undefined,
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": url,
+    },
+  };
+
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: websiteUrl,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Blog",
+        item: `${websiteUrl}/blog`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: title,
+        item: url,
+      },
+    ],
+  };
+
+  const schemas: object[] = [articleSchema, breadcrumbSchema];
+
+  // FAQ schema for Cornerstone and Pillar articles
+  if (articleType === "cornerstone" || articleType === "pillar") {
+    // Extract H3 headings as FAQ questions (they represent sub-questions)
+    const h3Regex = /<h3[^>]*>(.*?)<\/h3>/gi;
+    const faqItems: Array<{ question: string; answer: string }> = [];
+    let match: RegExpExecArray | null;
+    const h3Positions: Array<{ question: string; index: number }> = [];
+
+    while ((match = h3Regex.exec(bodyHtml)) !== null) {
+      h3Positions.push({ question: stripHtml(match[1]), index: match.index });
+    }
+
+    // For each H3, extract the following paragraph as the answer
+    for (let i = 0; i < Math.min(h3Positions.length, 5); i++) {
+      const { question, index } = h3Positions[i];
+      const afterH3 = bodyHtml.slice(index);
+      const pMatch = afterH3.match(/<p[^>]*>(.*?)<\/p>/i);
+      const answer = pMatch ? stripHtml(pMatch[1]).slice(0, 300) : "";
+      if (answer.length > 20) {
+        faqItems.push({ question, answer });
+      }
+    }
+
+    if (faqItems.length > 0) {
+      const faqSchema = {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        mainEntity: faqItems.map((item) => ({
+          "@type": "Question",
+          name: item.question,
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: item.answer,
+          },
+        })),
+      };
+      schemas.push(faqSchema);
+    }
+  }
+
+  return schemas;
+}
+
+// ---------------------------------------------------------------------------
+// Full Rewrite Pipeline
+// ---------------------------------------------------------------------------
+/**
+ * Orchestrates the full two-pass rewrite pipeline.
+ * Does NOT handle credit deduction or auto-retry — those are in the tRPC router.
+ */
+export async function runFullRewrite(params: {
+  post: {
+    id: string;
+    title: string;
+    bodyOriginal: string;
+    url: string;
+    focusKeyword: string;
+    metaTitleOriginal: string | null;
+    metaDescriptionOriginal: string | null;
+    publishDate: Date | null;
+    scheduledDate: Date | null;
+    status: string;
+  };
+  businessContext: BusinessContext;
+  internalLinks: InternalLink[];
+  failingPoints: string[];
+  paaQuestion: string;
+}): Promise<RewriteResult> {
+  const { post, businessContext, internalLinks, failingPoints, paaQuestion } = params;
+
+  const articleType = inferArticleType(post.bodyOriginal);
+  const wordCountTarget = ARTICLE_TYPE_TARGETS[articleType];
+
+  // --- Pass 1: Full rewrite ---
+  const pass1Input: Pass1Input = {
+    title: post.title,
+    bodyHtml: post.bodyOriginal,
+    focusKeyword: post.focusKeyword,
+    paaQuestion,
+    articleType,
+    wordCountTarget,
+    businessContext,
+    internalLinks,
+    failingPoints,
+    url: post.url,
+    metaTitleOriginal: post.metaTitleOriginal,
+    metaDescriptionOriginal: post.metaDescriptionOriginal,
+  };
+
+  let pass1Output = await runPass1Rewrite(pass1Input);
+
+  // --- Mechanical Enforcement Layer ---
+  pass1Output = runMechanicalEnforcement(pass1Output, post.focusKeyword);
+
+  // --- Pass 2: Fingerprint Scrub ---
+  const pass2Output = await runPass2FingerprintScrub(pass1Output, post.focusKeyword);
+
+  // --- Schema Generation ---
+  const schemaJson = generateSchema({
+    title: post.title,
+    url: post.url,
+    businessName: businessContext.businessName,
+    websiteUrl: businessContext.websiteUrl,
+    publishDate: post.publishDate,
+    articleType,
+    bodyHtml: pass2Output.bodyRewritten,
+  });
+
+  // --- Re-scoring ---
+  const auditInput = {
+    title: post.title,
+    bodyHtml: pass2Output.bodyRewritten,
+    url: post.url,
+    focusKeyword: post.focusKeyword,
+    metaTitle: pass2Output.metaTitleRewritten,
+    metaDescription: pass2Output.metaDescriptionRewritten,
+    primaryCtaUrl: businessContext.primaryCtaUrl,
+    secondaryCtaUrls: businessContext.secondaryCtas?.map((c) => c.url) ?? [],
+  };
+  const auditResult = await runFullAudit(auditInput);
+  const rewriteScore = auditResult.score;
+  const rewriteGrade = scoreToGrade(rewriteScore);
+
+  return {
+    bodyRewritten: pass2Output.bodyRewritten,
+    metaTitleRewritten: pass2Output.metaTitleRewritten,
+    metaDescriptionRewritten: pass2Output.metaDescriptionRewritten,
+    schemaJson,
+    rewriteScore,
+    rewriteGrade,
+    auditResult,
+    paaQuestion,
+    articleType,
+  };
+}

@@ -43,6 +43,13 @@
       "when": 1780446664517,
       "tag": "0005_massive_the_liberteens",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1780448180228,
+      "tag": "0006_marvelous_vulcan",
+      "breakpoints": true
     }
   ]
 }

@@ -1,5 +1,5 @@
 /**
- * iAudit — Post List (Layers 5 + 6)
+ * iAudit — Post List (Layers 5, 6 + 7)
  *
  * Displays all imported posts for a business with:
  * - Keyword status badge (cms_scraped / ai_suggested / user_entered / missing)
@@ -9,6 +9,7 @@
  * - Audit All button with progress indicator (Layer 6)
  * - Per-post audit results panel (score, grade badge, passing/failing points) (Layer 6)
  * - Dashboard overview (health score, grade breakdown, score potential) (Layer 6)
+ * - Fix This Post rewrite flow: PAA modal → progress → result panel (Layer 7)
  */
 import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
@@ -44,6 +45,8 @@ import {
   XCircle,
   Minus,
   Zap,
+  FileText,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -61,6 +64,9 @@ interface Post {
   auditStatus?: string | null;
   auditScore?: number | null;
   auditGrade?: string | null;
+  rewriteStatus?: string | null;
+  rewriteScore?: number | null;
+  rewriteGrade?: string | null;
 }
 
 interface KeywordSuggestion {
@@ -200,10 +206,12 @@ function AuditResultsPanel({
   postId,
   iauditUserId,
   onClose,
+  onFix,
 }: {
   postId: string;
   iauditUserId: string;
   onClose: () => void;
+  onFix?: () => void;
 }) {
   const { data, isLoading } = trpc.audit.getPostResults.useQuery(
     { postId, iauditUserId },
@@ -356,8 +364,8 @@ function AuditResultsPanel({
           size="sm"
           className="w-full gap-2 font-semibold"
           onClick={() => {
-            toast.info("Rewrite engine coming in Layer 7.");
             onClose();
+            onFix?.();
           }}
         >
           <Zap size={14} />
@@ -474,9 +482,289 @@ function DashboardOverview({
 }
 
 // ---------------------------------------------------------------------------
+// Rewrite Result Panel (Layer 7)
+// ---------------------------------------------------------------------------
+function RewriteResultPanel({
+  postId,
+  iauditUserId,
+  auditScore,
+  auditGrade,
+  onClose,
+}: {
+  postId: string;
+  iauditUserId: string;
+  auditScore: number | null;
+  auditGrade: string | null;
+  onClose: () => void;
+}) {
+  const { data, isLoading } = trpc.rewrite.getRewriteResult.useQuery(
+    { postId, iauditUserId },
+    { enabled: !!postId && !!iauditUserId }
+  );
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="animate-spin text-primary" size={24} />
+      </div>
+    );
+  }
+  if (!data) {
+    return (
+      <div className="text-sm text-muted-foreground py-4 text-center">
+        Rewrite result not available.
+      </div>
+    );
+  }
+  const improved =
+    data.rewriteScore !== null &&
+    auditScore !== null &&
+    data.rewriteScore > auditScore;
+  return (
+    <div className="space-y-4">
+      {/* Score comparison header */}
+      <div className="flex items-center gap-4 pb-3 border-b border-border">
+        <div>
+          <div className="text-xs text-muted-foreground mb-0.5">Before</div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xl font-bold text-muted-foreground">
+              {auditScore ?? "—"}/16
+            </span>
+            <GradeBadge grade={auditGrade} />
+          </div>
+        </div>
+        {improved && (
+          <div className="text-muted-foreground text-lg">→</div>
+        )}
+        <div>
+          <div className="text-xs text-muted-foreground mb-0.5">After</div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xl font-bold text-foreground">
+              {data.rewriteScore ?? "—"}/16
+            </span>
+            <GradeBadge grade={data.rewriteGrade} />
+          </div>
+        </div>
+        {data.rewriteStatus === "needs_manual_review" && (
+          <div className="ml-auto flex items-center gap-1.5 text-xs text-amber-400">
+            <AlertTriangle size={14} />
+            Needs manual review
+          </div>
+        )}
+      </div>
+      {/* PAA question */}
+      {data.paaQuestion && (
+        <div className="bg-card border border-border rounded-lg px-4 py-3">
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+            PAA Question Answered
+          </div>
+          <div className="text-sm text-foreground">{data.paaQuestion}</div>
+        </div>
+      )}
+      {/* Meta title */}
+      {data.metaTitleRewritten && (
+        <div className="bg-card border border-border rounded-lg px-4 py-3">
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+            Meta Title
+          </div>
+          <div className="text-sm text-foreground">{data.metaTitleRewritten}</div>
+        </div>
+      )}
+      {/* Meta description */}
+      {data.metaDescriptionRewritten && (
+        <div className="bg-card border border-border rounded-lg px-4 py-3">
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+            Meta Description
+          </div>
+          <div className="text-sm text-foreground">{data.metaDescriptionRewritten}</div>
+        </div>
+      )}
+      {/* Rewritten body preview */}
+      {data.bodyRewritten && (
+        <div className="bg-card border border-border rounded-lg px-4 py-3">
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Rewritten Content Preview
+          </div>
+          <div className="text-sm text-foreground whitespace-pre-wrap line-clamp-12 font-mono text-xs leading-relaxed">
+            {data.bodyRewritten.slice(0, 1200)}
+            {data.bodyRewritten.length > 1200 && (
+              <span className="text-muted-foreground"> … (truncated)</span>
+            )}
+          </div>
+        </div>
+      )}
+      {/* Close */}
+      <div className="pt-1">
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full"
+          onClick={onClose}
+        >
+          Close
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Rewrite Modal (Layer 7) — PAA confirmation → running → result summary
+// ---------------------------------------------------------------------------
+function RewriteModal({
+  post,
+  open,
+  step,
+  paaQuestion,
+  paaSuggested,
+  paaLoading,
+  onPaaChange,
+  onConfirm,
+  onClose,
+  rewriteResult,
+}: {
+  post: Post | null;
+  open: boolean;
+  step: "paa" | "running" | "result" | "view_result";
+  paaQuestion: string;
+  paaSuggested: string;
+  paaLoading: boolean;
+  onPaaChange: (v: string) => void;
+  onConfirm: () => void;
+  onClose: () => void;
+  rewriteResult?: { rewriteScore: number; rewriteGrade: string; needsManualReview: boolean; message?: string } | null;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Zap size={18} className="text-primary" />
+            {step === "paa" && "Fix This Post"}
+            {step === "running" && "Rewriting…"}
+            {step === "result" && "Rewrite Complete"}
+          </DialogTitle>
+          {step === "paa" && (
+            <DialogDescription>
+              Confirm the PAA question to answer in this post. The rewrite will
+              open with a direct answer to this question.
+            </DialogDescription>
+          )}
+        </DialogHeader>
+
+        {/* PAA step */}
+        {step === "paa" && (
+          <div className="space-y-4 pt-2">
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">
+                People Also Ask question
+              </label>
+              {paaLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 size={14} className="animate-spin" />
+                  Looking up top PAA question…
+                </div>
+              ) : (
+                <>
+                  {paaSuggested && (
+                    <button
+                      type="button"
+                      className={`w-full text-left text-sm rounded-lg border px-3 py-2.5 mb-2 transition-colors ${
+                        paaQuestion === paaSuggested
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border hover:border-primary/50 text-foreground"
+                      }`}
+                      onClick={() => onPaaChange(paaSuggested)}
+                    >
+                      <span className="text-xs text-muted-foreground block mb-0.5">Suggested</span>
+                      {paaSuggested}
+                    </button>
+                  )}
+                  <Input
+                    placeholder="Or type your own PAA question…"
+                    value={paaQuestion === paaSuggested ? "" : paaQuestion}
+                    onChange={(e) => onPaaChange(e.target.value)}
+                    className="text-sm"
+                  />
+                </>
+              )}
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={onClose}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="flex-1 gap-1.5"
+                disabled={!paaQuestion.trim() || paaLoading}
+                onClick={onConfirm}
+              >
+                <Zap size={14} />
+                Fix This Post · 1 Credit
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Running step */}
+        {step === "running" && (
+          <div className="space-y-4 py-4">
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 size={32} className="animate-spin text-primary" />
+              <div className="text-sm text-foreground font-medium">
+                Rewriting {post?.title ?? "post"}…
+              </div>
+              <div className="text-xs text-muted-foreground text-center max-w-xs">
+                Running two-pass AI rewrite with SEO enforcement. This usually
+                takes 30–90 seconds.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Result step */}
+        {step === "result" && rewriteResult && (
+          <div className="space-y-4 pt-2">
+            {rewriteResult.needsManualReview ? (
+              <div className="flex items-start gap-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-3 text-sm text-amber-300">
+                <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+                <div>
+                  <div className="font-semibold mb-0.5">Needs Manual Review</div>
+                  <div className="text-xs">
+                    {rewriteResult.message ?? "The rewrite scored below 13/16 after two attempts. Your credit has been refunded."}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-start gap-2.5 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-3 text-sm text-emerald-300">
+                <CheckCircle2 size={16} className="shrink-0 mt-0.5" />
+                <div>
+                  <div className="font-semibold mb-0.5">Rewrite Complete</div>
+                  <div className="text-xs">
+                    Scored {rewriteResult.rewriteScore}/16
+                    ({GRADE_CONFIG[rewriteResult.rewriteGrade]?.label ?? rewriteResult.rewriteGrade}).
+                    The rewritten content is ready to review.
+                  </div>
+                </div>
+              </div>
+            )}
+            <Button size="sm" className="w-full" onClick={onClose}>
+              Close
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // AI Keyword Suggestion Modal
 // ---------------------------------------------------------------------------
-
 function KeywordSuggestionModal({
   post,
   open,
@@ -698,17 +986,24 @@ export default function PostList() {
   const [expandedAuditPostId, setExpandedAuditPostId] = useState<string | null>(
     null
   );
-  const [auditingAll, setAuditingAll] = useState(false);
+    const [auditingAll, setAuditingAll] = useState(false);
   const [auditProgress, setAuditProgress] = useState(0);
-
+  // Layer 7 rewrite state
+  const [rewritePost, setRewritePost] = useState<Post | null>(null);
+  const [rewriteStep, setRewriteStep] = useState<"paa" | "running" | "result" | "view_result">("paa");
+  const [paaQuestion, setPaaQuestion] = useState("");
+  const [paaLoading, setPaaLoading] = useState(false);
+  const [paaSuggested, setPaaSuggested] = useState("");
+  const [expandedRewritePostId, setExpandedRewritePostId] = useState<string | null>(null);
   const { data, isLoading, refetch } = trpc.keyword.listPosts.useQuery(
     { businessId, iauditUserId: iauditUserId ?? "" },
     { enabled: !!businessId && !!iauditUserId }
   );
-
   const scanMutation = trpc.keyword.runCannibalisationScan.useMutation();
   const auditAllMutation = trpc.audit.runAuditAll.useMutation();
   const auditOneMutation = trpc.audit.runAudit.useMutation();
+  const getPaaMutation = trpc.rewrite.getPaaQuestion.useMutation();
+  const runRewriteMutation = trpc.rewrite.runRewrite.useMutation();
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -776,7 +1071,7 @@ export default function PostList() {
     }, 800);
   };
 
-  const handleAuditOne = (post: Post) => {
+    const handleAuditOne = (post: Post) => {
     if (!iauditUserId) return;
     auditOneMutation.mutate(
       { postId: post.id, iauditUserId },
@@ -790,6 +1085,63 @@ export default function PostList() {
         },
         onError: () => {
           toast.error("Audit failed. Please try again.");
+        },
+      }
+    );
+  };
+
+  /** Open the PAA modal for a post (Layer 7 rewrite flow) */
+  const handleFix = (post: Post) => {
+    if (!iauditUserId) return;
+    setRewritePost(post);
+    setRewriteStep("paa");
+    setPaaQuestion("");
+    setPaaSuggested("");
+    setPaaLoading(true);
+    getPaaMutation.mutate(
+      { postId: post.id, iauditUserId },
+      {
+        onSuccess: (res) => {
+          setPaaSuggested(res.paaQuestion);
+          setPaaQuestion(res.paaQuestion);
+          setPaaLoading(false);
+        },
+        onError: () => {
+          setPaaLoading(false);
+          // Still allow user to type their own
+        },
+      }
+    );
+  };
+
+  /** Run the rewrite after PAA confirmation */
+  const handleRunRewrite = () => {
+    if (!rewritePost || !iauditUserId || !paaQuestion.trim()) return;
+    setRewriteStep("running");
+    runRewriteMutation.mutate(
+      { postId: rewritePost.id, iauditUserId, paaQuestion: paaQuestion.trim() },
+      {
+        onSuccess: (result) => {
+          refetch();
+          setRewriteStep("result");
+          if (result.needsManualReview) {
+            toast.warning(
+              result.message ?? "Rewrite needs manual review. Credit refunded."
+            );
+          } else {
+            toast.success(
+              `Rewrite complete — ${result.rewriteScore}/16 (${GRADE_CONFIG[result.rewriteGrade]?.label ?? result.rewriteGrade})`
+            );
+          }
+        },
+        onError: (err) => {
+          setRewriteStep("paa");
+          const msg = err.message?.includes("INSUFFICIENT_CREDITS")
+            ? "You have no credits remaining. Buy more to continue."
+            : err.message?.includes("cannibalisation")
+            ? "Resolve the duplicate keyword before rewriting."
+            : "Rewrite failed. Please try again.";
+          toast.error(msg);
         },
       }
     );
@@ -1046,14 +1398,28 @@ export default function PostList() {
                           <Button
                             size="sm"
                             className="text-xs h-7 px-2.5 gap-1"
-                            onClick={() => {
-                              toast.info("Rewrite engine coming in Layer 7.");
-                            }}
+                            onClick={() => handleFix(post)}
                           >
                             <Zap size={12} />
                             Fix
                           </Button>
                         )
+                      )}
+                      {/* View Rewrite button — shown when rewrite is complete */}
+                      {post.rewriteStatus === "complete" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs h-7 px-2.5 gap-1 text-emerald-400 border-emerald-400/40 hover:bg-emerald-400/10"
+                          onClick={() =>
+                            setExpandedRewritePostId(
+                              expandedRewritePostId === post.id ? null : post.id
+                            )
+                          }
+                        >
+                          <FileText size={12} />
+                          Rewrite
+                        </Button>
                       )}
                     </div>
                   </div>
@@ -1065,6 +1431,19 @@ export default function PostList() {
                         postId={post.id}
                         iauditUserId={iauditUserId}
                         onClose={() => setExpandedAuditPostId(null)}
+                        onFix={() => handleFix(post)}
+                      />
+                    </div>
+                  )}
+                  {/* Expanded rewrite result */}
+                  {expandedRewritePostId === post.id && iauditUserId && (
+                    <div className="border-t border-border px-5 py-4">
+                      <RewriteResultPanel
+                        postId={post.id}
+                        iauditUserId={iauditUserId}
+                        auditScore={post.auditScore ?? null}
+                        auditGrade={post.auditGrade ?? null}
+                        onClose={() => setExpandedRewritePostId(null)}
                       />
                     </div>
                   )}
@@ -1081,6 +1460,33 @@ export default function PostList() {
         open={!!modalPost}
         onClose={() => setModalPost(null)}
         onConfirmed={() => refetch()}
+      />
+      {/* Rewrite Modal (Layer 7) */}
+      <RewriteModal
+        post={rewritePost}
+        open={!!rewritePost}
+        step={rewriteStep}
+        paaQuestion={paaQuestion}
+        paaSuggested={paaSuggested}
+        paaLoading={paaLoading}
+        onPaaChange={setPaaQuestion}
+        onConfirm={handleRunRewrite}
+        onClose={() => {
+          if (rewriteStep !== "running") {
+            setRewritePost(null);
+            setRewriteStep("paa");
+          }
+        }}
+        rewriteResult={
+          rewriteStep === "result" && runRewriteMutation.data
+            ? {
+                rewriteScore: runRewriteMutation.data.rewriteScore,
+                rewriteGrade: runRewriteMutation.data.rewriteGrade,
+                needsManualReview: runRewriteMutation.data.needsManualReview,
+                message: runRewriteMutation.data.message,
+              }
+            : null
+        }
       />
     </div>
   );

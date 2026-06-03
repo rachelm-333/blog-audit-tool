@@ -45,6 +45,12 @@ export async function listPostsForBusiness(businessId: string): Promise<
     url: string;
     cannibalizationFlag: boolean;
     keywordSource: string | null;
+    auditStatus: string | null;
+    auditScore: number | null;
+    auditGrade: string | null;
+    rewriteStatus: string | null;
+    rewriteScore: number | null;
+    rewriteGrade: string | null;
   }>
 > {
   const db = await getDb();
@@ -57,6 +63,12 @@ export async function listPostsForBusiness(businessId: string): Promise<
       url: posts.url,
       cannibalizationFlag: posts.cannibalizationFlag,
       keywordSource: posts.keywordSource,
+      auditStatus: posts.auditStatus,
+      auditScore: posts.auditScore,
+      auditGrade: posts.auditGrade,
+      rewriteStatus: posts.rewriteStatus,
+      rewriteScore: posts.rewriteScore,
+      rewriteGrade: posts.rewriteGrade,
     })
     .from(posts)
     .where(eq(posts.businessId, businessId));

@@ -162,3 +162,45 @@
 - [x] Verify: dashboard shows health score, grade breakdown, score potential
 - [x] Verify: audit consumes zero credits
 - [x] Vitest tests for all Layer 6 flows (223 total tests pass — 34 Layer 6 + all prior layers)
+
+## Layer 7: Rewrite Engine (Section 11 of Scope)
+
+- [ ] Add `paa_question` TEXT column to posts table
+- [ ] Add `article_type` enum column (cornerstone/pillar/cluster) to posts table
+- [ ] Add `schema_json` JSON column to posts table
+- [ ] Add `rewrite_status` enum column (pending/running/complete/failed/needs_manual_review) to posts table
+- [ ] Add `rewritten_at` TIMESTAMP column to posts table
+- [ ] Run migration for new posts columns
+- [ ] Build PAA lookup service: LLM call with keyword → most relevant People Also Ask question
+- [ ] Build article type inference: cornerstone (2000+ words), pillar (1000–1999), cluster (<1000)
+- [ ] Build internal link map builder: all published posts + scheduled posts before this post's date
+- [ ] Build Pass 1 rewrite: LLM call with full context (keyword, PAA, article type, word count target, business profile, internal link map, 16-point requirements, failing points list)
+- [ ] Build mechanical enforcement layer: P1 density, P3 H2 keyword, P5 first 150 words, P7 meta title 60 chars, P8 meta description 140–160 chars
+- [ ] Build Pass 2 fingerprint scrub: second LLM call to rewrite language patterns only (no SEO structure/keyword/link/fact changes)
+- [ ] Build schema generation: Article + Breadcrumb schema for all posts; FAQ schema for Cornerstone/Pillar
+- [ ] Build re-scoring: run full Layer 6 audit engine against rewritten content, store rewrite_score and rewrite_grade
+- [ ] Build auto-retry: if rewrite_score < 13, retry from Pass 1 once with adjusted instructions
+- [ ] Build credit deduction: deduct 1 credit before Pass 1, log credit_transactions type=use with post_id
+- [ ] Build credit refund: if retry also scores < 13, refund 1 credit, log type=refund, set rewrite_status=needs_manual_review, notify user
+- [ ] Build zero-credits guard: block rewrite if credits_remaining=0, show "You have no credits remaining. Buy more to continue rewriting posts."
+- [ ] Build rewrite DB helpers: saveRewriteResult, setRewriteStatus, getPostForRewrite
+- [ ] Build tRPC `rewrite.getPaaQuestion` procedure (returns suggested PAA, user can confirm or change)
+- [ ] Build tRPC `rewrite.runRewrite` procedure (full pipeline: credit deduct → Pass 1 → enforce → Pass 2 → schema → re-score → auto-retry → save)
+- [ ] Build tRPC `rewrite.getRewriteResult` procedure (returns rewrite result for a post)
+- [ ] Wire rewrite router into routers.ts
+- [ ] Frontend: PAA confirmation modal (shows suggested PAA, user can confirm or type their own before rewrite starts)
+- [ ] Frontend: Fix This Post button triggers PAA modal then rewrite
+- [ ] Frontend: rewrite progress indicator (step-by-step: Deducting credit → Pass 1 → Enforcing → Pass 2 → Scoring → Done)
+- [ ] Frontend: rewrite results panel (rewrite_score, rewrite_grade, comparison with audit_score)
+- [ ] Frontend: zero-credits error message
+- [ ] Frontend: needs_manual_review state with user notification
+- [ ] Verify: rewrite runs end-to-end on a real post
+- [ ] Verify: both AI passes run
+- [ ] Verify: mechanical enforcement fires correctly
+- [ ] Verify: score after rewrite is at least 13
+- [ ] Verify: credit deducted from iaudit_users and logged in credit_transactions
+- [ ] Verify: auto-retry triggers if score below 13
+- [ ] Verify: credit refunded and user notified if retry also fails
+- [ ] Verify: schema generated and stored
+- [ ] Verify: zero credits remaining blocks the rewrite
+- [ ] Vitest tests for all Layer 7 flows

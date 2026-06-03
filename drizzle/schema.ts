@@ -218,6 +218,22 @@ export const posts = mysqlTable(
     ]),
     // JSONB: Full per-point pass/fail results with notes
     auditResults: json("audit_results"),
+    // Rewrite fields
+    paaQuestion: text("paa_question"), // People Also Ask question used in rewrite
+    articleType: mysqlEnum("article_type", [
+      "cornerstone",
+      "pillar",
+      "cluster",
+    ]), // Inferred from word count: cornerstone 2000+, pillar 1000-1999, cluster <1000
+    schemaJson: json("schema_json"), // Generated Article/Breadcrumb/FAQ schema JSON-LD
+    rewriteStatus: mysqlEnum("rewrite_status", [
+      "pending",
+      "running",
+      "complete",
+      "failed",
+      "needs_manual_review",
+    ]),
+    rewrittenAt: timestamp("rewritten_at"),
     rewriteScore: int("rewrite_score"), // Score after rewrite
     rewriteGrade: mysqlEnum("rewrite_grade", [
       "optimised",
