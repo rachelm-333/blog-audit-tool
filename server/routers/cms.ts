@@ -34,7 +34,19 @@ import {
   importWordPressPosts,
   WpImportException,
 } from "../wordpress.service";
-import type { WordPressCredentials } from "../encryption.service";
+import {
+  testWixConnection,
+  importWixPosts,
+  WixImportException,
+} from "../wix.service";
+import {
+  testShopifyConnection,
+  importShopifyPosts,
+  ShopifyImportException,
+} from "../shopify.service";
+import { generateZapierToken } from "../zapier.service";
+import type { WordPressCredentials, WixCredentials, ShopifyCredentials, ZapierCredentials } from "../encryption.service";
+import { encryptCredentials } from "../encryption.service";
 import { nanoid } from "nanoid";
 
 // ─── Ownership guard ──────────────────────────────────────────────────────────
@@ -77,6 +89,39 @@ function mapWpError(err: WpImportException): TRPCError {
       "The URL does not appear to be a WordPress site, or the REST API is disabled.",
   };
 
+  return new TRPCError({
+    code: err.code === "insufficient_permissions" ? "FORBIDDEN" : "BAD_REQUEST",
+    message: messages[err.code] ?? err.message,
+    cause: err,
+  });
+}
+
+// ─── Error mapping helpers ───────────────────────────────────────────────────
+
+function mapWixError(err: WixImportException): TRPCError {
+  const messages: Record<string, string> = {
+    invalid_credentials: "We could not connect to your Wix site. Please check your Site ID and API key.",
+    insufficient_permissions: "Your Wix API key does not have permission to read blog posts. Please check your Wix permissions.",
+    site_unreachable: "We could not reach the Wix API. Please try again.",
+    rate_limit: "Import paused — too many requests. We will continue automatically in 60 seconds.",
+    zero_posts: "No blog posts were found on your Wix site.",
+  };
+  return new TRPCError({
+    code: err.code === "insufficient_permissions" ? "FORBIDDEN" : "BAD_REQUEST",
+    message: messages[err.code] ?? err.message,
+    cause: err,
+  });
+}
+
+function mapShopifyError(err: ShopifyImportException): TRPCError {
+  const messages: Record<string, string> = {
+    invalid_credentials: "We could not connect to your Shopify store. Please check your store URL and access token.",
+    insufficient_permissions: "Your Shopify access token does not have permission to read blog posts. Please check your Shopify API scopes.",
+    site_unreachable: "We could not reach your Shopify store. Please check it is online and try again.",
+    rate_limit: "Import paused — too many requests. We will continue automatically in 60 seconds.",
+    zero_posts: "No blog articles were found on your Shopify store.",
+    no_blogs: "No blogs were found on your Shopify store. Please create a blog first.",
+  };
   return new TRPCError({
     code: err.code === "insufficient_permissions" ? "FORBIDDEN" : "BAD_REQUEST",
     message: messages[err.code] ?? err.message,
@@ -168,6 +213,169 @@ export const cmsRouter = router({
     }),
 
   /**
+   * Connect a Wix site.
+   */
+  connectWix: publicProcedure
+    .input(
+      z.object({
+        iauditUserId: z.string().min(1),
+        businessId: z.string().min(1),
+        siteId: z.string().min(1, "Site ID is required."),
+        apiKey: z.string().min(1, "API key is required."),
+      })
+    )
+    .mutation(async ({ input }) => {
+      await assertBusinessOwnership(input.businessId, input.iauditUserId);
+
+      const creds: WixCredentials = { siteId: input.siteId, apiKey: input.apiKey };
+
+      let displayName: string;
+      {
+        const result = await testWixConnection(creds);
+        if (!result.ok) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: result.message });
+        }
+        displayName = result.siteId;
+      }
+
+      const existing = await getCmsConnectionsByBusinessId(input.businessId);
+      const existingWix = existing.find((c) => c.platform === "wix");
+
+      if (existingWix) {
+        const db = (await import("../db")).getDb();
+        const { cmsConnections } = await import("../../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const dbInstance = await db;
+        if (dbInstance) {
+          await dbInstance.update(cmsConnections).set({
+            siteUrl: `https://www.wix.com/site/${input.siteId}`,
+            credentialsEncrypted: encryptCredentials(creds as unknown as Record<string, string>),
+            connectionStatus: "connected",
+            lastSyncAt: new Date(),
+          }).where(eq(cmsConnections.id, existingWix.id));
+        }
+        return { connectionId: existingWix.id, displayName, reconnected: true };
+      }
+
+      const connectionId = await createCmsConnection({
+        businessId: input.businessId,
+        platform: "wix",
+        siteUrl: `https://www.wix.com/site/${input.siteId}`,
+        credentials: creds,
+      });
+      return { connectionId, displayName, reconnected: false };
+    }),
+
+  /**
+   * Connect a Shopify store.
+   */
+  connectShopify: publicProcedure
+    .input(
+      z.object({
+        iauditUserId: z.string().min(1),
+        businessId: z.string().min(1),
+        shop: z.string().min(1, "Store URL is required."),
+        accessToken: z.string().min(1, "Access token is required."),
+      })
+    )
+    .mutation(async ({ input }) => {
+      await assertBusinessOwnership(input.businessId, input.iauditUserId);
+
+      const creds: ShopifyCredentials = { shop: input.shop, accessToken: input.accessToken };
+
+      let displayName: string;
+      {
+        const result = await testShopifyConnection(creds);
+        if (!result.ok) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: result.message });
+        }
+        displayName = result.shop;
+      }
+
+      const existing = await getCmsConnectionsByBusinessId(input.businessId);
+      const existingShopify = existing.find((c) => c.platform === "shopify");
+
+      if (existingShopify) {
+        const db = (await import("../db")).getDb();
+        const { cmsConnections } = await import("../../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const dbInstance = await db;
+        if (dbInstance) {
+          await dbInstance.update(cmsConnections).set({
+            siteUrl: `https://${input.shop}`,
+            credentialsEncrypted: encryptCredentials(creds as unknown as Record<string, string>),
+            connectionStatus: "connected",
+            lastSyncAt: new Date(),
+          }).where(eq(cmsConnections.id, existingShopify.id));
+        }
+        return { connectionId: existingShopify.id, displayName, reconnected: true };
+      }
+
+      const connectionId = await createCmsConnection({
+        businessId: input.businessId,
+        platform: "shopify",
+        siteUrl: `https://${input.shop}`,
+        credentials: creds,
+      });
+      return { connectionId, displayName, reconnected: false };
+    }),
+
+  /**
+   * Connect via Zapier (generates inbound webhook token).
+   */
+  connectZapier: publicProcedure
+    .input(
+      z.object({
+        iauditUserId: z.string().min(1),
+        businessId: z.string().min(1),
+        outboundWebhookUrl: z.string().url().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      await assertBusinessOwnership(input.businessId, input.iauditUserId);
+
+      const webhookSecret = generateZapierToken();
+      const creds: ZapierCredentials = {
+        webhookSecret,
+        outboundWebhookUrl: input.outboundWebhookUrl,
+      };
+
+      const existing = await getCmsConnectionsByBusinessId(input.businessId);
+      const existingZapier = existing.find((c) => c.platform === "zapier");
+
+      let connectionId: string;
+      if (existingZapier) {
+        const db = (await import("../db")).getDb();
+        const { cmsConnections } = await import("../../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const dbInstance = await db;
+        if (dbInstance) {
+          await dbInstance.update(cmsConnections).set({
+            credentialsEncrypted: encryptCredentials(creds as unknown as Record<string, string>),
+            connectionStatus: "connected",
+            lastSyncAt: new Date(),
+          }).where(eq(cmsConnections.id, existingZapier.id));
+        }
+        connectionId = existingZapier.id;
+      } else {
+        connectionId = await createCmsConnection({
+          businessId: input.businessId,
+          platform: "zapier",
+          siteUrl: "https://zapier.com",
+          credentials: creds,
+        });
+      }
+
+      // Return the inbound webhook URL for the user to configure in Zapier
+      return {
+        connectionId,
+        webhookSecret,
+        inboundUrl: `/api/zapier/inbound/${webhookSecret}`,
+        reconnected: !!existingZapier,
+      };
+    }),
+
+  /**
    * Test an existing connection by re-validating credentials.
    */
   testConnection: publicProcedure
@@ -180,28 +388,46 @@ export const cmsRouter = router({
     .mutation(async ({ input }) => {
       const connection = await assertConnectionOwnership(input.connectionId, input.iauditUserId);
 
-      if (connection.platform !== "wordpress") {
-        return { success: true, message: "Connection test not available for this platform yet." };
-      }
-
       const rawCreds = decryptConnectionCredentials(connection);
-      const creds: WordPressCredentials = {
-        siteUrl: rawCreds["siteUrl"] ?? "",
-        username: rawCreds["username"] ?? "",
-        applicationPassword: rawCreds["applicationPassword"] ?? "",
-      };
 
       try {
-        const result = await testWordPressConnection(creds);
-        await updateCmsConnectionStatus(connection.id, "connected", new Date());
-        return { success: true, displayName: result.displayName };
+        if (connection.platform === "wordpress") {
+          const creds: WordPressCredentials = {
+            siteUrl: rawCreds["siteUrl"] ?? "",
+            username: rawCreds["username"] ?? "",
+            applicationPassword: rawCreds["applicationPassword"] ?? "",
+          };
+          const result = await testWordPressConnection(creds);
+          await updateCmsConnectionStatus(connection.id, "connected", new Date());
+          return { success: true, displayName: result.displayName };
+        } else if (connection.platform === "wix") {
+          const creds: WixCredentials = { siteId: rawCreds["siteId"] ?? "", apiKey: rawCreds["apiKey"] ?? "" };
+          const wixResult = await testWixConnection(creds);
+          if (!wixResult.ok) {
+            await updateCmsConnectionStatus(connection.id, "error");
+            throw new TRPCError({ code: "BAD_REQUEST", message: wixResult.message });
+          }
+          await updateCmsConnectionStatus(connection.id, "connected", new Date());
+          return { success: true, displayName: wixResult.siteId };
+        } else if (connection.platform === "shopify") {
+          const creds: ShopifyCredentials = { shop: rawCreds["shop"] ?? "", accessToken: rawCreds["accessToken"] ?? "" };
+          const shopifyResult = await testShopifyConnection(creds);
+          if (!shopifyResult.ok) {
+            await updateCmsConnectionStatus(connection.id, "error");
+            throw new TRPCError({ code: "BAD_REQUEST", message: shopifyResult.message });
+          }
+          await updateCmsConnectionStatus(connection.id, "connected", new Date());
+          return { success: true, displayName: shopifyResult.shop };
+        } else {
+          // Zapier — no active test possible
+          return { success: true, displayName: "Zapier Webhook" };
+        }
       } catch (err) {
         await updateCmsConnectionStatus(connection.id, "error");
         if (err instanceof WpImportException) throw mapWpError(err);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Connection test failed.",
-        });
+        if (err instanceof WixImportException) throw mapWixError(err);
+        if (err instanceof ShopifyImportException) throw mapShopifyError(err);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Connection test failed." });
       }
     }),
 

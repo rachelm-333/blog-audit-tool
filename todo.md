@@ -28,7 +28,7 @@
 - [ ] Layer 10: Free Public Audit Tool (/audit)
 - [ ] Layer 11: Dashboard
 - [ ] Layer 12: Credits & Stripe
-- [ ] Layer 13: Wix & Shopify CMS integrations
+- [x] Layer 13: Wix & Shopify CMS integrations
 - [ ] Layer 14: Agency features
 - [ ] Layer 15: Admin Panel
 - [ ] Layer 16: Support Centre
@@ -318,3 +318,20 @@
 - [x] Updated DashboardLayout sidebar nav with all 5 iAudit links
 - [x] Write Layer 12 vitest tests (25 new tests, 360 total)
 - [x] Run full test suite — all 360 tests pass, zero TypeScript errors
+
+## Layer 13: Wix, Shopify, and Zapier CMS Integrations (Sections 8, 13, 16.2, 16.3, 16.4)
+
+- [x] Build `server/wix.service.ts` — connectWix (validate credentials), importWixPosts (GET /blog/v3/posts, map all fields), postBackToWix (PATCH /blog/v3/posts/{id}, body+meta only, always show JSON-LD fallback)
+- [x] Build `server/shopify.service.ts` — connectShopify (validate credentials), importShopifyPosts (GET /blogs/{blog_id}/articles.json + metafields), postBackToShopify (PUT /blogs/{blog_id}/articles/{id}.json, fetch-then-merge pattern)
+- [x] Build `server/zapier.service.ts` — generateWebhookToken (unique per connection), handleInboundWebhook (create/update posts row), sendOutboundWebhook (POST to user-configured URL with approved content payload)
+- [x] Register Express routes for Zapier inbound webhooks at POST /api/zapier/inbound/:token (public, no auth)
+- [x] Update `server/routers/cms.ts` — wire Wix connect/import, Shopify connect/import, Zapier connect/getWebhookUrl procedures
+- [x] Update `server/postback.service.ts` — dispatch to correct platform service based on cms_platform field
+- [x] Update `server/routers/postback.ts` — wire Wix and Shopify post-back (Wix always shows JSON-LD fallback, no API injection attempt)
+- [x] Update CMS connection frontend — all 4 platform options fully functional (WordPress, Wix, Shopify, Other/Zapier)
+- [x] Wix connection form: Site ID + API Key fields
+- [x] Shopify connection form: Store URL + Admin API access token fields
+- [x] Zapier connection: show unique inbound webhook URL + outbound webhook URL input field
+- [x] Platform selector: all 4 options selectable, no "Coming soon" stubs
+- [x] Write Layer 13 vitest tests (25 new tests)
+- [x] Run full test suite — all 385 tests pass, zero TypeScript errors

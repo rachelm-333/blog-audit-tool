@@ -32,8 +32,11 @@ import {
   postBackToWordPress,
   PostBackException,
 } from "../postback.service";
+import { postBackToWix } from "../wix.service";
+import { postBackToShopify } from "../shopify.service";
+import { postBackViaZapier } from "../zapier.service";
 import { getCreditsRemaining } from "../rewrite.db";
-import type { WordPressCredentials } from "../encryption.service";
+import type { WordPressCredentials, WixCredentials, ShopifyCredentials, ZapierCredentials } from "../encryption.service";
 
 // ---------------------------------------------------------------------------
 // Ownership helpers
@@ -125,30 +128,53 @@ export const postbackRouter = router({
         });
       }
 
-      // ── Only WordPress is supported in Layer 9 ────────────────────────────
-      if (post.cmsPlatform !== "wordpress") {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message:
-            "Post-back is currently supported for WordPress only. Export your post to update it manually.",
-        });
-      }
-
-      // ── Execute post-back ─────────────────────────────────────────────────
+      // ── Execute post-back (multi-platform dispatch) ──────────────────────
       const altTexts = Array.isArray(post.bodyImageAlts)
         ? (post.bodyImageAlts as string[])
         : [];
 
+      const postBackPayload = {
+        cmsPostId: post.cmsPostId,
+        bodyApproved: post.bodyApproved,
+        metaTitle: post.metaTitleRewritten ?? "",
+        metaDescription: post.metaDescriptionRewritten ?? "",
+        authorIdCms: post.authorIdCms,
+        bodyImageAlts: altTexts,
+        schemaJson: post.schemaJson ?? null,
+        postUrl: post.url ?? "",
+        rewriteScore: post.rewriteScore ?? 0,
+        rewriteGrade: post.rewriteGrade ?? "",
+      };
+
       try {
-        const result = await postBackToWordPress(creds, {
-          cmsPostId: post.cmsPostId,
-          bodyApproved: post.bodyApproved,
-          metaTitle: post.metaTitleRewritten ?? "",
-          metaDescription: post.metaDescriptionRewritten ?? "",
-          authorIdCms: post.authorIdCms,
-          bodyImageAlts: altTexts,
-          schemaJson: post.schemaJson ?? null,
-        });
+        let result;
+        if (post.cmsPlatform === "wordpress") {
+          result = await postBackToWordPress(creds as unknown as WordPressCredentials, postBackPayload);
+        } else if (post.cmsPlatform === "wix") {
+          result = await postBackToWix(
+            creds as unknown as WixCredentials,
+            { cmsPostId: post.cmsPostId, bodyApproved: post.bodyApproved, metaTitle: post.metaTitleRewritten ?? "", metaDescription: post.metaDescriptionRewritten ?? "" },
+            post.schemaJson ?? null
+          );
+        } else if (post.cmsPlatform === "shopify") {
+          // Shopify requires blogId — stored in authorIdCms field for Shopify posts
+          result = await postBackToShopify(
+            creds as unknown as ShopifyCredentials,
+            { cmsPostId: post.cmsPostId, blogId: post.authorIdCms ?? "", bodyApproved: post.bodyApproved, metaTitle: post.metaTitleRewritten ?? "", metaDescription: post.metaDescriptionRewritten ?? "" },
+            post.schemaJson ?? null
+          );
+        } else if (post.cmsPlatform === "zapier") {
+          result = await postBackViaZapier(
+            creds as unknown as ZapierCredentials,
+            { postId: post.id, title: post.title, bodyApproved: post.bodyApproved, metaTitle: post.metaTitleRewritten ?? "", metaDescription: post.metaDescriptionRewritten ?? "", scoreAfter: post.rewriteScore ?? 0, gradeAfter: post.rewriteGrade ?? "", postUrl: post.url ?? "" },
+            post.schemaJson ?? null
+          );
+        } else {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Post-back is not supported for this CMS platform. Please export your post to update it manually.",
+          });
+        }
 
         // Mark as complete in DB
         await setPostBackComplete(input.postId);
