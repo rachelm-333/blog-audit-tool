@@ -29,7 +29,7 @@
 - [ ] Layer 11: Dashboard
 - [ ] Layer 12: Credits & Stripe
 - [x] Layer 13: Wix & Shopify CMS integrations
-- [ ] Layer 14: Agency features
+- [x] Layer 14: Agency features
 - [ ] Layer 15: Admin Panel
 - [ ] Layer 16: Support Centre
 - [ ] Layer 17: Onboarding flow & UX polish
@@ -335,3 +335,22 @@
 - [x] Platform selector: all 4 options selectable, no "Coming soon" stubs
 - [x] Write Layer 13 vitest tests (25 new tests)
 - [x] Run full test suite — all 385 tests pass, zero TypeScript errors
+
+## Layer 14: Agency Multi-Client Features (Sections 3, 21)
+
+- [x] Backend: Add Solo restriction to `business.startScrape` — if accountType=solo and user already has ≥1 business, throw FORBIDDEN
+- [x] Backend: Build `server/routers/agency.ts` — `listBusinesses` (returns all businesses for user, throws FORBIDDEN if solo) and `addBusiness` guard
+- [x] Backend: Wire agency router into `server/routers.ts`
+- [x] Backend: Verify all existing business-scoped queries already enforce `userId` ownership (audit, posts, cms, keywords, rewrite, review, postback)
+- [x] Frontend: Create `client/src/contexts/BusinessContext.tsx` — stores selectedBusinessId in localStorage, exposes `useBusinessContext()` hook
+- [x] Frontend: Update `DashboardLayout.tsx` — add Businesses section to sidebar (visible for agency accounts only), each business is a clickable nav item that sets selectedBusinessId, Add Business link at bottom
+- [x] Frontend: Update `Dashboard.tsx` — read businessId from BusinessContext instead of URL param; remove inline business selector dropdown (now in sidebar)
+- [x] Frontend: Update `PostList.tsx` — read businessId from BusinessContext instead of URL param
+- [x] Frontend: Update `CmsConnect.tsx` — read businessId from BusinessContext instead of URL param
+- [x] Frontend: Update `ReviewEdit.tsx` — read businessId from BusinessContext if needed
+- [x] Frontend: Update `BusinessSetup.tsx` — after confirm, navigate to CmsConnect with the new businessId, then on CmsConnect success navigate to dashboard with new business auto-selected
+- [x] Frontend: Update `Login.tsx` — after login, if agency account with existing businesses, navigate to /dashboard; if no businesses, navigate to /business/setup
+- [x] Frontend: Solo accounts do not see business selector or Add Business option
+- [x] Frontend: If Solo user navigates to /business/setup when they already have a business, show error and redirect
+- [x] Write Layer 14 vitest tests (25 new tests)
+- [x] Run full test suite — all 410 tests pass, zero TypeScript errors

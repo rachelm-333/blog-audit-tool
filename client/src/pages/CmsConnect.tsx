@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useIauditAuth, getIauditUserId } from "@/hooks/useIauditAuth";
+import { useBusinessContext } from "@/contexts/BusinessContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -193,14 +194,8 @@ export default function CmsConnect() {
   const [zapierOutboundUrl, setZapierOutboundUrl] = useState("");
   const [zapierInboundUrl, setZapierInboundUrl] = useState<string | null>(null);
 
-  // Business ID from URL
-  const [businessId, setBusinessId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const bid = params.get("businessId");
-    if (bid) setBusinessId(bid);
-  }, []);
+  // Business ID from BusinessContext (Layer 14 agency multi-client)
+  const { selectedBusinessId: businessId } = useBusinessContext();
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) navigate("/login");
@@ -591,7 +586,7 @@ export default function CmsConnect() {
                 Your Zapier webhook is ready. Posts will appear in iAudit automatically when your Zapier zap triggers.
               </p>
               <div className="flex gap-3 justify-center">
-                <Button onClick={() => navigate(`/posts?businessId=${businessId}`)} className="bg-blue-600 hover:bg-blue-500 text-white">
+                <Button onClick={() => navigate("/posts")} className="bg-blue-600 hover:bg-blue-500 text-white">
                   View Posts
                 </Button>
                 <Button onClick={() => navigate("/dashboard")} variant="outline" className="border-white/20 text-white hover:bg-white/5">
@@ -722,7 +717,7 @@ export default function CmsConnect() {
           )}
 
           <div className="flex gap-3">
-            <Button onClick={() => navigate(`/posts?businessId=${businessId}`)} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white">
+            <Button onClick={() => navigate("/posts")} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white">
               View Posts
             </Button>
             <Button onClick={() => navigate("/dashboard")} variant="outline" className="flex-1 border-white/20 text-white hover:bg-white/5">

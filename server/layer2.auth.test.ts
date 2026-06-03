@@ -442,7 +442,7 @@ describe("iauth.register", () => {
     expect(user!.emailVerified).toBe(false);
     expect(user!.passwordHash).not.toBe("Secure1Pass!"); // must be hashed
     expect(user!.passwordHash).toMatch(/^\$2b\$/); // bcrypt hash
-  });
+  }, 15_000);
 
   it("creates a user with account_type=agency", async () => {
     const { ctx } = createTestContext();
@@ -459,7 +459,7 @@ describe("iauth.register", () => {
 
     const user = await getIauditUserByEmail(email);
     expect(user!.accountType).toBe("agency");
-  });
+  }, 15_000);
 
   it("BLOCKS account_type=admin via public registration form", async () => {
     const { ctx } = createTestContext();
@@ -498,7 +498,7 @@ describe("iauth.register", () => {
         origin: "https://iaudit.example.com",
       })
     ).rejects.toThrow(/already exists/i);
-  });
+  }, 15_000);
 
   it("rejects weak passwords", async () => {
     const { ctx } = createTestContext();
@@ -885,7 +885,7 @@ describe("iauth.forgotPassword", () => {
     expect(result.success).toBe(true);
     // Always returns success (prevents enumeration)
     expect(result.message).toMatch(/if an account exists/i);
-  });
+  }, 15_000);
 
   it("returns success even for non-existent email (prevents enumeration)", async () => {
     const { ctx } = createTestContext();

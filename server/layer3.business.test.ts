@@ -351,12 +351,39 @@ describe("Layer 3 — Business Profile: confirm (sets stage1_complete)", () => {
 });
 
 describe("Layer 3 — Scrape failure state handling", () => {
+  // Use a dedicated agency user for scrape failure tests.
+  // The solo TEST_USER_ID already has businesses from earlier tests, which
+  // would trip the Layer 14 solo restriction. Agency users have no limit.
+  const SCRAPE_AGENCY_USER_ID = crypto.randomUUID();
+
+  beforeAll(async () => {
+    const db = await getDb();
+    if (!db) throw new Error("DB not available");
+    const bcrypt = await import("bcrypt");
+    const hash = await bcrypt.hash("TestPass123!", 10);
+    await db.insert(iauditUsers).values({
+      id: SCRAPE_AGENCY_USER_ID,
+      email: `layer3-scrape-agency-${SCRAPE_AGENCY_USER_ID}@example.com`,
+      passwordHash: hash,
+      name: "Layer3 Scrape Agency User",
+      accountType: "agency",
+      emailVerified: true,
+    });
+  });
+
+  afterAll(async () => {
+    const db = await getDb();
+    if (!db) return;
+    await db.delete(businesses).where(eq(businesses.userId, SCRAPE_AGENCY_USER_ID));
+    await db.delete(iauditUsers).where(eq(iauditUsers.id, SCRAPE_AGENCY_USER_ID));
+  });
+
   it("returns failed scrapeStatus and correct failure type for unreachable URL", async () => {
     const caller = appRouter.createCaller(makeCtx());
 
     // Use a clearly unreachable URL
     const result = await caller.business.startScrape({
-      iauditUserId: TEST_USER_ID,
+      iauditUserId: SCRAPE_AGENCY_USER_ID,
       websiteUrl: "https://this-domain-absolutely-does-not-exist-12345.invalid",
     });
 
@@ -372,7 +399,7 @@ describe("Layer 3 — Scrape failure state handling", () => {
     // An invalid domain resolves to a failed scrape, not a thrown error.
     // This is correct behavior — the user sees the failure state in the UI.
     const result = await caller.business.startScrape({
-      iauditUserId: TEST_USER_ID,
+      iauditUserId: SCRAPE_AGENCY_USER_ID,
       websiteUrl: "not-a-url-at-all",
     });
 

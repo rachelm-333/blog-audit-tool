@@ -3,7 +3,7 @@
  * All database operations for the businesses table.
  */
 
-import { eq } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 import { getDb } from "./db";
 import { businesses, type Business, type InsertBusiness } from "../drizzle/schema";
 
@@ -22,7 +22,7 @@ export async function createBusiness(data: InsertBusiness): Promise<void> {
 export async function getBusinessesByUserId(userId: string): Promise<Business[]> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  return db.select().from(businesses).where(eq(businesses.userId, userId));
+  return db.select().from(businesses).where(eq(businesses.userId, userId)).orderBy(asc(businesses.createdAt));
 }
 
 // ---------------------------------------------------------------------------

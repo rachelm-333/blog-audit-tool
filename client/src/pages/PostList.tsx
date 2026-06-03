@@ -15,6 +15,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useIauditAuth, getIauditUserId } from "@/hooks/useIauditAuth";
+import { useBusinessContext } from "@/contexts/BusinessContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -975,9 +976,9 @@ export default function PostList() {
   const { isAuthenticated, isLoading: authLoading } = useIauditAuth();
   const iauditUserId = getIauditUserId();
 
-  // Get businessId from URL query param
-  const params = new URLSearchParams(window.location.search);
-  const businessId = params.get("businessId") ?? "";
+  // Get businessId from BusinessContext (Layer 14 agency multi-client)
+  const { selectedBusinessId } = useBusinessContext();
+  const businessId = selectedBusinessId ?? "";
 
   const [modalPost, setModalPost] = useState<Post | null>(null);
   const [duplicateGroups, setDuplicateGroups] = useState<

@@ -13,6 +13,7 @@ import { postbackRouter } from "./routers/postback";
 import { publicAuditRouter } from "./routers/publicAudit";
 import { dashboardRouter } from "./routers/dashboard";
 import { creditsRouter } from "./routers/credits";
+import { agencyRouter } from "./routers/agency";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -60,6 +61,9 @@ export const appRouter = router({
 
   // iAudit credits and Stripe (Layer 12)
   credits: creditsRouter,
+
+  // iAudit agency multi-client features (Layer 14)
+  agency: agencyRouter,
 
   // TODO: add feature routers here, e.g.
   // todo: router({

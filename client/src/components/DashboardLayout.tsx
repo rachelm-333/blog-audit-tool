@@ -21,11 +21,26 @@ import {
 } from "@/components/ui/sidebar";
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, FileText, Plug, CreditCard, Globe } from "lucide-react";
+import { useIauditAuth, getIauditUserId } from "@/hooks/useIauditAuth";
+import { useBusinessContext } from "@/contexts/BusinessContext";
+import { trpc } from "@/lib/trpc";
+import {
+  LayoutDashboard,
+  LogOut,
+  PanelLeft,
+  FileText,
+  Plug,
+  CreditCard,
+  Globe,
+  Building2,
+  PlusCircle,
+  ChevronRight,
+} from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
+import { cn } from "@/lib/utils";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
@@ -110,6 +125,9 @@ function DashboardLayoutContent({
   setSidebarWidth,
 }: DashboardLayoutContentProps) {
   const { user, logout } = useAuth();
+  const { user: iauditUser } = useIauditAuth();
+  const iauditUserId = getIauditUserId();
+  const { selectedBusinessId, setSelectedBusinessId } = useBusinessContext();
   const [location, setLocation] = useLocation();
   const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === "collapsed";
@@ -117,6 +135,21 @@ function DashboardLayoutContent({
   const sidebarRef = useRef<HTMLDivElement>(null);
   const activeMenuItem = menuItems.find(item => item.path === location);
   const isMobile = useIsMobile();
+
+  const isAgency = iauditUser?.accountType === "agency" || iauditUser?.accountType === "admin";
+
+  // Fetch businesses for agency accounts to show in sidebar
+  const { data: bizData } = trpc.dashboard.listBusinesses.useQuery(
+    { iauditUserId: iauditUserId ?? "" },
+    { enabled: !!iauditUserId && isAgency }
+  );
+
+  // Auto-select first business if none selected
+  useEffect(() => {
+    if (!selectedBusinessId && bizData?.businesses && bizData.businesses.length > 0) {
+      setSelectedBusinessId(bizData.businesses[0].id);
+    }
+  }, [selectedBusinessId, bizData, setSelectedBusinessId]);
 
   useEffect(() => {
     if (isCollapsed) {
@@ -154,6 +187,12 @@ function DashboardLayoutContent({
     };
   }, [isResizing, setSidebarWidth]);
 
+  function handleBusinessSelect(id: string) {
+    setSelectedBusinessId(id);
+    // Navigate to dashboard with new business
+    setLocation("/dashboard");
+  }
+
   return (
     <>
       <div className="relative" ref={sidebarRef}>
@@ -174,7 +213,7 @@ function DashboardLayoutContent({
               {!isCollapsed ? (
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="font-semibold tracking-tight truncate">
-                    Navigation
+                    iAudit
                   </span>
                 </div>
               ) : null}
@@ -182,6 +221,59 @@ function DashboardLayoutContent({
           </SidebarHeader>
 
           <SidebarContent className="gap-0">
+            {/* Agency business selector */}
+            {isAgency && bizData && bizData.businesses.length > 0 && !isCollapsed && (
+              <div className="px-3 py-2 border-b border-border/50">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 px-1">
+                  Client
+                </p>
+                <div className="space-y-0.5">
+                  {bizData.businesses.map((biz) => {
+                    const isSelected = selectedBusinessId === biz.id;
+                    return (
+                      <button
+                        key={biz.id}
+                        onClick={() => handleBusinessSelect(biz.id)}
+                        className={cn(
+                          "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors text-left",
+                          isSelected
+                            ? "bg-primary/10 text-primary font-medium"
+                            : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                        )}
+                      >
+                        <Building2 className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate flex-1">{biz.name || "Unnamed"}</span>
+                        {isSelected && <ChevronRight className="h-3 w-3 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                  <button
+                    onClick={() => setLocation("/business/setup")}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors text-left"
+                  >
+                    <PlusCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>Add Business</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Agency collapsed: show building icon for business selector */}
+            {isAgency && isCollapsed && (
+              <SidebarMenu className="px-2 py-1 border-b border-border/50">
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => setLocation("/business/setup")}
+                    tooltip="Add Business"
+                    className="h-10 transition-all font-normal"
+                  >
+                    <Building2 className="h-4 w-4" />
+                    <span>Businesses</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            )}
+
             <SidebarMenu className="px-2 py-1">
               {menuItems.map(item => {
                 const isActive = location === item.path;

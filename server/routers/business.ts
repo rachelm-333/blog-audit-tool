@@ -26,6 +26,7 @@ import {
   confirmBusinessStage1,
 } from "../businesses.db";
 import { scrapeBusinessWebsite } from "../scrape.service";
+import { getIauditUserById } from "../iauth.db";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -102,9 +103,22 @@ export const businessRouter = router({
         iauditUserId: z.string().uuid("Invalid user ID"),
       })
     )
-    .mutation(async ({ input }) => {
+        .mutation(async ({ input }) => {
       const { websiteUrl, iauditUserId } = input;
-
+      // Solo restriction: solo accounts may only have one business
+      const iauditUser = await getIauditUserById(iauditUserId);
+      if (!iauditUser) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "User not found." });
+      }
+      if (iauditUser.accountType === "solo") {
+        const existing = await getBusinessesByUserId(iauditUserId);
+        if (existing.length >= 1) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Solo accounts are limited to one business. Upgrade to Agency to manage multiple clients.",
+          });
+        }
+      }
       // Normalise URL
       let normalised: string;
       try {

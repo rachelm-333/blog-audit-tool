@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { getIauditUserId } from "@/hooks/useIauditAuth";
+import { useBusinessContext } from "@/contexts/BusinessContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -81,6 +82,7 @@ const FAILURE_MESSAGES: Record<string, { title: string; body: string }> = {
 export default function BusinessSetup() {
   const [, navigate] = useLocation();
   const userId = getIauditUserId();
+  const { setSelectedBusinessId } = useBusinessContext();
 
   // Step 1: URL input
   const [urlInput, setUrlInput] = useState("");
@@ -201,8 +203,11 @@ export default function BusinessSetup() {
         competitors: form.competitors ? form.competitors.split(",").map((s) => s.trim()).filter(Boolean) : [],
       });
       await confirmBusinessMutation.mutateAsync({ businessId, iauditUserId: userId ?? "" });
+      // Set the new business as the selected business in context
+      setSelectedBusinessId(businessId);
       toast.success("Business profile confirmed!");
-      navigate("/dashboard");
+      // Navigate to CMS Connect to set up the connection for this new business
+      navigate("/cms/connect");
     } catch (err: any) {
       toast.error(err?.message ?? "Confirmation failed");
     } finally {

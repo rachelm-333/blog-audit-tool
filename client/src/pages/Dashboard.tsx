@@ -17,6 +17,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useIauditAuth, getIauditUserId } from "@/hooks/useIauditAuth";
+import { useBusinessContext } from "@/contexts/BusinessContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,13 +26,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -303,10 +298,7 @@ export default function Dashboard() {
   const [, navigate] = useLocation();
   const { isAuthenticated, isLoading: authLoading } = useIauditAuth();
   const iauditUserId = getIauditUserId();
-
-  // businessId from URL query param
-  const params = useMemo(() => new URLSearchParams(window.location.search), []);
-  const businessIdFromUrl = params.get("businessId");
+  const { selectedBusinessId, setSelectedBusinessId } = useBusinessContext();
 
   // Table filter/sort state
   const [gradeFilter, setGradeFilter] = useState<GradeFilter>("all");
@@ -328,14 +320,21 @@ export default function Dashboard() {
       { enabled: !!iauditUserId }
     );
 
-  // Determine active businessId: URL param → first business
+  // Determine active businessId: context → first business
   const businessId = useMemo(() => {
-    if (businessIdFromUrl) return businessIdFromUrl;
+    if (selectedBusinessId) return selectedBusinessId;
     if (bizData?.businesses && bizData.businesses.length > 0) {
       return bizData.businesses[0].id;
     }
     return null;
-  }, [businessIdFromUrl, bizData]);
+  }, [selectedBusinessId, bizData]);
+
+  // Auto-set context when first business loads
+  useEffect(() => {
+    if (!selectedBusinessId && bizData?.businesses && bizData.businesses.length > 0) {
+      setSelectedBusinessId(bizData.businesses[0].id);
+    }
+  }, [selectedBusinessId, bizData, setSelectedBusinessId]);
 
   // ---- Dashboard stats ----
   const {
@@ -454,46 +453,26 @@ export default function Dashboard() {
       {/* ── Top bar ── */}
       <div className="border-b border-border bg-card/50 sticky top-0 z-30 backdrop-blur">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
-          {/* Logo + business selector */}
+          {/* Logo + current business name */}
           <div className="flex items-center gap-3">
             <span className="font-extrabold text-primary text-lg tracking-tight">
               iAudit
             </span>
-            {bizData && bizData.businesses.length > 1 ? (
-              <Select
-                value={businessId ?? ""}
-                onValueChange={(val) =>
-                  navigate(`/dashboard?businessId=${val}`)
-                }
-              >
-                <SelectTrigger className="h-8 w-48 text-sm border-border">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {bizData.businesses.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>
-                      {b.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <span className="text-sm font-medium text-foreground">
-                {business?.name ?? "—"}
-              </span>
-            )}
+            <span className="text-sm font-medium text-foreground">
+              {business?.name ?? "—"}
+            </span>
           </div>
 
           {/* Nav links */}
           <nav className="hidden md:flex items-center gap-1">
             <button
-              onClick={() => navigate(`/dashboard?businessId=${businessId ?? ""}`)}
+              onClick={() => navigate("/dashboard")}
               className="px-3 py-1.5 rounded-lg text-sm font-medium bg-primary/10 text-primary"
             >
               Dashboard
             </button>
             <button
-              onClick={() => navigate(`/posts?businessId=${businessId ?? ""}`)}
+              onClick={() => navigate("/posts")}
               className="px-3 py-1.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >
               All Posts
@@ -578,7 +557,7 @@ export default function Dashboard() {
               </span>{" "}
               <button
                 onClick={() =>
-                  navigate(`/posts?businessId=${businessId ?? ""}`)
+                  navigate("/posts")
                 }
                 className="text-[#FB923C] underline underline-offset-2 hover:no-underline font-medium"
               >
@@ -738,7 +717,7 @@ export default function Dashboard() {
             <Button
               variant="outline"
               onClick={() =>
-                navigate(`/cms/connect?businessId=${businessId ?? ""}`)
+                navigate("/cms/connect")
               }
             >
               Manage CMS Connection
@@ -758,7 +737,7 @@ export default function Dashboard() {
             </p>
             <Button
               onClick={() =>
-                navigate(`/posts?businessId=${businessId ?? ""}`)
+                navigate("/posts")
               }
             >
               <Zap className="h-4 w-4 mr-2" />
@@ -779,7 +758,7 @@ export default function Dashboard() {
                   size="sm"
                   className="text-xs"
                   onClick={() =>
-                    navigate(`/posts?businessId=${businessId ?? ""}`)
+                    navigate("/posts")
                   }
                 >
                   <BarChart3 className="h-3.5 w-3.5 mr-1.5" />
@@ -789,7 +768,7 @@ export default function Dashboard() {
                   size="sm"
                   className="text-xs"
                   onClick={() =>
-                    navigate(`/posts?businessId=${businessId ?? ""}`)
+                    navigate("/posts")
                   }
                 >
                   <Zap className="h-3.5 w-3.5 mr-1.5" />
@@ -992,11 +971,7 @@ export default function Dashboard() {
                               variant="ghost"
                               size="sm"
                               className="text-xs h-7"
-                              onClick={() =>
-                                navigate(
-                                  `/posts?businessId=${businessId ?? ""}`
-                                )
-                              }
+                              onClick={() => navigate("/posts")}
                             >
                               Set Keyword
                             </Button>
@@ -1043,11 +1018,7 @@ export default function Dashboard() {
                             <Button
                               size="sm"
                               className="text-xs h-7"
-                              onClick={() =>
-                                navigate(
-                                  `/posts?businessId=${businessId ?? ""}`
-                                )
-                              }
+                              onClick={() => navigate("/posts")}
                             >
                               <ArrowUpRight className="h-3 w-3 mr-1" />
                               Fix — 1 Credit
