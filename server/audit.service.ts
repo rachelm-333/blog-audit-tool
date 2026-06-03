@@ -1,0 +1,527 @@
+/**
+ * iAudit — Audit Engine Service (Layer 6 / Section 10)
+ *
+ * Implements the 16-Point Authority Standard scoring engine.
+ *
+ * Mechanical points (no AI required):
+ *   P1  Keyword Density      — 0.5%–2.5% of word count, min 4 occurrences
+ *   P2  Keyword in H1        — exact or near-exact match
+ *   P3  Keyword in H2        — keyword or close variant in at least one H2
+ *   P4  Keyword in H3        — keyword or variant in at least one H3 (if H3s exist)
+ *   P5  Keyword in First 100 Words — first 150 words checked for flexibility
+ *   P6  Keyword in URL       — keyword words appear in slug in sequence
+ *   P7  Meta Title           — present, contains keyword, max 60 chars
+ *   P8  Meta Description     — present, 140–160 chars
+ *   P13 Schema Markup        — JSON-LD Article schema in page source
+ *   P16 Word Count           — within target range for inferred article type
+ *
+ * AI-scored points (single LLM call per post):
+ *   P9  Opening Answer Block — 40–60 word direct answer in opening
+ *   P10 External Authority Link
+ *   P11 Internal CTA Link    — uses CTA URLs from Business Profile
+ *   P12 Internal Blog Link
+ *   P14 E-E-A-T Signals
+ *   P15 Human Authenticity
+ */
+
+import { invokeLLM } from "./_core/llm";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export type AuditPointStatus = "pass" | "fail" | "na" | "unable_to_score";
+
+export interface AuditPoint {
+  point: string; // e.g. "P1"
+  name: string;
+  status: AuditPointStatus;
+  note: string; // Plain-English explanation
+}
+
+export interface AuditResult {
+  points: AuditPoint[];
+  score: number; // 0–16
+  grade: "optimised" | "strong" | "needs_work" | "poor" | "critical";
+  potentialScore: number; // Max achievable if all fixable points pass
+}
+
+export interface PostAuditInput {
+  title: string;
+  bodyHtml: string; // Original HTML body
+  url: string; // Full permalink
+  focusKeyword: string;
+  metaTitle: string | null;
+  metaDescription: string | null;
+  // Business profile fields for P11
+  primaryCtaUrl?: string | null;
+  secondaryCtaUrls?: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Strip HTML tags and return plain text */
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/** Count words in a plain-text string */
+function wordCount(text: string): number {
+  return text.split(/\s+/).filter(Boolean).length;
+}
+
+/** Normalise a string: lowercase, collapse whitespace */
+function normalise(s: string): string {
+  return s.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/** Check if text contains the keyword (case-insensitive, whole-word flexible) */
+function containsKeyword(text: string, keyword: string): boolean {
+  const kw = normalise(keyword);
+  const t = normalise(text);
+  return t.includes(kw);
+}
+
+/** Extract all headings of a given level from HTML */
+function extractHeadings(html: string, level: 1 | 2 | 3): string[] {
+  const regex = new RegExp(`<h${level}[^>]*>(.*?)<\/h${level}>`, "gi");
+  const matches: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = regex.exec(html)) !== null) {
+    matches.push(stripHtml(m[1]));
+  }
+  return matches;
+}
+
+/** Extract URL slug from a full URL */
+function extractSlug(url: string): string {
+  try {
+    const u = new URL(url);
+    return u.pathname.toLowerCase().replace(/\/$/, "");
+  } catch {
+    return url.toLowerCase();
+  }
+}
+
+/** Check if keyword words appear in sequence in the slug */
+function keywordInSlug(url: string, keyword: string): boolean {
+  const slug = extractSlug(url);
+  const kwWords = normalise(keyword).split(" ");
+  // Build a regex that matches the words in sequence (separated by hyphens or slashes)
+  const pattern = kwWords.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("[\\-\\/]+");
+  return new RegExp(pattern).test(slug);
+}
+
+/** Infer article type from word count */
+function inferArticleType(wc: number): "cornerstone" | "pillar" | "cluster" {
+  if (wc >= 2500) return "cornerstone";
+  if (wc >= 1500) return "pillar";
+  return "cluster";
+}
+
+/** Word count targets per article type */
+const ARTICLE_TYPE_TARGETS: Record<string, { min: number; max: number }> = {
+  cornerstone: { min: 2500, max: 3200 },
+  pillar: { min: 1500, max: 1800 },
+  cluster: { min: 1000, max: 1200 },
+};
+
+/** Compute grade from score */
+export function scoreToGrade(
+  score: number
+): "optimised" | "strong" | "needs_work" | "poor" | "critical" {
+  if (score >= 15) return "optimised";
+  if (score >= 13) return "strong";
+  if (score >= 10) return "needs_work";
+  if (score >= 6) return "poor";
+  return "critical";
+}
+
+// ---------------------------------------------------------------------------
+// Mechanical audit checks (P1–P8, P13, P16)
+// ---------------------------------------------------------------------------
+
+export function runMechanicalChecks(input: PostAuditInput): AuditPoint[] {
+  const { title, bodyHtml, url, focusKeyword, metaTitle, metaDescription } = input;
+  const kw = normalise(focusKeyword);
+  const bodyText = stripHtml(bodyHtml);
+  const wc = wordCount(bodyText);
+  const points: AuditPoint[] = [];
+
+  // P1 — Keyword Density
+  const kwWords = kw.split(" ");
+  // Count non-overlapping occurrences of the full keyword phrase
+  let kwCount = 0;
+  const bodyLower = normalise(bodyText);
+  let searchPos = 0;
+  while (true) {
+    const idx = bodyLower.indexOf(kw, searchPos);
+    if (idx === -1) break;
+    kwCount++;
+    searchPos = idx + kw.length;
+  }
+  const density = wc > 0 ? (kwCount / wc) * 100 : 0;
+  const p1Pass = kwCount >= 4 && density >= 0.5 && density <= 2.5;
+  points.push({
+    point: "P1",
+    name: "Keyword Density",
+    status: p1Pass ? "pass" : "fail",
+    note: p1Pass
+      ? `Keyword appears ${kwCount} times (${density.toFixed(2)}% density) — within the 0.5%–2.5% target range.`
+      : kwCount < 4
+      ? `Keyword appears only ${kwCount} time${kwCount === 1 ? "" : "s"} — minimum 4 occurrences required.`
+      : density > 2.5
+      ? `Keyword density is ${density.toFixed(2)}% — above the 2.5% maximum. Reduce keyword repetition.`
+      : `Keyword density is ${density.toFixed(2)}% — below the 0.5% minimum. Use the keyword more naturally.`,
+  });
+
+  // P2 — Keyword in H1
+  const h1s = extractHeadings(bodyHtml, 1);
+  // Also check the post title as H1
+  const allH1s = [...h1s, title];
+  const p2Pass = allH1s.some((h) => containsKeyword(h, focusKeyword));
+  points.push({
+    point: "P2",
+    name: "Keyword in H1",
+    status: p2Pass ? "pass" : "fail",
+    note: p2Pass
+      ? `Keyword found in the H1 heading.`
+      : `Keyword missing from H1 heading. Include "${focusKeyword}" in the main heading.`,
+  });
+
+  // P3 — Keyword in H2
+  const h2s = extractHeadings(bodyHtml, 2);
+  const p3Pass = h2s.length === 0 ? false : h2s.some((h) => containsKeyword(h, focusKeyword));
+  points.push({
+    point: "P3",
+    name: "Keyword in H2",
+    status: h2s.length === 0 ? "fail" : p3Pass ? "pass" : "fail",
+    note:
+      h2s.length === 0
+        ? `No H2 headings found. Add at least one H2 subheading containing the keyword.`
+        : p3Pass
+        ? `Keyword or close variant found in an H2 heading.`
+        : `Keyword not found in any H2 heading. Include "${focusKeyword}" or a close variant in at least one H2.`,
+  });
+
+  // P4 — Keyword in H3 (only scored if H3s exist)
+  const h3s = extractHeadings(bodyHtml, 3);
+  if (h3s.length === 0) {
+    points.push({
+      point: "P4",
+      name: "Keyword in H3",
+      status: "na",
+      note: `No H3 headings found — this point is not applicable.`,
+    });
+  } else {
+    const p4Pass = h3s.some((h) => containsKeyword(h, focusKeyword));
+    points.push({
+      point: "P4",
+      name: "Keyword in H3",
+      status: p4Pass ? "pass" : "fail",
+      note: p4Pass
+        ? `Keyword or close variant found in an H3 heading.`
+        : `Keyword not found in any H3 heading. Include "${focusKeyword}" or a close variant in at least one H3.`,
+    });
+  }
+
+  // P5 — Keyword in First 100 Words (check first 150 for flexibility)
+  const first150Words = bodyText.split(/\s+/).slice(0, 150).join(" ");
+  const p5Pass = containsKeyword(first150Words, focusKeyword);
+  points.push({
+    point: "P5",
+    name: "Keyword in First 100 Words",
+    status: p5Pass ? "pass" : "fail",
+    note: p5Pass
+      ? `Keyword found in the opening section of the article.`
+      : `Keyword not found in the first 100 words. Introduce "${focusKeyword}" earlier in the article.`,
+  });
+
+  // P6 — Keyword in URL
+  const p6Pass = keywordInSlug(url, focusKeyword);
+  points.push({
+    point: "P6",
+    name: "Keyword in URL",
+    status: p6Pass ? "pass" : "fail",
+    note: p6Pass
+      ? `Keyword words found in the URL slug in sequence.`
+      : `Keyword words not found in sequence in the URL slug. The URL should contain "${kwWords.join("-")}".`,
+  });
+
+  // P7 — Meta Title
+  const mt = metaTitle?.trim() ?? "";
+  const p7Present = mt.length > 0;
+  const p7HasKw = p7Present && containsKeyword(mt, focusKeyword);
+  const p7Length = mt.length <= 60;
+  const p7Pass = p7Present && p7HasKw && p7Length;
+  points.push({
+    point: "P7",
+    name: "Meta Title",
+    status: p7Pass ? "pass" : "fail",
+    note: !p7Present
+      ? `Meta title is missing. Add a meta title containing "${focusKeyword}" under 60 characters.`
+      : !p7HasKw
+      ? `Meta title does not contain the keyword. Include "${focusKeyword}" in the meta title.`
+      : !p7Length
+      ? `Meta title is ${mt.length} characters — must be under 60. Current: "${mt}"`
+      : `Meta title is ${mt.length} characters and contains the keyword — within target.`,
+  });
+
+  // P8 — Meta Description
+  const md = metaDescription?.trim() ?? "";
+  const p8Present = md.length > 0;
+  const p8Length = md.length >= 140 && md.length <= 160;
+  const p8Pass = p8Present && p8Length;
+  points.push({
+    point: "P8",
+    name: "Meta Description",
+    status: p8Pass ? "pass" : "fail",
+    note: !p8Present
+      ? `Meta description is missing. Add a meta description between 140–160 characters.`
+      : !p8Length
+      ? `Meta description is ${md.length} characters — target is 140–160 characters.`
+      : `Meta description is ${md.length} characters — within the 140–160 character target.`,
+  });
+
+  // P13 — Schema Markup (look for JSON-LD Article schema in the body HTML)
+  const hasSchema =
+    /<script[^>]+type=["']application\/ld\+json["'][^>]*>/i.test(bodyHtml) ||
+    /"@type"\s*:\s*"Article"/i.test(bodyHtml) ||
+    /"@type"\s*:\s*"BlogPosting"/i.test(bodyHtml);
+  points.push({
+    point: "P13",
+    name: "Schema Markup",
+    status: hasSchema ? "pass" : "fail",
+    note: hasSchema
+      ? `JSON-LD Article schema found in the page source.`
+      : `No Article schema markup found. Add JSON-LD Article schema to improve search appearance.`,
+  });
+
+  // P16 — Word Count / Article Type
+  const articleType = inferArticleType(wc);
+  const target = ARTICLE_TYPE_TARGETS[articleType];
+  const p16Pass = wc >= target.min && wc <= target.max;
+  points.push({
+    point: "P16",
+    name: "Article Type Structure",
+    status: p16Pass ? "pass" : "fail",
+    note: p16Pass
+      ? `Word count is ${wc} words — within the ${articleType} article target (${target.min}–${target.max} words).`
+      : wc < target.min
+      ? `Word count is ${wc} words — below the ${articleType} article minimum of ${target.min} words.`
+      : `Word count is ${wc} words — above the ${articleType} article maximum of ${target.max} words.`,
+  });
+
+  return points;
+}
+
+// ---------------------------------------------------------------------------
+// AI audit scorer (P9–P12, P14–P15) — single LLM call
+// ---------------------------------------------------------------------------
+
+interface AiAuditInput {
+  title: string;
+  bodyHtml: string;
+  focusKeyword: string;
+  primaryCtaUrl?: string | null;
+  secondaryCtaUrls?: string[];
+  siteUrl?: string; // For P12 internal blog link check
+}
+
+interface AiAuditOutput {
+  P9: { status: AuditPointStatus; note: string };
+  P10: { status: AuditPointStatus; note: string };
+  P11: { status: AuditPointStatus; note: string };
+  P12: { status: AuditPointStatus; note: string };
+  P14: { status: AuditPointStatus; note: string };
+  P15: { status: AuditPointStatus; note: string };
+}
+
+export async function runAiChecks(input: AiAuditInput): Promise<AuditPoint[]> {
+  const { title, bodyHtml, focusKeyword, primaryCtaUrl, secondaryCtaUrls = [], siteUrl } = input;
+
+  const ctaUrls = [primaryCtaUrl, ...secondaryCtaUrls].filter(Boolean).join(", ");
+
+  const systemPrompt = `You are an expert SEO auditor. You will analyse a blog post and score it on 6 specific criteria. 
+Return ONLY valid JSON matching the exact schema provided. Do not fabricate links, statistics, or credentials.
+Be strict but fair. Each point must have a "status" of "pass" or "fail" and a concise plain-English "note" (1–2 sentences max).`;
+
+  const userPrompt = `Analyse this blog post and score it on the following 6 points. Return JSON only.
+
+FOCUS KEYWORD: "${focusKeyword}"
+POST TITLE: "${title}"
+CTA URLS (for P11): ${ctaUrls || "none provided"}
+SITE URL (for P12): ${siteUrl || "unknown"}
+
+POST CONTENT (HTML):
+${bodyHtml.slice(0, 8000)}
+
+Score these 6 points:
+
+P9 - Opening Answer Block: Does the article open with a 40–60 word direct answer to a People Also Ask question? Look for a clear Q&A or direct answer block in the first 2–3 paragraphs.
+
+P10 - External Authority Link: Is there at least one link to a real external authority source (government, university, industry body, major publication) with relevant anchor text? Do NOT count internal links or generic commercial sites.
+
+P11 - Internal CTA Link: Is there at least one link to a commercial page (shop, service, bookings, contact)? ${ctaUrls ? `Known CTA URLs: ${ctaUrls}` : "Look for links to /contact, /services, /book, /shop, or similar commercial pages."}
+
+P12 - Internal Blog Link: Is there at least one link to another blog post on the same site using descriptive anchor text? ${siteUrl ? `The site domain is: ${siteUrl}` : "Look for links to /blog/, /articles/, or similar blog paths on the same domain."}
+
+P14 - E-E-A-T Signals: Does the article demonstrate experience, expertise, authority, and trust through specific details? Look for: named credentials, specific data points with sources, years of experience, real case studies, or named professionals.
+
+P15 - Human Authenticity: Does the article avoid AI fingerprint patterns? Look for: hollow transitional phrases ("In today's digital landscape", "It's important to note", "In conclusion"), formulaic structure, excessive hedging, or unnatural repetition.
+
+Return this exact JSON structure:
+{
+  "P9": {"status": "pass|fail", "note": "plain English explanation"},
+  "P10": {"status": "pass|fail", "note": "plain English explanation"},
+  "P11": {"status": "pass|fail", "note": "plain English explanation"},
+  "P12": {"status": "pass|fail", "note": "plain English explanation"},
+  "P14": {"status": "pass|fail", "note": "plain English explanation"},
+  "P15": {"status": "pass|fail", "note": "plain English explanation"}
+}`;
+
+  try {
+    const response = await invokeLLM({
+      messages: [
+        { role: "system" as const, content: systemPrompt },
+        { role: "user" as const, content: userPrompt },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "audit_ai_scores",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              P9: {
+                type: "object",
+                properties: {
+                  status: { type: "string", enum: ["pass", "fail"] },
+                  note: { type: "string" },
+                },
+                required: ["status", "note"],
+                additionalProperties: false,
+              },
+              P10: {
+                type: "object",
+                properties: {
+                  status: { type: "string", enum: ["pass", "fail"] },
+                  note: { type: "string" },
+                },
+                required: ["status", "note"],
+                additionalProperties: false,
+              },
+              P11: {
+                type: "object",
+                properties: {
+                  status: { type: "string", enum: ["pass", "fail"] },
+                  note: { type: "string" },
+                },
+                required: ["status", "note"],
+                additionalProperties: false,
+              },
+              P12: {
+                type: "object",
+                properties: {
+                  status: { type: "string", enum: ["pass", "fail"] },
+                  note: { type: "string" },
+                },
+                required: ["status", "note"],
+                additionalProperties: false,
+              },
+              P14: {
+                type: "object",
+                properties: {
+                  status: { type: "string", enum: ["pass", "fail"] },
+                  note: { type: "string" },
+                },
+                required: ["status", "note"],
+                additionalProperties: false,
+              },
+              P15: {
+                type: "object",
+                properties: {
+                  status: { type: "string", enum: ["pass", "fail"] },
+                  note: { type: "string" },
+                },
+                required: ["status", "note"],
+                additionalProperties: false,
+              },
+            },
+            required: ["P9", "P10", "P11", "P12", "P14", "P15"],
+            additionalProperties: false,
+          },
+        },
+      },
+    });
+
+        const rawContent = response.choices?.[0]?.message?.content;
+    if (!rawContent) throw new Error("Empty AI response");
+    const content = typeof rawContent === "string" ? rawContent : JSON.stringify(rawContent);
+    const parsed: AiAuditOutput = JSON.parse(content);
+
+    return [
+      { point: "P9", name: "Opening Answer Block", status: parsed.P9.status, note: parsed.P9.note },
+      { point: "P10", name: "External Authority Link", status: parsed.P10.status, note: parsed.P10.note },
+      { point: "P11", name: "Internal CTA Link", status: parsed.P11.status, note: parsed.P11.note },
+      { point: "P12", name: "Internal Blog Link", status: parsed.P12.status, note: parsed.P12.note },
+      { point: "P14", name: "E-E-A-T Signals", status: parsed.P14.status, note: parsed.P14.note },
+      { point: "P15", name: "Human Authenticity", status: parsed.P15.status, note: parsed.P15.note },
+    ];
+  } catch {
+    // AI call failed — mark all 6 as unable_to_score
+    const failureNote =
+      "We could not complete the AI portion of this audit. The mechanical checks are shown below. Try re-running the audit.";
+    return [
+      { point: "P9", name: "Opening Answer Block", status: "unable_to_score", note: failureNote },
+      { point: "P10", name: "External Authority Link", status: "unable_to_score", note: failureNote },
+      { point: "P11", name: "Internal CTA Link", status: "unable_to_score", note: failureNote },
+      { point: "P12", name: "Internal Blog Link", status: "unable_to_score", note: failureNote },
+      { point: "P14", name: "E-E-A-T Signals", status: "unable_to_score", note: failureNote },
+      { point: "P15", name: "Human Authenticity", status: "unable_to_score", note: failureNote },
+    ];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Full audit runner
+// ---------------------------------------------------------------------------
+
+export async function runFullAudit(input: PostAuditInput): Promise<AuditResult> {
+  const mechanicalPoints = runMechanicalChecks(input);
+
+  const aiPoints = await runAiChecks({
+    title: input.title,
+    bodyHtml: input.bodyHtml,
+    focusKeyword: input.focusKeyword,
+    primaryCtaUrl: input.primaryCtaUrl,
+    secondaryCtaUrls: input.secondaryCtaUrls,
+    siteUrl: input.url ? new URL(input.url).origin : undefined,
+  });
+
+  // Merge: mechanical order is P1–P8, P13, P16; AI order is P9–P12, P14–P15
+  // Final order: P1–P16
+  const allPoints: AuditPoint[] = [];
+  const byPoint: Record<string, AuditPoint> = {};
+  for (const p of [...mechanicalPoints, ...aiPoints]) {
+    byPoint[p.point] = p;
+  }
+  for (let i = 1; i <= 16; i++) {
+    const key = `P${i}`;
+    if (byPoint[key]) allPoints.push(byPoint[key]);
+  }
+
+  // Score: count pass (na counts as pass for scoring purposes — not applicable = not penalised)
+  const score = allPoints.filter((p) => p.status === "pass" || p.status === "na").length;
+  const grade = scoreToGrade(score);
+
+  // Potential score: assume all fail/unable_to_score points could be fixed
+  const potentialScore = allPoints.filter(
+    (p) => p.status === "pass" || p.status === "na" || p.status === "unable_to_score"
+  ).length;
+
+  return { points: allPoints, score, grade, potentialScore };
+}

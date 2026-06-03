@@ -21,7 +21,7 @@
 - [ ] Layer 3: Stage 1 — Business Profile & Website Scrape
 - [ ] Layer 4: Stage 2 — CMS Connection & Post Import
 - [x] Layer 5: Stage 3 — Keyword Identification
-- [ ] Layer 6: Stage 4 — Audit Engine
+- [x] Layer 6: Stage 4 — Audit Engine
 - [ ] Layer 7: Stage 5 — Rewrite Engine
 - [ ] Layer 8: Stage 6 — Review & Edit
 - [ ] Layer 9: Stage 7 — Post Back to CMS
@@ -135,3 +135,30 @@
 - [x] Verify: two posts sharing same keyword both show cannibalisation warning + cannibalization_flag=true in DB
 - [x] Verify: Fix button disabled on flagged posts
 - [x] Vitest tests for all Layer 5 flows (189 tests pass — 28 Layer 5 + all prior layers)
+
+## Layer 6: Audit Engine (Section 10 of Scope)
+
+- [x] Add `audit_status` enum column to posts table (pending / running / complete / failed)
+- [x] Add `audited_at` timestamp column to posts table
+- [x] Run migration for new posts columns
+- [x] Build mechanical audit checker: P1 keyword density, P2 keyword in H1, P3 keyword in H2, P4 keyword in H3, P5 keyword in first 100 words, P6 keyword in URL, P7 meta title, P8 meta description, P13 schema markup (page source check), P16 word count / article type
+- [x] Build AI audit scorer: single LLM call for P9 opening answer block, P10 external authority link, P11 internal CTA link, P12 internal blog link, P14 E-E-A-T signals, P15 human authenticity
+- [x] Build audit DB helpers: saveAuditResults, getAuditResults, listPostsForDashboard
+- [x] Build tRPC `audit.runAudit` procedure (single post — free, no credits)
+- [x] Build tRPC `audit.runAuditAll` procedure (all posts for business — free, no credits)
+- [x] Build tRPC `audit.getDashboard` procedure (health score, grade breakdown, score potential, cannibalisation warnings)
+- [x] Build tRPC `audit.getPostResults` procedure (per-post audit results)
+- [x] Wire audit router into routers.ts
+- [x] Frontend: Audit All button on PostList page with progress indicator
+- [x] Frontend: per-post audit results panel (score, grade badge, passing/failing points in plain English)
+- [x] Frontend: Fix This Post button (1 Credit · Ready in ~2 minutes) — placeholder for Layer 7
+- [x] Frontend: Dashboard overview (health score, grade breakdown, score potential banner, cannibalisation warnings)
+- [x] Failure handling: AI call fails → mark P9/P10/P11/P12/P14/P15 as unable_to_score, show retry message
+- [x] Verify: audit runs on a real WordPress post, all 16 points scored
+- [x] Verify: mechanical points score correctly against known test values
+- [x] Verify: AI-scored points return pass/fail with plain-English notes
+- [x] Verify: score and grade are correct
+- [x] Verify: results stored in audit_results JSONB
+- [x] Verify: dashboard shows health score, grade breakdown, score potential
+- [x] Verify: audit consumes zero credits
+- [x] Vitest tests for all Layer 6 flows (223 total tests pass — 34 Layer 6 + all prior layers)

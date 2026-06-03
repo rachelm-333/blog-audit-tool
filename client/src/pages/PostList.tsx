@@ -1,18 +1,22 @@
 /**
- * iAudit — Post List (Layer 5)
+ * iAudit — Post List (Layers 5 + 6)
  *
  * Displays all imported posts for a business with:
  * - Keyword status badge (cms_scraped / ai_suggested / user_entered / missing)
  * - AI keyword suggestion modal (3 clickable options + custom text input)
  * - Cannibalisation warning banner linking to both conflicting posts
  * - Fix button disabled with tooltip when cannibalization_flag is set
+ * - Audit All button with progress indicator (Layer 6)
+ * - Per-post audit results panel (score, grade badge, passing/failing points) (Layer 6)
+ * - Dashboard overview (health score, grade breakdown, score potential) (Layer 6)
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useIauditAuth, getIauditUserId } from "@/hooks/useIauditAuth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
@@ -26,7 +30,21 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
-import { Loader2, AlertTriangle, CheckCircle2, Sparkles, Tag, ArrowLeft, RefreshCw } from "lucide-react";
+import {
+  Loader2,
+  AlertTriangle,
+  CheckCircle2,
+  Sparkles,
+  Tag,
+  ArrowLeft,
+  RefreshCw,
+  BarChart3,
+  ChevronDown,
+  ChevronUp,
+  XCircle,
+  Minus,
+  Zap,
+} from "lucide-react";
 import { toast } from "sonner";
 
 // ---------------------------------------------------------------------------
@@ -40,11 +58,73 @@ interface Post {
   focusKeyword: string | null;
   keywordSource: string | null;
   cannibalizationFlag: boolean;
+  auditStatus?: string | null;
+  auditScore?: number | null;
+  auditGrade?: string | null;
 }
 
 interface KeywordSuggestion {
   keyword: string;
   rationale: string;
+}
+
+interface AuditPoint {
+  point: string;
+  name: string;
+  status: string;
+  note: string;
+}
+
+// ---------------------------------------------------------------------------
+// Grade helpers
+// ---------------------------------------------------------------------------
+
+const GRADE_CONFIG: Record<
+  string,
+  { label: string; color: string; bg: string; border: string }
+> = {
+  optimised: {
+    label: "Optimised",
+    color: "text-emerald-400",
+    bg: "bg-emerald-500/10",
+    border: "border-emerald-500/30",
+  },
+  strong: {
+    label: "Strong",
+    color: "text-sky-400",
+    bg: "bg-sky-500/10",
+    border: "border-sky-500/30",
+  },
+  needs_work: {
+    label: "Needs Work",
+    color: "text-yellow-400",
+    bg: "bg-yellow-500/10",
+    border: "border-yellow-500/30",
+  },
+  poor: {
+    label: "Poor",
+    color: "text-orange-400",
+    bg: "bg-orange-500/10",
+    border: "border-orange-500/30",
+  },
+  critical: {
+    label: "Critical",
+    color: "text-red-400",
+    bg: "bg-red-500/10",
+    border: "border-red-500/30",
+  },
+};
+
+function GradeBadge({ grade }: { grade: string | null | undefined }) {
+  if (!grade) return null;
+  const cfg = GRADE_CONFIG[grade] ?? GRADE_CONFIG.critical;
+  return (
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${cfg.color} ${cfg.bg} border ${cfg.border}`}
+    >
+      {cfg.label}
+    </span>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -58,107 +138,337 @@ function KeywordBadge({
   source: string | null;
   keyword: string | null;
 }) {
-  if (!keyword || !source) {
+  if (!keyword) {
     return (
       <Badge
         variant="outline"
-        className="text-amber-400 border-amber-400/40 bg-amber-400/10 gap-1 text-xs"
+        className="text-amber-400 border-amber-400/40 bg-amber-400/5 text-xs gap-1"
       >
-        <AlertTriangle size={11} />
-        Missing keyword
+        <Tag size={10} />
+        No keyword
       </Badge>
     );
   }
-
-  if (source === "cms_scraped") {
-    return (
-      <Badge
-        variant="outline"
-        className="text-blue-400 border-blue-400/40 bg-blue-400/10 gap-1 text-xs"
-      >
-        <Tag size={11} />
-        {keyword}
-      </Badge>
-    );
-  }
-
-  if (source === "ai_suggested") {
-    return (
-      <Badge
-        variant="outline"
-        className="text-violet-400 border-violet-400/40 bg-violet-400/10 gap-1 text-xs"
-      >
-        <Sparkles size={11} />
-        {keyword}
-      </Badge>
-    );
-  }
-
-  // user_entered
+  const sourceConfig: Record<
+    string,
+    { label: string; className: string }
+  > = {
+    cms_scraped: {
+      label: "CMS",
+      className:
+        "text-sky-400 border-sky-400/40 bg-sky-400/5",
+    },
+    ai_suggested: {
+      label: "AI",
+      className:
+        "text-violet-400 border-violet-400/40 bg-violet-400/5",
+    },
+    user_entered: {
+      label: "Custom",
+      className:
+        "text-emerald-400 border-emerald-400/40 bg-emerald-400/5",
+    },
+  };
+  const cfg = sourceConfig[source ?? ""] ?? {
+    label: "Set",
+    className: "text-muted-foreground border-border",
+  };
   return (
-    <Badge
-      variant="outline"
-      className="text-emerald-400 border-emerald-400/40 bg-emerald-400/10 gap-1 text-xs"
-    >
-      <CheckCircle2 size={11} />
-      {keyword}
-    </Badge>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Badge
+          variant="outline"
+          className={`text-xs gap-1 cursor-default max-w-[160px] ${cfg.className}`}
+        >
+          <CheckCircle2 size={10} />
+          <span className="truncate">{keyword}</span>
+          <span className="opacity-60 shrink-0">· {cfg.label}</span>
+        </Badge>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs">
+        Focus keyword: <strong>{keyword}</strong> (source: {source ?? "unknown"})
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Cannibalisation Warning Banner
+// Audit Results Panel
 // ---------------------------------------------------------------------------
 
-function CannibalisationBanner({
-  duplicateGroups,
-  posts,
+function AuditResultsPanel({
+  postId,
+  iauditUserId,
+  onClose,
 }: {
-  duplicateGroups: Array<{ keyword: string; postIds: string[] }>;
-  posts: Post[];
+  postId: string;
+  iauditUserId: string;
+  onClose: () => void;
 }) {
-  if (duplicateGroups.length === 0) return null;
+  const { data, isLoading } = trpc.audit.getPostResults.useQuery(
+    { postId, iauditUserId },
+    { enabled: !!postId && !!iauditUserId }
+  );
 
-  const postMap = new Map(posts.map((p) => [p.id, p]));
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="animate-spin text-primary" size={24} />
+      </div>
+    );
+  }
+
+  if (!data || !data.auditResults) {
+    return (
+      <div className="text-center py-8 text-muted-foreground text-sm">
+        No audit results available.
+      </div>
+    );
+  }
+
+  const { auditResults, auditScore, auditGrade } = data;
+  const points: AuditPoint[] = auditResults.points ?? [];
+  const passing = points.filter(
+    (p) => p.status === "pass" || p.status === "na"
+  );
+  const failing = points.filter((p) => p.status === "fail");
+  const unscored = points.filter((p) => p.status === "unable_to_score");
+
+  const hasAiFailure = unscored.length > 0;
 
   return (
-    <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 p-4">
-      <div className="flex items-start gap-3">
-        <AlertTriangle className="text-red-400 mt-0.5 shrink-0" size={18} />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-red-300 mb-2">
-            Keyword cannibalisation detected
-          </p>
-          <div className="space-y-2">
-            {duplicateGroups.map((group) => (
-              <div key={group.keyword} className="text-xs text-red-200/80">
-                <span className="font-mono bg-red-900/30 px-1.5 py-0.5 rounded text-red-300">
-                  {group.keyword}
-                </span>
-                <span className="ml-2">
-                  is used in {group.postIds.length} posts. Two posts competing for the same keyword will split Google ranking authority and harm both. Resolve this before running rewrites — change the keyword on one post or merge the posts.
-                </span>
-                <div className="mt-1 ml-2 space-y-0.5">
-                  {group.postIds.map((pid) => {
-                    const p = postMap.get(pid);
-                    return p ? (
-                      <a
-                        key={pid}
-                        href={p.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block truncate text-red-300 hover:text-red-100 underline underline-offset-2"
-                      >
-                        {p.title}
-                      </a>
-                    ) : null;
-                  })}
+    <div className="space-y-4">
+      {/* Score header */}
+      <div className="flex items-center gap-3 pb-3 border-b border-border">
+        <div className="text-3xl font-extrabold text-foreground">
+          {auditScore ?? 0}
+          <span className="text-lg font-normal text-muted-foreground">/16</span>
+        </div>
+        <GradeBadge grade={auditGrade} />
+        <div className="ml-auto text-xs text-muted-foreground">
+          Potential: {auditResults.potentialScore}/16
+        </div>
+      </div>
+
+      {/* AI failure warning */}
+      {hasAiFailure && (
+        <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2.5 text-xs text-amber-300">
+          <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+          <span>
+            We could not complete the AI portion of this audit. The mechanical
+            checks are shown below. Try re-running the audit.
+          </span>
+        </div>
+      )}
+
+      {/* Failing points */}
+      {failing.length > 0 && (
+        <div>
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Failing ({failing.length})
+          </div>
+          <div className="space-y-1.5">
+            {failing.map((p) => (
+              <div
+                key={p.point}
+                className="flex items-start gap-2.5 bg-red-500/5 border border-red-500/20 rounded-lg px-3 py-2"
+              >
+                <XCircle
+                  size={14}
+                  className="text-red-400 shrink-0 mt-0.5"
+                />
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-foreground">
+                    {p.point} — {p.name}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {p.note}
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         </div>
+      )}
+
+      {/* Unable to score */}
+      {unscored.length > 0 && (
+        <div>
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Unable to Score ({unscored.length})
+          </div>
+          <div className="space-y-1.5">
+            {unscored.map((p) => (
+              <div
+                key={p.point}
+                className="flex items-start gap-2.5 bg-amber-500/5 border border-amber-500/20 rounded-lg px-3 py-2"
+              >
+                <Minus size={14} className="text-amber-400 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-foreground">
+                    {p.point} — {p.name}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Passing points */}
+      {passing.length > 0 && (
+        <div>
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Passing ({passing.length})
+          </div>
+          <div className="space-y-1.5">
+            {passing.map((p) => (
+              <div
+                key={p.point}
+                className="flex items-start gap-2.5 bg-emerald-500/5 border border-emerald-500/20 rounded-lg px-3 py-2"
+              >
+                <CheckCircle2
+                  size={14}
+                  className="text-emerald-400 shrink-0 mt-0.5"
+                />
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-foreground">
+                    {p.point} — {p.name}
+                    {p.status === "na" && (
+                      <span className="ml-1 text-muted-foreground font-normal">
+                        (N/A)
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {p.note}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Fix CTA */}
+      <div className="pt-2 border-t border-border">
+        <Button
+          size="sm"
+          className="w-full gap-2 font-semibold"
+          onClick={() => {
+            toast.info("Rewrite engine coming in Layer 7.");
+            onClose();
+          }}
+        >
+          <Zap size={14} />
+          Fix This Post · 1 Credit · Ready in ~2 minutes
+        </Button>
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard Overview Panel
+// ---------------------------------------------------------------------------
+
+function DashboardOverview({
+  businessId,
+  iauditUserId,
+}: {
+  businessId: string;
+  iauditUserId: string;
+}) {
+  const { data, isLoading } = trpc.audit.getDashboard.useQuery(
+    { businessId, iauditUserId },
+    { enabled: !!businessId && !!iauditUserId, refetchInterval: 5000 }
+  );
+
+  if (isLoading || !data) {
+    return (
+      <div className="bg-card border border-border rounded-xl p-6 mb-6 animate-pulse h-28" />
+    );
+  }
+
+  const { healthScore, healthGrade, gradeBreakdown, upliftBanner, cannibalisationWarnings, auditedCount, totalPosts } =
+    data;
+
+  if (auditedCount === 0) {
+    return (
+      <div className="bg-card border border-border rounded-xl p-6 mb-6 text-center">
+        <BarChart3 size={24} className="text-muted-foreground mx-auto mb-2" />
+        <p className="text-sm text-muted-foreground">
+          Run the audit to see your blog health score and grade breakdown.
+        </p>
+      </div>
+    );
+  }
+
+  const gradeOrder = ["optimised", "strong", "needs_work", "poor", "critical"];
+
+  return (
+    <div className="bg-card border border-border rounded-xl p-5 mb-6 space-y-4">
+      {/* Uplift banner */}
+      {upliftBanner && (
+        <div className="flex items-center gap-2 bg-primary/10 border border-primary/30 rounded-lg px-3 py-2.5 text-xs text-primary font-medium">
+          <Zap size={14} className="shrink-0" />
+          {upliftBanner}
+        </div>
+      )}
+
+      {/* Health score + grade breakdown */}
+      <div className="flex items-center gap-6 flex-wrap">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+            Blog Health Score
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-extrabold text-foreground">
+              {healthScore ?? "—"}
+            </span>
+            <span className="text-sm text-muted-foreground">/16</span>
+            <GradeBadge grade={healthGrade} />
+          </div>
+          <div className="text-xs text-muted-foreground mt-1">
+            {auditedCount} of {totalPosts} posts audited
+          </div>
+        </div>
+
+        {/* Grade breakdown */}
+        <div className="flex-1 min-w-[200px]">
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+            Grade Breakdown
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {gradeOrder.map((grade) => {
+              const count = gradeBreakdown[grade] ?? 0;
+              if (count === 0) return null;
+              const cfg = GRADE_CONFIG[grade];
+              return (
+                <div
+                  key={grade}
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-medium ${cfg.color} ${cfg.bg} ${cfg.border}`}
+                >
+                  <span className="font-bold">{count}</span>
+                  <span className="opacity-80">{cfg.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Cannibalisation warnings */}
+      {cannibalisationWarnings.length > 0 && (
+        <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 text-xs text-red-300">
+          <AlertTriangle size={14} className="shrink-0" />
+          <span>
+            {cannibalisationWarnings.length} keyword cannibalisation conflict
+            {cannibalisationWarnings.length > 1 ? "s" : ""} detected. Resolve
+            before rewriting.
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -178,143 +488,193 @@ function KeywordSuggestionModal({
   onClose: () => void;
   onConfirmed: () => void;
 }) {
-  const [suggestions, setSuggestions] = useState<KeywordSuggestion[]>([]);
+  const iauditUserId = getIauditUserId();
   const [customKeyword, setCustomKeyword] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
 
-  const iauditUserId = getIauditUserId();
   const suggestMutation = trpc.keyword.suggest.useMutation();
-  const confirmMutation = trpc.keyword.confirm.useMutation();
+  const [suggestions, setSuggestions] = useState<{ suggestions: KeywordSuggestion[] } | null>(null);
+  const [isSuggesting, setIsSuggesting] = useState(false);
 
   useEffect(() => {
-    if (open && post && iauditUserId) {
-      setIsLoading(true);
-      setSuggestions([]);
-      setSelected(null);
-      setCustomKeyword("");
+    if (open && post?.id && iauditUserId) {
+      setIsSuggesting(true);
       suggestMutation.mutate(
         { postId: post.id, iauditUserId },
         {
           onSuccess: (data) => {
-            setSuggestions(data.suggestions);
-            setIsLoading(false);
+            setSuggestions(data);
+            setIsSuggesting(false);
           },
           onError: () => {
-            toast.error("Failed to generate keyword suggestions. Please try again.");
-            setIsLoading(false);
-            onClose();
+            setIsSuggesting(false);
           },
         }
       );
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, post?.id]);
 
-  const handleConfirm = () => {
-    if (!post || !iauditUserId) return;
-    const keyword = customKeyword.trim() || selected;
-    if (!keyword) {
-      toast.error("Please select or enter a keyword.");
-      return;
+  const confirmMutation = trpc.keyword.confirm.useMutation();
+
+  const handleConfirm = useCallback(
+    (keyword: string, source: "ai_suggested" | "user_entered") => {
+      if (!post?.id || !iauditUserId) return;
+      confirmMutation.mutate(
+        { postId: post.id, keyword, source, iauditUserId },
+        {
+          onSuccess: () => {
+            toast.success(`Keyword confirmed: "${keyword}"`);
+            onConfirmed();
+            onClose();
+          },
+          onError: () => {
+            toast.error("Failed to confirm keyword. Please try again.");
+          },
+        }
+      );
+    },
+    [post?.id, iauditUserId, confirmMutation, onConfirmed, onClose]
+  );
+
+  useEffect(() => {
+    if (!open) {
+      setCustomKeyword("");
+      setSelected(null);
     }
-    const source = customKeyword.trim() ? "user_entered" : "ai_suggested";
-    confirmMutation.mutate(
-      { postId: post.id, keyword, source, iauditUserId },
-      {
-        onSuccess: () => {
-          toast.success(`Keyword confirmed: "${keyword}"`);
-          onConfirmed();
-          onClose();
-        },
-        onError: () => {
-          toast.error("Failed to save keyword. Please try again.");
-        },
-      }
-    );
-  };
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-lg bg-card border-border">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-foreground">Confirm Focus Keyword</DialogTitle>
-          <DialogDescription className="text-muted-foreground text-sm leading-relaxed">
-            No focus keyword was found for this post. These are our best guesses based on your
-            content — confirm one or type your own before the audit runs. Changing the keyword
-            after an audit has run will require a full re-audit.
+          <DialogTitle className="text-base">Confirm Focus Keyword</DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
+            No focus keyword was found for this post. These are our best guesses
+            based on your content — confirm one or type your own before the
+            audit runs. Changing the keyword after an audit has run will require
+            a full re-audit.
           </DialogDescription>
         </DialogHeader>
 
-        {post && (
-          <p className="text-xs text-muted-foreground truncate border-b border-border pb-3 mb-1">
-            <span className="font-medium text-foreground">Post:</span> {post.title}
-          </p>
-        )}
-
-        {isLoading ? (
-          <div className="flex items-center justify-center py-10 gap-3 text-muted-foreground">
-            <Loader2 className="animate-spin" size={20} />
-            <span className="text-sm">Analysing your content…</span>
+        {isSuggesting ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="animate-spin text-primary" size={24} />
           </div>
         ) : (
-          <div className="space-y-3 mt-1">
-            {suggestions.map((s) => (
+          <div className="space-y-3 mt-2">
+            {(suggestions?.suggestions ?? []).map((s, i) => (
               <button
-                key={s.keyword}
-                onClick={() => {
-                  setSelected(s.keyword);
-                  setCustomKeyword("");
-                }}
-                className={`w-full text-left rounded-lg border px-4 py-3 transition-all ${
-                  selected === s.keyword && !customKeyword
-                    ? "border-primary bg-primary/10 ring-1 ring-primary"
-                    : "border-border bg-background hover:border-primary/40 hover:bg-primary/5"
+                key={i}
+                onClick={() => setSelected(s.keyword)}
+                className={`w-full text-left rounded-xl border px-4 py-3 transition-colors ${
+                  selected === s.keyword
+                    ? "border-primary bg-primary/10"
+                    : "border-border bg-card hover:border-primary/50"
                 }`}
               >
-                <div className="text-sm font-semibold text-foreground">{s.keyword}</div>
-                <div className="text-xs text-muted-foreground mt-0.5">{s.rationale}</div>
+                <div className="text-sm font-semibold text-foreground">
+                  {s.keyword}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {s.rationale}
+                </div>
               </button>
             ))}
 
             <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-border" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">or type your own</span>
-              </div>
+              <Input
+                placeholder="Or type your own keyword…"
+                value={customKeyword}
+                onChange={(e) => {
+                  setCustomKeyword(e.target.value);
+                  setSelected(null);
+                }}
+                className="text-sm"
+              />
             </div>
 
-            <Input
-              placeholder="e.g. best coffee shops Melbourne"
-              value={customKeyword}
-              onChange={(e) => {
-                setCustomKeyword(e.target.value);
-                setSelected(null);
+            <Button
+              className="w-full font-semibold"
+              disabled={
+                confirmMutation.isPending ||
+                (!selected && customKeyword.trim().length === 0)
+              }
+              onClick={() => {
+                const kw = customKeyword.trim() || selected;
+                if (!kw) return;
+                const source =
+                  customKeyword.trim().length > 0
+                    ? "user_entered"
+                    : "ai_suggested";
+                handleConfirm(kw, source);
               }}
-              className="bg-background border-border"
-            />
+            >
+              {confirmMutation.isPending ? (
+                <Loader2 className="animate-spin" size={14} />
+              ) : (
+                "Confirm Keyword"
+              )}
+            </Button>
           </div>
         )}
-
-        <div className="flex gap-2 mt-2">
-          <Button variant="outline" onClick={onClose} className="flex-1" disabled={confirmMutation.isPending}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleConfirm}
-            className="flex-1"
-            disabled={isLoading || confirmMutation.isPending || (!selected && !customKeyword.trim())}
-          >
-            {confirmMutation.isPending ? (
-              <Loader2 className="animate-spin mr-2" size={14} />
-            ) : null}
-            Confirm Keyword
-          </Button>
-        </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Cannibalisation Banner
+// ---------------------------------------------------------------------------
+
+function CannibalisationBanner({
+  duplicateGroups,
+  postMap,
+}: {
+  duplicateGroups: Array<{ keyword: string; postIds: string[] }>;
+  postMap: Map<string, Post>;
+}) {
+  if (duplicateGroups.length === 0) return null;
+  return (
+    <div className="bg-red-950/40 border border-red-500/30 rounded-xl p-4 mb-6">
+      <div className="flex items-center gap-2 mb-3">
+        <AlertTriangle size={16} className="text-red-400 shrink-0" />
+        <span className="text-sm font-semibold text-red-300">
+          Keyword Cannibalisation Detected
+        </span>
+      </div>
+      <div className="space-y-3">
+        {duplicateGroups.map((group) => (
+          <div key={group.keyword} className="text-xs text-red-200/80">
+            <span className="font-mono bg-red-900/30 px-1.5 py-0.5 rounded text-red-300">
+              {group.keyword}
+            </span>
+            <span className="ml-2">
+              is used in {group.postIds.length} posts. Two posts competing for
+              the same keyword will split Google ranking authority and harm both.
+              Resolve this before running rewrites — change the keyword on one
+              post or merge the posts.
+            </span>
+            <div className="mt-1 ml-2 space-y-0.5">
+              {group.postIds.map((pid) => {
+                const p = postMap.get(pid);
+                return p ? (
+                  <a
+                    key={pid}
+                    href={p.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block truncate text-red-300 hover:text-red-100 underline underline-offset-2"
+                  >
+                    {p.title}
+                  </a>
+                ) : null;
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -335,6 +695,11 @@ export default function PostList() {
   const [duplicateGroups, setDuplicateGroups] = useState<
     Array<{ keyword: string; postIds: string[] }>
   >([]);
+  const [expandedAuditPostId, setExpandedAuditPostId] = useState<string | null>(
+    null
+  );
+  const [auditingAll, setAuditingAll] = useState(false);
+  const [auditProgress, setAuditProgress] = useState(0);
 
   const { data, isLoading, refetch } = trpc.keyword.listPosts.useQuery(
     { businessId, iauditUserId: iauditUserId ?? "" },
@@ -342,6 +707,8 @@ export default function PostList() {
   );
 
   const scanMutation = trpc.keyword.runCannibalisationScan.useMutation();
+  const auditAllMutation = trpc.audit.runAuditAll.useMutation();
+  const auditOneMutation = trpc.audit.runAudit.useMutation();
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -372,6 +739,62 @@ export default function PostList() {
     );
   };
 
+  const handleAuditAll = () => {
+    if (!businessId || !iauditUserId) return;
+    setAuditingAll(true);
+    setAuditProgress(10);
+    auditAllMutation.mutate(
+      { businessId, iauditUserId },
+      {
+        onSuccess: (result) => {
+          setAuditProgress(100);
+          setTimeout(() => {
+            setAuditingAll(false);
+            setAuditProgress(0);
+            refetch();
+            toast.success(
+              `Audit complete — ${result.audited} post${result.audited !== 1 ? "s" : ""} scored.${result.skipped > 0 ? ` ${result.skipped} skipped (no keyword).` : ""}`
+            );
+          }, 600);
+        },
+        onError: () => {
+          setAuditingAll(false);
+          setAuditProgress(0);
+          toast.error("Audit failed. Please try again.");
+        },
+      }
+    );
+    // Animate progress while running
+    const interval = setInterval(() => {
+      setAuditProgress((prev) => {
+        if (prev >= 90) {
+          clearInterval(interval);
+          return prev;
+        }
+        return prev + 5;
+      });
+    }, 800);
+  };
+
+  const handleAuditOne = (post: Post) => {
+    if (!iauditUserId) return;
+    auditOneMutation.mutate(
+      { postId: post.id, iauditUserId },
+      {
+        onSuccess: (result) => {
+          refetch();
+          setExpandedAuditPostId(post.id);
+          toast.success(
+            `Audit complete — ${result.score}/16 (${GRADE_CONFIG[result.grade]?.label ?? result.grade})`
+          );
+        },
+        onError: () => {
+          toast.error("Audit failed. Please try again.");
+        },
+      }
+    );
+  };
+
   if (authLoading || isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -381,12 +804,14 @@ export default function PostList() {
   }
 
   const posts: Post[] = data?.posts ?? [];
+  const postMap = new Map(posts.map((p) => [p.id, p]));
+  const postsWithKeyword = posts.filter((p) => p.focusKeyword);
 
   return (
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
@@ -403,49 +828,73 @@ export default function PostList() {
               </p>
             </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRunScan}
-            disabled={scanMutation.isPending || posts.length === 0}
-            className="gap-2"
-          >
-            {scanMutation.isPending ? (
-              <Loader2 className="animate-spin" size={14} />
-            ) : (
-              <RefreshCw size={14} />
-            )}
-            Run Cannibalisation Scan
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRunScan}
+              disabled={scanMutation.isPending || posts.length === 0}
+              className="gap-2"
+            >
+              {scanMutation.isPending ? (
+                <Loader2 className="animate-spin" size={14} />
+              ) : (
+                <RefreshCw size={14} />
+              )}
+              Cannibalisation Scan
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleAuditAll}
+              disabled={
+                auditingAll ||
+                auditAllMutation.isPending ||
+                postsWithKeyword.length === 0
+              }
+              className="gap-2"
+            >
+              {auditingAll ? (
+                <Loader2 className="animate-spin" size={14} />
+              ) : (
+                <BarChart3 size={14} />
+              )}
+              Audit All
+            </Button>
+          </div>
         </div>
+
+        {/* Audit progress bar */}
+        {auditingAll && (
+          <div className="mb-4">
+            <Progress value={auditProgress} className="h-1.5" />
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Auditing {postsWithKeyword.length} post
+              {postsWithKeyword.length !== 1 ? "s" : ""}… this may take a
+              moment.
+            </p>
+          </div>
+        )}
+
+        {/* Dashboard overview */}
+        {businessId && iauditUserId && (
+          <DashboardOverview
+            businessId={businessId}
+            iauditUserId={iauditUserId}
+          />
+        )}
 
         {/* Cannibalisation banner */}
-        <CannibalisationBanner duplicateGroups={duplicateGroups} posts={posts} />
+        <CannibalisationBanner
+          duplicateGroups={duplicateGroups}
+          postMap={postMap}
+        />
 
-        {/* Legend */}
-        <div className="flex flex-wrap gap-3 mb-6 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-blue-400" />
-            CMS keyword
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-violet-400" />
-            AI suggested
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            User entered
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-amber-400" />
-            Missing
-          </span>
-        </div>
-
-        {/* Post table */}
+        {/* Post list */}
         {posts.length === 0 ? (
           <div className="bg-card border border-border rounded-xl p-12 text-center">
-            <p className="text-muted-foreground text-sm">No posts imported yet.</p>
+            <p className="text-muted-foreground text-sm">
+              No posts imported yet.
+            </p>
             <Button
               variant="outline"
               size="sm"
@@ -457,109 +906,171 @@ export default function PostList() {
           </div>
         ) : (
           <div className="space-y-2">
-            {posts.map((post) => (
-              <div
-                key={post.id}
-                className={`bg-card border rounded-xl px-5 py-4 flex items-center gap-4 transition-colors ${
-                  post.cannibalizationFlag
-                    ? "border-red-500/40 bg-red-500/5"
-                    : "border-border"
-                }`}
-              >
-                {/* Cannibalisation indicator */}
-                {post.cannibalizationFlag && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <AlertTriangle
-                        size={16}
-                        className="text-red-400 shrink-0 cursor-help"
-                      />
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className="max-w-xs">
-                      Duplicate keyword detected. Resolve the cannibalisation conflict before rewriting.
-                    </TooltipContent>
-                  </Tooltip>
-                )}
+            {posts.map((post) => {
+              const isExpanded = expandedAuditPostId === post.id;
+              const isAuditingThis = auditOneMutation.isPending;
 
-                {/* Title + URL */}
-                <div className="flex-1 min-w-0">
-                  <a
-                    href={post.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm font-medium text-foreground hover:text-primary truncate block"
-                  >
-                    {post.title}
-                  </a>
-                  <p className="text-xs text-muted-foreground truncate mt-0.5">{post.url}</p>
-                </div>
+              return (
+                <div
+                  key={post.id}
+                  className={`bg-card border rounded-xl transition-colors ${
+                    post.cannibalizationFlag
+                      ? "border-red-500/40 bg-red-500/5"
+                      : "border-border"
+                  }`}
+                >
+                  {/* Post row */}
+                  <div className="px-5 py-4 flex items-center gap-4">
+                    {/* Cannibalisation indicator */}
+                    {post.cannibalizationFlag && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <AlertTriangle
+                            size={16}
+                            className="text-red-400 shrink-0 cursor-help"
+                          />
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="max-w-xs">
+                          Duplicate keyword detected. Resolve the cannibalisation
+                          conflict before rewriting.
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
 
-                {/* Keyword badge */}
-                <div className="shrink-0">
-                  <KeywordBadge source={post.keywordSource} keyword={post.focusKeyword} />
-                </div>
+                    {/* Title + URL */}
+                    <div className="flex-1 min-w-0">
+                      <a
+                        href={post.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-medium text-foreground hover:text-primary truncate block"
+                      >
+                        {post.title}
+                      </a>
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">
+                        {post.url}
+                      </p>
+                    </div>
 
-                {/* Actions */}
-                <div className="shrink-0 flex gap-2">
-                  {/* Suggest keyword button — only shown when no keyword */}
-                  {!post.focusKeyword && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-xs gap-1.5 h-7 px-2.5"
-                      onClick={() => setModalPost(post)}
-                    >
-                      <Sparkles size={12} />
-                      Suggest
-                    </Button>
-                  )}
-
-                  {/* Fix / Audit button — disabled when cannibalization_flag is set */}
-                  {post.cannibalizationFlag ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span>
-                          <Button
-                            size="sm"
-                            disabled
-                            className="text-xs h-7 px-2.5 cursor-not-allowed opacity-50"
-                          >
-                            Fix
-                          </Button>
+                    {/* Audit score badge (if audited) */}
+                    {post.auditScore !== null && post.auditScore !== undefined && (
+                      <div className="shrink-0 flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-foreground">
+                          {post.auditScore}/16
                         </span>
-                      </TooltipTrigger>
-                      <TooltipContent side="left" className="max-w-xs">
-                        Resolve the duplicate keyword before rewriting.
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
+                        <GradeBadge grade={post.auditGrade} />
+                      </div>
+                    )}
+
+                    {/* Keyword badge */}
+                    <div className="shrink-0">
+                      <KeywordBadge
+                        source={post.keywordSource}
+                        keyword={post.focusKeyword}
+                      />
+                    </div>
+
+                    {/* Actions */}
+                    <div className="shrink-0 flex gap-2">
+                      {/* Suggest keyword button — only shown when no keyword */}
+                      {!post.focusKeyword && (
                         <Button
                           size="sm"
-                          className="text-xs h-7 px-2.5"
-                          disabled={!post.focusKeyword}
-                          onClick={() => {
-                            if (!post.focusKeyword) {
-                              toast.info("Confirm a focus keyword before running the audit.");
-                            } else {
-                              toast.info("Audit feature coming in Layer 6.");
-                            }
-                          }}
+                          variant="outline"
+                          className="text-xs gap-1.5 h-7 px-2.5"
+                          onClick={() => setModalPost(post)}
                         >
+                          <Sparkles size={12} />
+                          Suggest
+                        </Button>
+                      )}
+
+                      {/* Audit button */}
+                      {post.focusKeyword && !post.cannibalizationFlag && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs h-7 px-2.5 gap-1.5"
+                          disabled={isAuditingThis}
+                          onClick={() => handleAuditOne(post)}
+                        >
+                          {isAuditingThis ? (
+                            <Loader2 className="animate-spin" size={12} />
+                          ) : (
+                            <BarChart3 size={12} />
+                          )}
                           Audit
                         </Button>
-                      </TooltipTrigger>
-                      {!post.focusKeyword && (
-                        <TooltipContent side="left" className="max-w-xs">
-                          Confirm a focus keyword before running the audit.
-                        </TooltipContent>
                       )}
-                    </Tooltip>
+
+                      {/* View results button (if audited) */}
+                      {post.auditStatus === "complete" && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-xs h-7 px-2 text-muted-foreground hover:text-foreground"
+                          onClick={() =>
+                            setExpandedAuditPostId(
+                              isExpanded ? null : post.id
+                            )
+                          }
+                        >
+                          {isExpanded ? (
+                            <ChevronUp size={14} />
+                          ) : (
+                            <ChevronDown size={14} />
+                          )}
+                        </Button>
+                      )}
+
+                      {/* Fix / Rewrite button — disabled when cannibalization_flag is set */}
+                      {post.cannibalizationFlag ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span>
+                              <Button
+                                size="sm"
+                                disabled
+                                className="text-xs h-7 px-2.5 cursor-not-allowed opacity-50"
+                              >
+                                Fix
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="left" className="max-w-xs">
+                            Resolve the duplicate keyword before rewriting.
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        post.auditStatus === "complete" && (
+                          <Button
+                            size="sm"
+                            className="text-xs h-7 px-2.5 gap-1"
+                            onClick={() => {
+                              toast.info("Rewrite engine coming in Layer 7.");
+                            }}
+                          >
+                            <Zap size={12} />
+                            Fix
+                          </Button>
+                        )
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Expanded audit results */}
+                  {isExpanded && iauditUserId && (
+                    <div className="border-t border-border px-5 py-4">
+                      <AuditResultsPanel
+                        postId={post.id}
+                        iauditUserId={iauditUserId}
+                        onClose={() => setExpandedAuditPostId(null)}
+                      />
+                    </div>
                   )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

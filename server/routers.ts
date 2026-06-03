@@ -6,6 +6,7 @@ import { iauthRouter } from "./routers/iauth";
 import { businessRouter } from "./routers/business";
 import { cmsRouter } from "./routers/cms";
 import { keywordRouter } from "./routers/keyword";
+import { auditRouter } from "./routers/audit";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -32,6 +33,9 @@ export const appRouter = router({
 
   // iAudit keyword identification (Layer 5)
   keyword: keywordRouter,
+
+  // iAudit audit engine (Layer 6)
+  audit: auditRouter,
 
   // TODO: add feature routers here, e.g.
   // todo: router({

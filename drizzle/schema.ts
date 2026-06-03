@@ -201,6 +201,13 @@ export const posts = mysqlTable(
     metaDescriptionOriginal: text("meta_description_original"),
     metaTitleRewritten: text("meta_title_rewritten"),
     metaDescriptionRewritten: text("meta_description_rewritten"),
+    auditStatus: mysqlEnum("audit_status", [
+      "pending",
+      "running",
+      "complete",
+      "failed",
+    ]), // null until first audit triggered
+    auditedAt: timestamp("audited_at"), // null until first audit completes
     auditScore: int("audit_score"), // 0–16 points, null until audited
     auditGrade: mysqlEnum("audit_grade", [
       "optimised",
