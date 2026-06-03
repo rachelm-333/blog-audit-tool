@@ -12,6 +12,7 @@ import { reviewRouter } from "./routers/review";
 import { postbackRouter } from "./routers/postback";
 import { publicAuditRouter } from "./routers/publicAudit";
 import { dashboardRouter } from "./routers/dashboard";
+import { creditsRouter } from "./routers/credits";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -56,6 +57,9 @@ export const appRouter = router({
 
   // iAudit dashboard (Layer 11)
   dashboard: dashboardRouter,
+
+  // iAudit credits and Stripe (Layer 12)
+  credits: creditsRouter,
 
   // TODO: add feature routers here, e.g.
   // todo: router({

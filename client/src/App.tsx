@@ -15,6 +15,7 @@ import CmsConnect from "./pages/CmsConnect";
 import PostList from "./pages/PostList";
 import ReviewEdit from "@/pages/ReviewEdit";
 import AuditPage from "@/pages/Audit";
+import Credits from "@/pages/Credits";
 
 function Router() {
   return (
@@ -30,6 +31,8 @@ function Router() {
       <Route path="/posts" component={PostList} />
       <Route path="/review/:postId" component={ReviewEdit} />
       <Route path="/audit" component={AuditPage} />
+      <Route path="/credits" component={Credits} />
+      <Route path="/credits/success" component={Credits} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

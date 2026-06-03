@@ -292,3 +292,29 @@
 - [x] Frontend: Skeleton loader while data fetches
 - [x] Write Layer 11 vitest tests (24 new tests, 335 total)
 - [x] Run full test suite — all 335 tests pass, zero TypeScript errors
+
+## Layer 12: Credits and Stripe (Sections 17, 20, 21)
+
+- [x] Add Stripe feature via webdev_add_feature
+- [x] Confirm stripe_customer_id column exists on iaudit_users; run migration if not
+- [x] Build `server/credits.db.ts` — helpers: getCreditsBalance, incrementCredits, getCreditHistory, setStripeCustomerId, getStripeCustomerId, getUserByStripeCustomerId, getUserById
+- [x] Build `server/stripe.service.ts` — CREDIT_PACKS (4 packs), createCheckoutSession, createOrGetStripeCustomer
+- [x] Build `server/routers/credits.ts` — tRPC procedures: getBalance, getPacks, createCheckout, getHistory
+- [x] Wire credits router into `server/routers.ts`; register webhook route in server entry before express.json()
+- [x] Credit packs: Starter (10 credits, $19 AUD), Standard (50 credits, $79 AUD), Business (100 credits, $139 AUD), Agency (500 credits, $599 AUD)
+- [x] Stripe Checkout: one-time payment in AUD, test mode, allow_promotion_codes: true
+- [x] Webhook handler: on checkout.session.completed → increment credits_remaining, log credit_transactions type=purchase with stripe_payment_intent_id
+- [x] Stripe customer: create on first purchase, store stripe_customer_id; reuse on subsequent purchases
+- [x] Top-up reminder email at credits_remaining=3 and credits_remaining=0 (once per threshold crossing)
+- [x] Frontend: Credits page at /credits — 4 pack cards with per-post price, "Credits never expire", "All prices include GST"
+- [x] Frontend: Buy Now button → Stripe Checkout redirect (new tab)
+- [x] Frontend: Success toast on return from Stripe (?session_id param)
+- [x] Frontend: Cancel toast on return from cancelled checkout (?cancelled=1 param)
+- [x] Frontend: Credit balance updates via refetchInterval after successful purchase
+- [x] Frontend: In-app low-credit banner (red at 0, amber at ≤3)
+- [x] Frontend: Credit history table — date, type, amount (+/-), post title (if type=use), balance after
+- [x] Frontend: Blog Batcher upsell banner at bottom of Credits page
+- [x] Register /credits and /credits/success routes in App.tsx
+- [x] Updated DashboardLayout sidebar nav with all 5 iAudit links
+- [x] Write Layer 12 vitest tests (25 new tests, 360 total)
+- [x] Run full test suite — all 360 tests pass, zero TypeScript errors
