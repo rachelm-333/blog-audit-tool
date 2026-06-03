@@ -1,5 +1,5 @@
 /**
- * iAudit — Review & Edit Page (Layer 8 / Section 12)
+ * iAudit — Review & Edit Page (Layer 8 / Section 12 + Layer 9 / Section 13)
  *
  * Allows the user to review and edit the AI-rewritten post before approving it
  * for post-back to the CMS.
@@ -15,7 +15,10 @@
  * - Re-score on save — updates score/grade; shows point-specific warnings on regression
  * - Before/after score comparison (original audit vs rewrite)
  * - Export buttons: Plain Text, HTML, Markdown
- * - Approve and Post Back button
+ * - Approve and Post Back button — triggers real WordPress PATCH
+ * - Post-back confirmation screen: title, score/grade badge, live link, Blog Batcher upsell
+ * - Schema injection fallback: copyable JSON-LD block with exact spec message
+ * - All 4 error states from Section 13.3
  */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation, useParams } from "wouter";
@@ -46,6 +49,9 @@ import {
   ChevronRight,
   Loader2,
   Send,
+  Copy,
+  PartyPopper,
+  XCircle,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -333,6 +339,281 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
 }
 
 // ---------------------------------------------------------------------------
+// PostBackConfirmation — shown after a successful post-back
+// ---------------------------------------------------------------------------
+interface PostBackConfirmationProps {
+  postTitle: string;
+  postUrl: string;
+  rewriteScore: number | null;
+  rewriteGrade: string | null;
+  schemaInjected: boolean;
+  schemaFallbackJson: string | null;
+  showBlogBatcherUpsell: boolean;
+  onDone: () => void;
+}
+
+function PostBackConfirmation({
+  postTitle,
+  postUrl,
+  rewriteScore,
+  rewriteGrade,
+  schemaInjected,
+  schemaFallbackJson,
+  showBlogBatcherUpsell,
+  onDone,
+}: PostBackConfirmationProps) {
+  const [schemaCopied, setSchemaCopied] = useState(false);
+
+  const handleCopySchema = () => {
+    if (!schemaFallbackJson) return;
+    navigator.clipboard.writeText(schemaFallbackJson);
+    setSchemaCopied(true);
+    setTimeout(() => setSchemaCopied(false), 2000);
+  };
+
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center p-6">
+      <div className="max-w-lg w-full space-y-6">
+        {/* Success header */}
+        <div className="text-center space-y-3">
+          <div className="flex justify-center">
+            <div className="w-16 h-16 rounded-full bg-emerald-400/10 flex items-center justify-center">
+              <PartyPopper size={32} className="text-emerald-400" />
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold text-foreground">
+            Post published successfully!
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            Your optimised content is now live on your website.
+          </p>
+        </div>
+
+        {/* Post details card */}
+        <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+          <div className="space-y-1">
+            <div className="text-xs text-muted-foreground uppercase tracking-wide">
+              Post
+            </div>
+            <div className="font-semibold text-foreground">{postTitle}</div>
+          </div>
+
+          {rewriteScore !== null && rewriteGrade && (
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground uppercase tracking-wide">
+                Final SEO Score
+              </div>
+              <GradeBadge grade={rewriteGrade} score={rewriteScore} />
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <div className="text-xs text-muted-foreground uppercase tracking-wide">
+              Live URL
+            </div>
+            <a
+              href={postUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-400 hover:underline text-sm flex items-center gap-1 break-all"
+            >
+              {postUrl}
+              <ExternalLink size={12} className="shrink-0" />
+            </a>
+          </div>
+
+          {/* Schema injection status */}
+          {schemaInjected && (
+            <div className="flex items-center gap-2 text-xs text-emerald-400">
+              <CheckCircle2 size={12} />
+              Schema markup injected successfully.
+            </div>
+          )}
+        </div>
+
+        {/* Schema fallback — shown if injection failed */}
+        {!schemaInjected && schemaFallbackJson && (
+          <div className="bg-amber-500/5 border border-amber-500/30 rounded-xl p-5 space-y-3">
+            <div className="flex items-start gap-2">
+              <AlertTriangle
+                size={14}
+                className="text-amber-400 mt-0.5 shrink-0"
+              />
+              <p className="text-sm text-amber-300">
+                We could not inject schema automatically. Copy this code and
+                paste it into your theme's header section or SEO plugin.
+              </p>
+            </div>
+            <div className="relative">
+              <pre className="text-[10px] text-muted-foreground bg-muted/30 rounded p-3 overflow-auto max-h-48 whitespace-pre-wrap break-all font-mono">
+                {schemaFallbackJson}
+              </pre>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute top-1 right-1 text-xs h-6 px-2 gap-1"
+                onClick={handleCopySchema}
+              >
+                {schemaCopied ? (
+                  <>
+                    <CheckCircle2 size={10} className="text-emerald-400" />{" "}
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy size={10} /> Copy
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Blog Batcher upsell — shown when credits = 0 */}
+        {showBlogBatcherUpsell && (
+          <div className="bg-blue-500/5 border border-blue-500/30 rounded-xl p-5 space-y-3">
+            <div className="text-sm font-semibold text-blue-300">
+              You've used all your credits
+            </div>
+            <p className="text-xs text-muted-foreground">
+              All your existing posts are now optimised. Ready to create
+              brand-new, SEO-optimised posts from scratch?{" "}
+              <strong className="text-foreground">Blog Batcher</strong> is
+              Noize's companion tool for building high-converting blog content
+              from the start.
+            </p>
+            <a
+              href="https://noize.com.au/blog-batcher"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-blue-400 hover:underline"
+            >
+              Learn about Blog Batcher
+              <ExternalLink size={10} />
+            </a>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-3">
+          <Button
+            className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white"
+            onClick={onDone}
+          >
+            Back to Posts
+          </Button>
+          <Button variant="outline" asChild className="flex-1">
+            <a href={postUrl} target="_blank" rel="noopener noreferrer">
+              View Live Post
+              <ExternalLink size={12} className="ml-1" />
+            </a>
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PartialFailureAlert — shown when content was written but meta failed
+// ---------------------------------------------------------------------------
+interface PartialFailureAlertProps {
+  metaTitle: string;
+  metaDescription: string;
+  onDismiss: () => void;
+}
+
+function PartialFailureAlert({
+  metaTitle,
+  metaDescription,
+  onDismiss,
+}: PartialFailureAlertProps) {
+  const [titleCopied, setTitleCopied] = useState(false);
+  const [descCopied, setDescCopied] = useState(false);
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-6">
+      <div className="max-w-md w-full bg-[#16213E] border border-amber-500/40 rounded-xl p-6 space-y-4">
+        <div className="flex items-start gap-3">
+          <AlertTriangle size={20} className="text-amber-400 mt-0.5 shrink-0" />
+          <div className="space-y-1">
+            <div className="font-semibold text-foreground">
+              Partial post-back
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Post body updated successfully, but meta title and meta description
+              could not be written. Please update them manually in your CMS.
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <div className="text-xs text-muted-foreground">Meta Title</div>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 text-xs bg-muted/30 rounded px-2 py-1 text-foreground break-all">
+                {metaTitle}
+              </code>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs shrink-0 gap-1"
+                onClick={() => {
+                  navigator.clipboard.writeText(metaTitle);
+                  setTitleCopied(true);
+                  setTimeout(() => setTitleCopied(false), 2000);
+                }}
+              >
+                {titleCopied ? (
+                  <CheckCircle2 size={10} className="text-emerald-400" />
+                ) : (
+                  <Copy size={10} />
+                )}
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <div className="text-xs text-muted-foreground">
+              Meta Description
+            </div>
+            <div className="flex items-start gap-2">
+              <code className="flex-1 text-xs bg-muted/30 rounded px-2 py-1 text-foreground break-all">
+                {metaDescription}
+              </code>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs shrink-0 gap-1 mt-0.5"
+                onClick={() => {
+                  navigator.clipboard.writeText(metaDescription);
+                  setDescCopied(true);
+                  setTimeout(() => setDescCopied(false), 2000);
+                }}
+              >
+                {descCopied ? (
+                  <CheckCircle2 size={10} className="text-emerald-400" />
+                ) : (
+                  <Copy size={10} />
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <Button
+          className="w-full"
+          variant="outline"
+          onClick={onDismiss}
+        >
+          Got it — I'll update manually
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main ReviewEdit component
 // ---------------------------------------------------------------------------
 export default function ReviewEdit() {
@@ -356,13 +637,29 @@ export default function ReviewEdit() {
   const autoSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastSavedRef = useRef<string>("");
 
+  // ----- Post-back state -----
+  const [postBackResult, setPostBackResult] = useState<{
+    postTitle: string;
+    postUrl: string;
+    rewriteScore: number | null;
+    rewriteGrade: string | null;
+    schemaInjected: boolean;
+    schemaFallbackJson: string | null;
+    showBlogBatcherUpsell: boolean;
+  } | null>(null);
+
+  const [partialFailure, setPartialFailure] = useState<{
+    metaTitle: string;
+    metaDescription: string;
+  } | null>(null);
+
   // ----- TipTap editor -----
   const editor = useEditor({
     extensions: [
       StarterKit,
       Link.configure({ openOnClick: false }),
-    Image.configure({}),
-  ],
+      Image.configure({}),
+    ],
     content: "",
     editorProps: {
       attributes: {
@@ -419,20 +716,66 @@ export default function ReviewEdit() {
     },
   });
 
-  const approveForPostBackMutation = trpc.review.approveForPostBack.useMutation(
-    {
-      onSuccess: () => {
-        toast.success(
-          "Post approved and queued for post-back. You will be notified when it is live."
+  const runPostBackMutation = trpc.postback.runPostBack.useMutation({
+    onSuccess: (data) => {
+      setApproving(false);
+      setPostBackResult({
+        postTitle: data.postTitle,
+        postUrl: data.postUrl,
+        rewriteScore: data.rewriteScore ?? null,
+        rewriteGrade: data.rewriteGrade ?? null,
+        schemaInjected: data.schemaInjected,
+        schemaFallbackJson: data.schemaFallbackJson,
+        showBlogBatcherUpsell: data.showBlogBatcherUpsell,
+      });
+    },
+    onError: (err) => {
+      setApproving(false);
+      const cause = (err.data as any)?.cause as
+        | { errorCode?: string; partialData?: { contentWritten?: boolean; metaTitle?: string; metaDescription?: string } }
+        | undefined;
+
+      // Error state 4: Partial failure
+      if (cause?.errorCode === "partial_failure" && cause.partialData) {
+        setPartialFailure({
+          metaTitle: cause.partialData.metaTitle ?? metaTitle,
+          metaDescription: cause.partialData.metaDescription ?? metaDescription,
+        });
+        // Navigate to posts after dismissal (post was partially written)
+        return;
+      }
+
+      // Error state 1: Connection lost
+      if (cause?.errorCode === "connection_lost") {
+        toast.error(
+          "Your CMS connection has been lost. Please reconnect your WordPress site before posting back.",
+          { duration: 8000 }
         );
-        navigate("/posts");
-      },
-      onError: (err) => {
-        toast.error(err.message ?? "Approval failed. Please try again.");
-        setApproving(false);
-      },
-    }
-  );
+        return;
+      }
+
+      // Error state 2: Post not found in CMS
+      if (cause?.errorCode === "post_not_found") {
+        toast.error(
+          "This post no longer exists in your CMS — it may have been deleted. Use the Export buttons to save a copy.",
+          { duration: 10000 }
+        );
+        return;
+      }
+
+      // Error state 3: Insufficient permissions
+      if (cause?.errorCode === "insufficient_permissions") {
+        toast.error(
+          "iAudit does not have permission to update posts in your CMS. Please check your API credentials have write access, then reconnect.",
+          { duration: 10000 }
+        );
+        return;
+      }
+
+      // Generic error
+      toast.error(err.message ?? "Post-back failed. Please try again.");
+    },
+  });
 
   // ----- Save handler -----
   const handleSave = useCallback(async () => {
@@ -472,13 +815,14 @@ export default function ReviewEdit() {
     };
   }, [editor, handleSave, saveStatus]);
 
-  // ----- Approve handler -----
+  // ----- Approve and Post Back handler -----
   const handleApprove = async () => {
     if (!postId || !iauditUserId) return;
-    // Save first, then approve
     setApproving(true);
+    // Save first to ensure latest edits are persisted
     await handleSave();
-    approveForPostBackMutation.mutate({ postId, iauditUserId });
+    // Trigger the real post-back
+    runPostBackMutation.mutate({ postId, iauditUserId });
   };
 
   // ----- Export handlers -----
@@ -520,6 +864,16 @@ ${editor.getHTML()}
     });
   };
 
+  // ----- Post-back confirmation screen -----
+  if (postBackResult) {
+    return (
+      <PostBackConfirmation
+        {...postBackResult}
+        onDone={() => navigate("/posts")}
+      />
+    );
+  }
+
   // ----- Loading / auth guard -----
   if (!iauditUserId) {
     return (
@@ -551,6 +905,18 @@ ${editor.getHTML()}
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {/* Partial failure overlay */}
+      {partialFailure && (
+        <PartialFailureAlert
+          metaTitle={partialFailure.metaTitle}
+          metaDescription={partialFailure.metaDescription}
+          onDismiss={() => {
+            setPartialFailure(null);
+            navigate("/posts");
+          }}
+        />
+      )}
+
       {/* Top bar */}
       <div className="sticky top-0 z-30 bg-[#16213E] border-b border-border px-6 py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
@@ -642,7 +1008,7 @@ ${editor.getHTML()}
             title={
               !hasRewrite
                 ? "Run the rewrite first before approving."
-                : "Approve and queue for post-back to CMS"
+                : "Save and post back to your CMS"
             }
           >
             {approving ? (
@@ -650,7 +1016,7 @@ ${editor.getHTML()}
             ) : (
               <Send size={12} />
             )}
-            Approve & Post Back
+            {approving ? "Posting…" : "Approve & Post Back"}
           </Button>
         </div>
       </div>
@@ -830,15 +1196,15 @@ ${editor.getHTML()}
             </div>
           </div>
 
-          {/* Schema JSON preview */}
+          {/* Schema JSON preview — always shown when schema exists */}
           {!!post.schemaJson && (
             <div className="bg-card border border-border rounded-lg p-4 space-y-2">
               <div className="text-sm font-semibold text-foreground">
                 Schema Markup
               </div>
               <p className="text-xs text-muted-foreground">
-                Copy this JSON-LD block and paste it into your CMS (e.g. via a
-                custom code block or SEO plugin).
+                iAudit will attempt to inject this schema automatically when you
+                post back. If injection fails, a copyable fallback will be shown.
               </p>
               <div className="relative">
                 <pre className="text-[10px] text-muted-foreground bg-muted/30 rounded p-3 overflow-auto max-h-48 whitespace-pre-wrap break-all">
@@ -847,7 +1213,7 @@ ${editor.getHTML()}
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="absolute top-1 right-1 text-xs h-6 px-2"
+                  className="absolute top-1 right-1 text-xs h-6 px-2 gap-1"
                   onClick={() => {
                     navigator.clipboard.writeText(
                       JSON.stringify(post.schemaJson, null, 2)
@@ -855,7 +1221,7 @@ ${editor.getHTML()}
                     toast.success("Schema copied to clipboard.");
                   }}
                 >
-                  Copy
+                  <Copy size={10} /> Copy
                 </Button>
               </div>
             </div>

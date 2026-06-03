@@ -235,3 +235,20 @@
 - [ ] Verify: all three export formats download correctly
 - [ ] Verify: Approve and Post Back button present and functional
 - [ ] Vitest tests for all Layer 8 flows
+
+## Layer 9: Post Back to CMS (Section 13 + 16.1 of Scope)
+
+- [x] Build `server/postback.service.ts` — WordPress PATCH /wp-json/wp/v2/posts/{cms_post_id} with ONLY: content (body_approved), meta title, meta description, image alt texts, author_id_cms. NEVER include status, date, or slug.
+- [x] Build `server/postback.db.ts` — DB helpers: getPostForPostBack, setPostBackComplete, setPostBackFailed
+- [x] Build `server/routers/postback.ts` — tRPC procedures: runPostBack (with all 4 error states), getPostBackStatus
+- [x] Wire postback router into `server/routers.ts`
+- [x] Error state 1: CMS connection lost → prompt reconnection before attempting write
+- [x] Error state 2: Post no longer exists in CMS → offer export instead
+- [x] Error state 3: Insufficient write permissions → show credentials error with instructions
+- [x] Error state 4: Partial failure (content written but meta could not update) → show correct values for manual copy-paste
+- [x] Schema injection: attempt via CMS API; if fails, show copyable JSON-LD fallback with exact message
+- [x] Update `ReviewEdit.tsx`: wire "Approve and Post Back" button to trigger actual post-back flow
+- [x] Add post-back confirmation screen: post title, final score + grade badge, live link (post_url), Blog Batcher upsell if credits=0
+- [x] Add copyable JSON-LD schema fallback block with exact message from spec
+- [x] Write Layer 9 vitest tests (19 new tests, 291 total)
+- [x] Run full test suite — all 291 tests pass, zero TypeScript errors

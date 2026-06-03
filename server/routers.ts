@@ -9,6 +9,7 @@ import { keywordRouter } from "./routers/keyword";
 import { auditRouter } from "./routers/audit";
 import { rewriteRouter } from "./routers/rewrite";
 import { reviewRouter } from "./routers/review";
+import { postbackRouter } from "./routers/postback";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -44,6 +45,9 @@ export const appRouter = router({
 
   // iAudit review and edit (Layer 8)
   review: reviewRouter,
+
+  // iAudit post back to CMS (Layer 9)
+  postback: postbackRouter,
 
   // TODO: add feature routers here, e.g.
   // todo: router({
