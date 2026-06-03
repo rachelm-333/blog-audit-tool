@@ -252,3 +252,23 @@
 - [x] Add copyable JSON-LD schema fallback block with exact message from spec
 - [x] Write Layer 9 vitest tests (19 new tests, 291 total)
 - [x] Run full test suite — all 291 tests pass, zero TypeScript errors
+
+## Layer 10: Free Public Audit Tool (Section 6, 20, 21 of Scope)
+
+- [x] Add `free_rewrites` table to schema: id, email (unique), post_url, audit_score_before, rewrite_score_after, body_rewritten, meta_title_rewritten, meta_description_rewritten, created_at
+- [x] Run migration for free_rewrites table
+- [x] Build `server/public-audit.service.ts`: scrapeAndAudit(url) — Puppeteer scrape + full 16-point audit engine, returns score/grade/results
+- [x] Build `server/public-rewrite.service.ts`: freeRewrite(params) — full Layer 7 pipeline (Pass 1 + mechanical enforcement + Pass 2 + re-score), NO credit deduction
+- [x] Build `server/public-audit.db.ts`: checkEmailUsed(email), recordFreeRewrite(data), getFreeRewriteByEmail(email)
+- [x] Build `server/routers/publicAudit.ts`: publicProcedure `runAudit` (scrape + audit), `runFreeRewrite` (email gate + full pipeline + save record)
+- [x] Wire publicAudit router into `server/routers.ts`
+- [x] Build `/audit` frontend page: hero section with URL input + "Audit This Post Free" button
+- [x] Stage 1 results: score/16, grade badge, failing points list (red ❌), passing points list (green ✅), potential score line
+- [x] Stage 2 CTA: "Fix This Post Free" button reveals unlock form
+- [x] Stage 2 form: business name, industry, who is your customer, most important page URL, brand voice selector (4 buttons), email address
+- [x] Stage 2 duplicate email error: "This email address has already used its free rewrite. Sign up for an account to fix all your posts."
+- [x] Stage 2 rewrite delivery: before/after score, 3 copy buttons (Plain Text, HTML, Markdown), Blog Batcher upsell banner
+- [x] Register /audit route in App.tsx (public, no auth required)
+- [x] Add "Free Audit" link to nav/sidebar for unauthenticated users
+- [x] Write Layer 10 vitest tests (20 new tests, 311 total)
+- [x] Run full test suite — all 311 tests pass, zero TypeScript errors

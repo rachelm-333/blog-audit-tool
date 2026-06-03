@@ -372,3 +372,32 @@ export const refreshTokens = mysqlTable(
 
 export type RefreshToken = typeof refreshTokens.$inferSelect;
 export type InsertRefreshToken = typeof refreshTokens.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// free_rewrites — One-free-rewrite-per-email enforcement (Layer 10 / Section 6)
+// Stores every email address that has received a free public rewrite.
+// Must survive server restarts — stored in DB, not memory.
+// ---------------------------------------------------------------------------
+export const freeRewrites = mysqlTable(
+  "free_rewrites",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(), // UUID
+    // varchar(255): indexed for fast duplicate-check lookup
+    email: varchar("email", { length: 255 }).notNull(),
+    postUrl: text("post_url").notNull(), // The public blog post URL that was audited
+    auditScoreBefore: int("audit_score_before").notNull(), // Score before rewrite (0–16)
+    rewriteScoreAfter: int("rewrite_score_after").notNull(), // Score after rewrite (0–16)
+    bodyRewritten: text("body_rewritten").notNull(), // Full rewritten HTML body
+    metaTitleRewritten: text("meta_title_rewritten").notNull(),
+    metaDescriptionRewritten: text("meta_description_rewritten").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    // Unique index on email — enforces one free rewrite per address
+    uniqueIndex("free_rewrites_email_unique").on(table.email),
+    index("free_rewrites_email_idx").on(table.email),
+  ]
+);
+
+export type FreeRewrite = typeof freeRewrites.$inferSelect;
+export type InsertFreeRewrite = typeof freeRewrites.$inferInsert;
