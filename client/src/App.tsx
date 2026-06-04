@@ -18,6 +18,7 @@ import AuditPage from "@/pages/Audit";
 import Credits from "@/pages/Credits";
 import AdminPanel from "@/pages/AdminPanel";
 import SupportCentre from "@/pages/SupportCentre";
+import Onboarding from "@/pages/Onboarding";
 
 function Router() {
   return (
@@ -37,6 +38,7 @@ function Router() {
       <Route path="/credits/success" component={Credits} />
       <Route path="/admin" component={AdminPanel} />
       <Route path="/support" component={SupportCentre} />
+      <Route path="/onboarding" component={Onboarding} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

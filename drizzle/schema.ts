@@ -64,6 +64,7 @@ export const iauditUsers = mysqlTable(
     creditsTotalPurchased: int("credits_total_purchased").notNull().default(0),
     isSuspended: boolean("is_suspended").notNull().default(false),
     stripeCustomerId: text("stripe_customer_id"),
+    onboardingComplete: boolean("onboarding_complete").notNull().default(false),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
   },

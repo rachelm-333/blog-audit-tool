@@ -37,6 +37,7 @@ import {
   ChevronRight,
   Shield,
   LifeBuoy,
+  ExternalLink,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -312,6 +313,29 @@ function DashboardLayoutContent({
               )}
             </SidebarMenu>
           </SidebarContent>
+
+          {/* Blog Batcher upsell — persistent sidebar CTA */}
+          <div className="px-3 pb-2 group-data-[collapsible=icon]:hidden">
+            <a
+              href="https://blogbatcher.com.au"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-start gap-2.5 rounded-xl border border-blue-500/25 bg-blue-500/5 hover:bg-blue-500/10 hover:border-blue-500/40 p-3 transition-all duration-200 group/bb"
+            >
+              <div className="flex-1 min-w-0">
+                <div className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-0.5">
+                  Blog Batcher
+                </div>
+                <div className="text-xs font-semibold text-foreground leading-snug">
+                  Need new posts from scratch?
+                </div>
+                <div className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
+                  Bulk-generate SEO content with Noize's companion tool.
+                </div>
+              </div>
+              <ExternalLink className="h-3.5 w-3.5 text-blue-400 shrink-0 mt-0.5 opacity-70 group-hover/bb:opacity-100 transition-opacity" />
+            </a>
+          </div>
 
           <SidebarFooter className="p-3">
             <DropdownMenu>

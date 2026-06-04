@@ -18,6 +18,7 @@ export interface IauditUser {
   accountType: "solo" | "agency" | "admin";
   emailVerified: boolean;
   creditsRemaining: number;
+  onboardingComplete: boolean;
 }
 
 interface IauditAuthState {

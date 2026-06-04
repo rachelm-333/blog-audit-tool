@@ -268,15 +268,37 @@ export default function Credits() {
 
         {/* ── Low-credit banner ── */}
         {isZeroCredits && (
-          <div className="flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-5 py-4">
-            <AlertTriangle className="h-5 w-5 text-red-400 mt-0.5 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-red-300">
-                You have no credits remaining
+          <div className="space-y-3">
+            <div className="flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-5 py-4">
+              <AlertTriangle className="h-5 w-5 text-red-400 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-red-300">
+                  You have no credits remaining
+                </p>
+                <p className="text-xs text-red-400 mt-0.5">
+                  Buy more credits below to continue rewriting posts.
+                </p>
+              </div>
+            </div>
+            {/* Blog Batcher upsell — shown when credits hit zero */}
+            <div className="rounded-xl border border-blue-500/25 bg-blue-500/5 px-5 py-4">
+              <div className="text-xs font-bold uppercase tracking-widest text-blue-400 mb-1">Blog Batcher</div>
+              <p className="text-sm font-semibold text-foreground mb-1">
+                All your posts are optimised. Need brand-new content?
               </p>
-              <p className="text-xs text-red-400 mt-0.5">
-                Buy more credits below to continue rewriting posts.
+              <p className="text-xs text-muted-foreground mb-3">
+                <strong className="text-foreground">Blog Batcher</strong> is Noize's companion tool for building
+                high-converting blog posts from scratch — keyword-targeted, SEO-ready, and written in your brand voice.
               </p>
+              <a
+                href="https://blogbatcher.com.au"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-400 hover:text-blue-300 hover:underline transition-colors"
+              >
+                Explore Blog Batcher
+                <ExternalLink size={11} />
+              </a>
             </div>
           </div>
         )}

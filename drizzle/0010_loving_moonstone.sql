@@ -1,0 +1,1 @@
+ALTER TABLE `iaudit_users` ADD `onboarding_complete` boolean DEFAULT false NOT NULL;

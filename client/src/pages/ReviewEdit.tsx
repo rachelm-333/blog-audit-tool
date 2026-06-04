@@ -485,13 +485,13 @@ function PostBackConfirmation({
               Noize's companion tool for building high-converting blog content
               from the start.
             </p>
-            <a
-              href="https://noize.com.au/blog-batcher"
+              <a
+              href="https://blogbatcher.com.au"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-blue-400 hover:underline"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-400 hover:text-blue-300 hover:underline transition-colors"
             >
-              Learn about Blog Batcher
+              Explore Blog Batcher
               <ExternalLink size={10} />
             </a>
           </div>

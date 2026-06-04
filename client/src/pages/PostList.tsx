@@ -1191,17 +1191,26 @@ export default function PostList() {
         {/* Post list */}
         {posts.length === 0 ? (
           <div className="bg-card border border-border rounded-xl p-12 text-center">
-            <p className="text-muted-foreground text-sm">
-              No posts imported yet.
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-4"
-              onClick={() => navigate("/cms/connect")}
-            >
-              Import Posts
-            </Button>
+            <div className="flex flex-col items-center gap-4">
+              <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
+                <FileText className="h-7 w-7 text-primary/60" />
+              </div>
+              <div>
+                <p className="text-base font-semibold text-foreground">No posts imported yet</p>
+                <p className="text-sm text-muted-foreground mt-1 max-w-xs mx-auto">
+                  Connect your CMS and import your blog posts to start auditing and rewriting them.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate("/cms/connect")}
+                >
+                  Connect CMS
+                </Button>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="space-y-2">

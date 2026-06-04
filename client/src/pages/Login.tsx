@@ -19,15 +19,22 @@ export default function Login() {
 
   const loginMutation = trpc.iauth.login.useMutation({
     onSuccess: (data) => {
-      setIauditSession(data.accessToken, {
+      const user: import("@/hooks/useIauditAuth").IauditUser = {
         id: data.user.id,
         email: data.user.email,
         name: data.user.name,
         accountType: data.user.accountType as "solo" | "agency" | "admin",
         emailVerified: data.user.emailVerified,
         creditsRemaining: data.user.creditsRemaining,
-      });
-      navigate("/dashboard");
+        onboardingComplete: (data.user as any).onboardingComplete ?? false,
+      };
+      setIauditSession(data.accessToken, user);
+      // First-time users go through the onboarding wizard
+      if (!user.onboardingComplete) {
+        navigate("/onboarding");
+      } else {
+        navigate("/dashboard");
+      }
     },
     onError: (err) => {
       toast.error(err.message || "Login failed. Please try again.");

@@ -434,3 +434,44 @@
 - [x] Wire tooltips into PostList.tsx (rewrite mode selector)
 - [x] Write Layer 16 vitest tests (sendContactEmail, article search, tooltip rendering)
 - [x] Run full test suite — all tests pass
+
+## Layer 17: Onboarding Flow, Blog Batcher Upsell & Final UX Polish
+
+### DB Migration
+- [x] Add `onboarding_complete` BOOLEAN column (default false) to `iaudit_users` table
+- [x] Run migration via webdev_execute_sql
+
+### Onboarding Flow
+- [x] Build `client/src/pages/Onboarding.tsx` — 5-step wizard (Welcome, Business, CMS, Credits, Audit)
+- [x] Step 1: Welcome screen — iAudit logo, tagline, Get Started button
+- [x] Step 2: Business profile — embed BusinessSetup flow, must complete before Step 3 unlocks
+- [x] Step 3: CMS connection — embed CmsConnect flow, must connect before Step 4 unlocks
+- [x] Step 4: Buy credits or skip — show 4 credit packs + "Skip for now" link
+- [x] Step 5: Run first audit — Start Audit button + explanatory text; on completion set onboarding_complete=true
+- [x] Add `onboarding_complete` field to iaudit_users Drizzle schema
+- [x] Build tRPC `iauth.completeOnboarding` procedure — sets onboarding_complete=true
+- [x] Add `/onboarding` route to App.tsx
+- [x] Guard: new users redirected to /onboarding after first login (check onboarding_complete in auth flow)
+- [x] Guard: returning users redirected to /dashboard if they land on /onboarding directly
+- [x] Progress indicator (Step X of 5) visible on Steps 2–5
+
+### Blog Batcher Upsell
+- [x] Sidebar: persistent "Create New Posts → Blog Batcher" link at bottom of DashboardLayout sidebar (accent blue, always visible)
+- [x] Post-completion screen (PostBack): add Blog Batcher banner after successful post-back
+- [x] Zero credits screen (Credits page): add secondary Blog Batcher line below top-up CTA
+- [x] Free audit tool delivery screen (/audit): add Blog Batcher upsell banner after free rewrite delivered
+- [x] All upsell links use href="https://blogbatcher.com.au"
+
+### Final UX Polish
+- [x] Audit every screen for empty states — no blank white areas when data is absent
+- [x] Audit every screen for loading states — skeleton loaders or spinners on all data fetches
+- [x] Audit every screen for error states — plain-English messages, no raw error codes
+- [x] Add live character counters to meta title and meta description on ALL screens where they appear
+- [x] Confirm all Layer 16 HelpTooltips are present and working on every screen
+- [x] Mobile responsiveness: sidebar collapses on ≤768px with hamburger menu
+- [x] Verify hamburger menu opens/closes sidebar on tablet
+
+### Tests & Pre-launch
+- [x] Write Layer 17 vitest tests (onboarding_complete flag, completeOnboarding procedure, Blog Batcher upsell placement)
+- [x] Run full test suite — all tests pass, zero TypeScript errors
+- [x] Pre-launch checklist review: RESEND_FROM_EMAIL, Stripe live keys, Blog Batcher URL, env vars documented

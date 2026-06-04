@@ -279,6 +279,7 @@ export const iauthRouter = router({
         accountType: user.accountType,
         emailVerified: user.emailVerified,
         creditsRemaining: user.creditsRemaining,
+        onboardingComplete: user.onboardingComplete,
       },
     };
   }),
@@ -364,6 +365,7 @@ export const iauthRouter = router({
         accountType: user.accountType,
         emailVerified: user.emailVerified,
         creditsRemaining: user.creditsRemaining,
+        onboardingComplete: user.onboardingComplete,
       },
     };
   }),
@@ -464,6 +466,24 @@ export const iauthRouter = router({
         accountType: user.accountType,
         emailVerified: user.emailVerified,
         creditsRemaining: user.creditsRemaining,
+        onboardingComplete: user.onboardingComplete,
       };
+    }),
+
+  /**
+   * Complete onboarding — sets onboarding_complete=true for the authenticated user.
+   * Called by the frontend after the user completes Step 5 (first audit).
+   */
+  completeOnboarding: publicProcedure
+    .input(z.object({ iauditUserId: z.string() }))
+    .mutation(async ({ input }) => {
+      const db = await import("../db").then((m) => m.getDb());
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+      const { iauditUsers } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      await db.update(iauditUsers)
+        .set({ onboardingComplete: true })
+        .where(eq(iauditUsers.id, input.iauditUserId));
+      return { success: true };
     }),
 });

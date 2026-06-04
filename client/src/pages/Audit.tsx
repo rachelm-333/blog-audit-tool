@@ -126,21 +126,25 @@ function BlogBatcherBanner() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-xs font-bold uppercase tracking-widest text-[#4A90D9] mb-1">
-            Blog Batcher — Bulk Rewrite Engine
+            Blog Batcher — Bulk Content Engine
           </div>
           <div className="text-base font-bold text-white">
-            Have more than one post that needs fixing?
+            Need brand-new, SEO-optimised posts from scratch?
           </div>
           <div className="text-sm text-[#8892A4] mt-1">
-            iAudit connects to your WordPress site, imports all your posts, audits every one against the 16-point standard, and rewrites them in bulk — ready to publish.
+            Blog Batcher is Noize's companion tool for building high-converting blog content from the start — keyword-targeted, SEO-ready, and written in your brand voice.
           </div>
         </div>
         <div className="flex-shrink-0">
-          <Link href="/register">
+          <a
+            href="https://blogbatcher.com.au"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             <Button className="bg-[#2E6DA4] hover:bg-[#4A90D9] text-white font-semibold whitespace-nowrap">
-              See Plans &amp; Pricing →
+              Explore Blog Batcher →
             </Button>
-          </Link>
+          </a>
         </div>
       </div>
     </div>
@@ -452,7 +456,7 @@ function RewriteDeliveryPanel({ result }: { result: RewriteDelivery }) {
       <div className="text-center py-2">
         <Link href="/register">
           <Button variant="outline" className="border-[#2E6DA4] text-[#4A90D9] hover:bg-[#2E6DA4] hover:text-white">
-            Want to fix all your posts? See plans and pricing →
+            Fix all your posts with iAudit →
           </Button>
         </Link>
       </div>
