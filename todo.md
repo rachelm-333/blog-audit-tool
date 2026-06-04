@@ -17,22 +17,22 @@
 
 ## Layer 2–17: Future Layers (do not build until instructed)
 
-- [ ] Layer 2: Auth (registration, email verification, login, JWT)
-- [ ] Layer 3: Stage 1 — Business Profile & Website Scrape
-- [ ] Layer 4: Stage 2 — CMS Connection & Post Import
+- [x] Layer 2: Auth (registration, email verification, login, JWT)
+- [x] Layer 3: Stage 1 — Business Profile & Website Scrape
+- [x] Layer 4: Stage 2 — CMS Connection & Post Import
 - [x] Layer 5: Stage 3 — Keyword Identification
 - [x] Layer 6: Stage 4 — Audit Engine
-- [ ] Layer 7: Stage 5 — Rewrite Engine
-- [ ] Layer 8: Stage 6 — Review & Edit
-- [ ] Layer 9: Stage 7 — Post Back to CMS
-- [ ] Layer 10: Free Public Audit Tool (/audit)
-- [ ] Layer 11: Dashboard
-- [ ] Layer 12: Credits & Stripe
+- [x] Layer 7: Stage 5 — Rewrite Engine
+- [x] Layer 8: Stage 6 — Review & Edit
+- [x] Layer 9: Stage 7 — Post Back to CMS
+- [x] Layer 10: Free Public Audit Tool (/audit)
+- [x] Layer 11: Dashboard
+- [x] Layer 12: Credits & Stripe
 - [x] Layer 13: Wix & Shopify CMS integrations
 - [x] Layer 14: Agency features
-- [ ] Layer 15: Admin Panel
+- [x] Layer 15: Admin Panel
 - [x] Layer 16: Support Centre
-- [ ] Layer 17: Onboarding flow & UX polish
+- [x] Layer 17: Onboarding flow & UX polish
 
 ## Layer 2: Authentication (Section 4 of Scope)
 
@@ -88,32 +88,32 @@
 
 ## Layer 4: CMS Connection & Post Import (Section 8)
 
-- [ ] Extend `posts` table: add `featured_image_url`, `featured_image_alt`, `body_image_alts` (JSONB), `categories` (JSONB), `tags` (JSONB) columns
-- [ ] Run migration for new posts columns
-- [ ] Build AES-256-GCM encryption service for CMS credentials at rest
-- [ ] Build WordPress REST API import engine (Application Password auth, all 3 statuses, Yoast keyword, all fields)
-- [ ] Build CMS connections DB helpers: createConnection, getConnection, updateConnectionStatus, listConnections
-- [ ] Build posts DB helpers: upsertPost, listPostsByBusiness, getPostById
-- [ ] Build tRPC `cms.connect` procedure (WordPress only — validates credentials, saves encrypted to DB)
-- [ ] Build tRPC `cms.testConnection` procedure
-- [ ] Build tRPC `cms.importPosts` procedure (post type filter, no trash, upserts by cms_post_id)
-- [ ] Build tRPC `cms.getConnection` and `cms.listConnections` procedures
-- [ ] Build tRPC `cms.disconnectConnection` procedure
-- [ ] Stub Wix, Shopify, Zapier connection flows (platform selector shows them, connection form says "Coming soon" or shows Zapier webhook URL)
-- [ ] Build all 5 error states from Section 8.4 / Table 12
-- [ ] Build frontend: platform selector screen
-- [ ] Build frontend: WordPress connection form (URL, username, application password)
-- [ ] Build frontend: import options (Published / Scheduled / Draft / All)
-- [ ] Build frontend: import progress indicator ("Connecting to WordPress... Importing your posts...")
-- [ ] Build frontend: post import results screen (count by status)
-- [ ] Build frontend: all 5 error state messages
-- [ ] Verify: WordPress connection works with real credentials
-- [ ] Verify: published, scheduled, draft posts all import correctly
-- [ ] Verify: trash posts never imported
-- [ ] Verify: author ID, author name, CMS post ID, focus keyword stored accurately
-- [ ] Verify: credentials encrypted in DB (never plain text)
-- [ ] Verify: all 5 error states display correct messages
-- [ ] Vitest tests for encryption, WP import engine, and all tRPC procedures
+- [x] Extend `posts` table: add `featured_image_url`, `featured_image_alt`, `body_image_alts` (JSONB), `categories` (JSONB), `tags` (JSONB) columns
+- [x] Run migration for new posts columns
+- [x] Build AES-256-GCM encryption service for CMS credentials at rest
+- [x] Build WordPress REST API import engine (Application Password auth, all 3 statuses, Yoast keyword, all fields)
+- [x] Build CMS connections DB helpers: createConnection, getConnection, updateConnectionStatus, listConnections
+- [x] Build posts DB helpers: upsertPost, listPostsByBusiness, getPostById
+- [x] Build tRPC `cms.connect` procedure (WordPress only — validates credentials, saves encrypted to DB)
+- [x] Build tRPC `cms.testConnection` procedure
+- [x] Build tRPC `cms.importPosts` procedure (post type filter, no trash, upserts by cms_post_id)
+- [x] Build tRPC `cms.getConnection` and `cms.listConnections` procedures
+- [x] Build tRPC `cms.disconnectConnection` procedure
+- [x] Wix, Shopify, Zapier connection flows fully implemented (Layer 13)
+- [x] Build all 5 error states from Section 8.4 / Table 12
+- [x] Build frontend: platform selector screen
+- [x] Build frontend: WordPress connection form (URL, username, application password)
+- [x] Build frontend: import options (Published / Scheduled / Draft / All)
+- [x] Build frontend: import progress indicator ("Connecting to WordPress... Importing your posts...")
+- [x] Build frontend: post import results screen (count by status)
+- [x] Build frontend: all 5 error state messages
+- [x] Verify: WordPress connection works with real credentials
+- [x] Verify: published, scheduled, draft posts all import correctly
+- [x] Verify: trash posts never imported
+- [x] Verify: author ID, author name, CMS post ID, focus keyword stored accurately
+- [x] Verify: credentials encrypted in DB (never plain text)
+- [x] Verify: all 5 error states display correct messages
+- [x] Vitest tests for encryption, WP import engine, and all tRPC procedures
 
 ## Layer 5: Keyword Identification (Section 9)
 
@@ -165,76 +165,76 @@
 
 ## Layer 7: Rewrite Engine (Section 11 of Scope)
 
-- [ ] Add `paa_question` TEXT column to posts table
-- [ ] Add `article_type` enum column (cornerstone/pillar/cluster) to posts table
-- [ ] Add `schema_json` JSON column to posts table
-- [ ] Add `rewrite_status` enum column (pending/running/complete/failed/needs_manual_review) to posts table
-- [ ] Add `rewritten_at` TIMESTAMP column to posts table
-- [ ] Run migration for new posts columns
-- [ ] Build PAA lookup service: LLM call with keyword → most relevant People Also Ask question
-- [ ] Build article type inference: cornerstone (2000+ words), pillar (1000–1999), cluster (<1000)
-- [ ] Build internal link map builder: all published posts + scheduled posts before this post's date
-- [ ] Build Pass 1 rewrite: LLM call with full context (keyword, PAA, article type, word count target, business profile, internal link map, 16-point requirements, failing points list)
-- [ ] Build mechanical enforcement layer: P1 density, P3 H2 keyword, P5 first 150 words, P7 meta title 60 chars, P8 meta description 140–160 chars
-- [ ] Build Pass 2 fingerprint scrub: second LLM call to rewrite language patterns only (no SEO structure/keyword/link/fact changes)
-- [ ] Build schema generation: Article + Breadcrumb schema for all posts; FAQ schema for Cornerstone/Pillar
-- [ ] Build re-scoring: run full Layer 6 audit engine against rewritten content, store rewrite_score and rewrite_grade
-- [ ] Build auto-retry: if rewrite_score < 13, retry from Pass 1 once with adjusted instructions
-- [ ] Build credit deduction: deduct 1 credit before Pass 1, log credit_transactions type=use with post_id
-- [ ] Build credit refund: if retry also scores < 13, refund 1 credit, log type=refund, set rewrite_status=needs_manual_review, notify user
-- [ ] Build zero-credits guard: block rewrite if credits_remaining=0, show "You have no credits remaining. Buy more to continue rewriting posts."
-- [ ] Build rewrite DB helpers: saveRewriteResult, setRewriteStatus, getPostForRewrite
-- [ ] Build tRPC `rewrite.getPaaQuestion` procedure (returns suggested PAA, user can confirm or change)
-- [ ] Build tRPC `rewrite.runRewrite` procedure (full pipeline: credit deduct → Pass 1 → enforce → Pass 2 → schema → re-score → auto-retry → save)
-- [ ] Build tRPC `rewrite.getRewriteResult` procedure (returns rewrite result for a post)
-- [ ] Wire rewrite router into routers.ts
-- [ ] Frontend: PAA confirmation modal (shows suggested PAA, user can confirm or type their own before rewrite starts)
-- [ ] Frontend: Fix This Post button triggers PAA modal then rewrite
-- [ ] Frontend: rewrite progress indicator (step-by-step: Deducting credit → Pass 1 → Enforcing → Pass 2 → Scoring → Done)
-- [ ] Frontend: rewrite results panel (rewrite_score, rewrite_grade, comparison with audit_score)
-- [ ] Frontend: zero-credits error message
-- [ ] Frontend: needs_manual_review state with user notification
-- [ ] Verify: rewrite runs end-to-end on a real post
-- [ ] Verify: both AI passes run
-- [ ] Verify: mechanical enforcement fires correctly
-- [ ] Verify: score after rewrite is at least 13
-- [ ] Verify: credit deducted from iaudit_users and logged in credit_transactions
-- [ ] Verify: auto-retry triggers if score below 13
-- [ ] Verify: credit refunded and user notified if retry also fails
-- [ ] Verify: schema generated and stored
-- [ ] Verify: zero credits remaining blocks the rewrite
-- [ ] Vitest tests for all Layer 7 flows
+- [x] Add `paa_question` TEXT column to posts table
+- [x] Add `article_type` enum column (cornerstone/pillar/cluster) to posts table
+- [x] Add `schema_json` JSON column to posts table
+- [x] Add `rewrite_status` enum column (pending/running/complete/failed/needs_manual_review) to posts table
+- [x] Add `rewritten_at` TIMESTAMP column to posts table
+- [x] Run migration for new posts columns
+- [x] Build PAA lookup service: LLM call with keyword → most relevant People Also Ask question
+- [x] Build article type inference: cornerstone (2000+ words), pillar (1000–1999), cluster (<1000)
+- [x] Build internal link map builder: all published posts + scheduled posts before this post's date
+- [x] Build Pass 1 rewrite: LLM call with full context (keyword, PAA, article type, word count target, business profile, internal link map, 16-point requirements, failing points list)
+- [x] Build mechanical enforcement layer: P1 density, P3 H2 keyword, P5 first 150 words, P7 meta title 60 chars, P8 meta description 140–160 chars
+- [x] Build Pass 2 fingerprint scrub: second LLM call to rewrite language patterns only (no SEO structure/keyword/link/fact changes)
+- [x] Build schema generation: Article + Breadcrumb schema for all posts; FAQ schema for Cornerstone/Pillar
+- [x] Build re-scoring: run full Layer 6 audit engine against rewritten content, store rewrite_score and rewrite_grade
+- [x] Build auto-retry: if rewrite_score < 13, retry from Pass 1 once with adjusted instructions
+- [x] Build credit deduction: deduct 1 credit before Pass 1, log credit_transactions type=use with post_id
+- [x] Build credit refund: if retry also scores < 13, refund 1 credit, log type=refund, set rewrite_status=needs_manual_review, notify user
+- [x] Build zero-credits guard: block rewrite if credits_remaining=0, show "You have no credits remaining. Buy more to continue rewriting posts."
+- [x] Build rewrite DB helpers: saveRewriteResult, setRewriteStatus, getPostForRewrite
+- [x] Build tRPC `rewrite.getPaaQuestion` procedure (returns suggested PAA, user can confirm or change)
+- [x] Build tRPC `rewrite.runRewrite` procedure (full pipeline: credit deduct → Pass 1 → enforce → Pass 2 → schema → re-score → auto-retry → save)
+- [x] Build tRPC `rewrite.getRewriteResult` procedure (returns rewrite result for a post)
+- [x] Wire rewrite router into routers.ts
+- [x] Frontend: PAA confirmation modal (shows suggested PAA, user can confirm or type their own before rewrite starts)
+- [x] Frontend: Fix This Post button triggers PAA modal then rewrite
+- [x] Frontend: rewrite progress indicator (step-by-step: Deducting credit → Pass 1 → Enforcing → Pass 2 → Scoring → Done)
+- [x] Frontend: rewrite results panel (rewrite_score, rewrite_grade, comparison with audit_score)
+- [x] Frontend: zero-credits error message
+- [x] Frontend: needs_manual_review state with user notification
+- [x] Verify: rewrite runs end-to-end on a real post
+- [x] Verify: both AI passes run
+- [x] Verify: mechanical enforcement fires correctly
+- [x] Verify: score after rewrite is at least 13
+- [x] Verify: credit deducted from iaudit_users and logged in credit_transactions
+- [x] Verify: auto-retry triggers if score below 13
+- [x] Verify: credit refunded and user notified if retry also fails
+- [x] Verify: schema generated and stored
+- [x] Verify: zero credits remaining blocks the rewrite
+- [x] Vitest tests for all Layer 7 flows
 
 ## Layer 8: Review and Edit (Sections 12 and 20)
 
-- [ ] Layer 8: Stage 6 — Review and Edit
-- [ ] Build review.db.ts: getPostForReview, saveApprovedContent, setApprovedStatus
-- [ ] Build tRPC review router: getPost, saveEdits, rescore, approveForPostBack
-- [ ] Wire review router into routers.ts
-- [ ] Install TipTap rich-text editor (pnpm add @tiptap/react @tiptap/starter-kit @tiptap/extension-link @tiptap/extension-image)
-- [ ] Frontend: ReviewEdit page (/review/:postId) with rich-text body editor
-- [ ] Frontend: meta title field with live character counter (red over 60)
-- [ ] Frontend: meta description field with live counter (green 140-160, warn outside)
-- [ ] Frontend: read-only fields: URL (with tooltip), author name, publish/scheduled date, post status
-- [ ] Frontend: image alt text list (every img in body listed with individual editable alt text field)
-- [ ] Frontend: auto-save every 30 seconds with visual indicator ("Saved" / "Saving...")
-- [ ] Frontend: manual Save button always visible
-- [ ] Frontend: re-score on save — updates score/grade badge; shows point-specific warning on regression
-- [ ] Frontend: before/after score comparison (original audit score vs rewrite score) with grade badges
-- [ ] Frontend: export buttons — Plain Text, HTML, Markdown — always visible, download on click
-- [ ] Frontend: Approve and Post Back button (prominent, advances to Layer 9)
-- [ ] Add ReviewEdit route to App.tsx
-- [ ] Add "Review" link from PostList to ReviewEdit page for posts with completed rewrites
-- [ ] Verify: inline body edits persist on save
-- [ ] Verify: meta title counter turns red over 60 chars
-- [ ] Verify: meta description counter shows green 140-160, warns outside range
-- [ ] Verify: URL field visible but not editable
-- [ ] Verify: auto-save fires every 30 seconds
-- [ ] Verify: re-score runs on manual save and updates displayed score
-- [ ] Verify: deliberate bad edit (delete meta description) triggers point-specific warning
-- [ ] Verify: all three export formats download correctly
-- [ ] Verify: Approve and Post Back button present and functional
-- [ ] Vitest tests for all Layer 8 flows
+- [x] Layer 8: Stage 6 — Review and Edit
+- [x] Build review.db.ts: getPostForReview, saveApprovedContent, setApprovedStatus
+- [x] Build tRPC review router: getPost, saveEdits, rescore, approveForPostBack
+- [x] Wire review router into routers.ts
+- [x] Install TipTap rich-text editor
+- [x] Frontend: ReviewEdit page (/review/:postId) with rich-text body editor
+- [x] Frontend: meta title field with live character counter (red over 60)
+- [x] Frontend: meta description field with live counter (green 140-160, warn outside)
+- [x] Frontend: read-only fields: URL (with tooltip), author name, publish/scheduled date, post status
+- [x] Frontend: image alt text list (every img in body listed with individual editable alt text field)
+- [x] Frontend: auto-save every 30 seconds with visual indicator ("Saved" / "Saving...")
+- [x] Frontend: manual Save button always visible
+- [x] Frontend: re-score on save — updates score/grade badge; shows point-specific warning on regression
+- [x] Frontend: before/after score comparison (original audit score vs rewrite score) with grade badges
+- [x] Frontend: export buttons — Plain Text, HTML, Markdown — always visible, download on click
+- [x] Frontend: Approve and Post Back button (prominent, advances to Layer 9)
+- [x] Add ReviewEdit route to App.tsx
+- [x] Add "Review" link from PostList to ReviewEdit page for posts with completed rewrites
+- [x] Verify: inline body edits persist on save
+- [x] Verify: meta title counter turns red over 60 chars
+- [x] Verify: meta description counter shows green 140-160, warns outside range
+- [x] Verify: URL field visible but not editable
+- [x] Verify: auto-save fires every 30 seconds
+- [x] Verify: re-score runs on manual save and updates displayed score
+- [x] Verify: deliberate bad edit (delete meta description) triggers point-specific warning
+- [x] Verify: all three export formats download correctly
+- [x] Verify: Approve and Post Back button present and functional
+- [x] Vitest tests for all Layer 8 flows
 
 ## Layer 9: Post Back to CMS (Section 13 + 16.1 of Scope)
 
@@ -358,39 +358,39 @@
 ## Corrections to Layers 5 and 7 (pre-Layer 15)
 
 ### Correction 1 — Layer 5: Remove AI keyword suggestion, add secondary_keywords
-- [ ] Add `secondary_keywords` JSON column to `posts` table in `drizzle/schema.ts`
-- [ ] Add `rewrite_mode` enum column (`full_rewrite | smart_patch`) to `posts` table in `drizzle/schema.ts`
-- [ ] Generate migration SQL and apply via `webdev_execute_sql`
-- [ ] Remove `suggestKeywordsForPost`, `extractFirst500Words`, `KeywordSuggestion`, `KeywordSuggestionResult` from `server/keyword.service.ts`
-- [ ] Remove `keyword.suggest` procedure from `server/routers/keyword.ts`
-- [ ] Remove `ai_suggested` from `keywordSource` enum (replace with `cms_scraped | user_entered`)
-- [ ] Update `keyword.confirm` — accept `source: 'cms_scraped' | 'user_entered'` only
-- [ ] Add `keyword.saveKeyword` mutation — saves focusKeyword + secondaryKeywords + source, clears audit if keyword changed
-- [ ] Update WordPress CMS import to scrape secondary keywords (Yoast related fields, RankMath additional terms)
-- [ ] Update Wix CMS import to scrape secondary keywords from `post.seoData.tags`
-- [ ] Update Shopify CMS import to scrape secondary keywords from metafields
-- [ ] Update `keyword.db.ts` — add `secondaryKeywords` to `updatePostKeyword` and `getPostForKeyword`
-- [ ] Update `keyword.listPosts` — include `secondaryKeywords` in response
-- [ ] Add `keyword.exportCsv` procedure — returns CSV with post title, primary keyword, secondary keywords, post URL, post status, audit grade
+- [x] Add `secondary_keywords` JSON column to `posts` table in `drizzle/schema.ts`
+- [x] Add `rewrite_mode` enum column (`full_rewrite | smart_patch`) to `posts` table in `drizzle/schema.ts`
+- [x] Generate migration SQL and apply via `webdev_execute_sql`
+- [x] Remove `suggestKeywordsForPost`, `extractFirst500Words`, `KeywordSuggestion`, `KeywordSuggestionResult` from `server/keyword.service.ts`
+- [x] Remove `keyword.suggest` procedure from `server/routers/keyword.ts`
+- [x] Remove `ai_suggested` from `keywordSource` enum (replaced with `cms_scraped | user_entered`)
+- [x] Update `keyword.confirm` — accept `source: 'cms_scraped' | 'user_entered'` only
+- [x] Add `keyword.saveKeyword` mutation — saves focusKeyword + secondaryKeywords + source, clears audit if keyword changed
+- [x] Update WordPress CMS import to scrape secondary keywords (Yoast related fields, RankMath additional terms)
+- [x] Update Wix CMS import to scrape secondary keywords from `post.seoData.tags`
+- [x] Update Shopify CMS import to scrape secondary keywords from metafields
+- [x] Update `keyword.db.ts` — add `secondaryKeywords` to `updatePostKeyword` and `getPostForKeyword`
+- [x] Update `keyword.listPosts` — include `secondaryKeywords` in response
+- [x] Add `keyword.exportCsv` procedure — returns CSV with post title, primary keyword, secondary keywords, post URL, post status, audit grade
 - [x] Update Layer 5 tests — remove AI suggestion tests, add secondary keyword tests
 
 ### Correction 2 — Layer 5: Editable keyword with Save before Rewrite
-- [ ] Update `ReviewEdit.tsx` — keyword and secondary keywords are editable fields with Save Keyword button
-- [ ] Rewrite button disabled until keyword is saved (track `keywordSaved` state)
-- [ ] Show warning when keyword changed after audit: "Changing the keyword will require a full re-audit. Your current audit results will be cleared."
-- [ ] On confirm: clear `auditScore`, `auditGrade`, `auditResults` for the post and re-run audit before enabling rewrite
+- [x] Update `ReviewEdit.tsx` — keyword and secondary keywords are editable fields with Save Keyword button
+- [x] Rewrite button disabled until keyword is saved (track `keywordSaved` state)
+- [x] Show warning when keyword changed after audit: "Changing the keyword will require a full re-audit. Your current audit results will be cleared."
+- [x] On confirm: clear `auditScore`, `auditGrade`, `auditResults` for the post and re-run audit before enabling rewrite
 
 ### Correction 3 — Layer 7: Smart Patch mode + secondary keywords in prompts
-- [ ] Add `runSmartPatch` function to `server/rewrite.service.ts` with Smart Patch prompt
-- [ ] Update `Pass1Input` interface — add `secondaryKeywords: string[]` field
-- [ ] Update `buildPass1SystemPrompt` — include secondary keywords in prompt
-- [ ] Update `runFullRewrite` — accept `secondaryKeywords` and pass to Pass1
-- [ ] Update `rewrite.runRewrite` tRPC procedure — accept `rewriteMode: 'full_rewrite' | 'smart_patch'` input
-- [ ] Dispatch to `runFullRewrite` or `runSmartPatch` based on `rewriteMode`
-- [ ] Save `rewriteMode` to `posts.rewriteMode` column after rewrite
-- [ ] Update `ReviewEdit.tsx` — show Full Rewrite and Smart Patch buttons
+- [x] Add `runSmartPatch` function to `server/rewrite.service.ts` with Smart Patch prompt
+- [x] Update `Pass1Input` interface — add `secondaryKeywords: string[]` field
+- [x] Update `buildPass1SystemPrompt` — include secondary keywords in prompt
+- [x] Update `runFullRewrite` — accept `secondaryKeywords` and pass to Pass1
+- [x] Update `rewrite.runRewrite` tRPC procedure — accept `rewriteMode: 'full_rewrite' | 'smart_patch'` input
+- [x] Dispatch to `runFullRewrite` or `runSmartPatch` based on `rewriteMode`
+- [x] Save `rewriteMode` to `posts.rewriteMode` column after rewrite
+- [x] Update `ReviewEdit.tsx` — show Full Rewrite and Smart Patch buttons
 - [x] Update Layer 7 tests — add Smart Patch tests, secondary keyword prompt tests
-- [ ] Run full test suite — all tests pass
+- [x] Run full test suite — all tests pass
 
 ## Layer 15: Admin Panel
 
