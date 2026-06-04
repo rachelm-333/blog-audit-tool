@@ -3,9 +3,10 @@
  *
  * Provides database operations for keyword identification:
  * - updatePostKeyword: set focus_keyword + keyword_source on a post
+ * - saveKeyword: set focus_keyword + secondary_keywords + source, optionally clear audit
  * - listPostsForBusiness: return id + focusKeyword for all posts in a business
  * - updateCannibalisationFlags: bulk-update cannibalization_flag
- * - getPostForKeyword: fetch post fields needed for AI keyword suggestion
+ * - getPostForKeyword: fetch post fields needed for keyword management
  */
 
 import { eq, inArray } from "drizzle-orm";
@@ -13,13 +14,13 @@ import { getDb } from "./db";
 import { posts } from "../drizzle/schema";
 
 // ---------------------------------------------------------------------------
-// updatePostKeyword
+// updatePostKeyword — legacy helper (used by keyword.confirm)
 // ---------------------------------------------------------------------------
 
 export async function updatePostKeyword(
   postId: string,
   keyword: string,
-  source: "ai_suggested" | "user_entered"
+  source: "cms_scraped" | "user_entered"
 ): Promise<void> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -34,6 +35,48 @@ export async function updatePostKeyword(
 }
 
 // ---------------------------------------------------------------------------
+// saveKeyword — save primary + secondary keywords, optionally clear audit
+// ---------------------------------------------------------------------------
+
+export async function saveKeyword(
+  postId: string,
+  focusKeyword: string,
+  secondaryKeywords: string[],
+  source: "cms_scraped" | "user_entered",
+  clearAudit: boolean
+): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  if (clearAudit) {
+    await db
+      .update(posts)
+      .set({
+        focusKeyword,
+        secondaryKeywords,
+        keywordSource: source,
+        auditScore: null,
+        auditGrade: null,
+        auditResults: null,
+        auditStatus: null,
+        auditedAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(posts.id, postId));
+  } else {
+    await db
+      .update(posts)
+      .set({
+        focusKeyword,
+        secondaryKeywords,
+        keywordSource: source,
+        updatedAt: new Date(),
+      })
+      .where(eq(posts.id, postId));
+  }
+}
+
+// ---------------------------------------------------------------------------
 // listPostsForBusiness
 // ---------------------------------------------------------------------------
 
@@ -41,6 +84,7 @@ export async function listPostsForBusiness(businessId: string): Promise<
   Array<{
     id: string;
     focusKeyword: string | null;
+    secondaryKeywords: unknown;
     title: string;
     url: string;
     cannibalizationFlag: boolean;
@@ -59,6 +103,7 @@ export async function listPostsForBusiness(businessId: string): Promise<
     .select({
       id: posts.id,
       focusKeyword: posts.focusKeyword,
+      secondaryKeywords: posts.secondaryKeywords,
       title: posts.title,
       url: posts.url,
       cannibalizationFlag: posts.cannibalizationFlag,
@@ -109,7 +154,7 @@ export async function updateCannibalisationFlags(
 }
 
 // ---------------------------------------------------------------------------
-// getPostForKeyword — for keyword.suggest tRPC procedure
+// getPostForKeyword — for keyword management tRPC procedures
 // ---------------------------------------------------------------------------
 
 export async function getPostForKeyword(postId: string): Promise<{
@@ -117,8 +162,10 @@ export async function getPostForKeyword(postId: string): Promise<{
   title: string;
   bodyOriginal: string;
   focusKeyword: string | null;
+  secondaryKeywords: unknown;
   keywordSource: string | null;
   businessId: string;
+  auditScore: number | null;
 } | null> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -128,8 +175,10 @@ export async function getPostForKeyword(postId: string): Promise<{
       title: posts.title,
       bodyOriginal: posts.bodyOriginal,
       focusKeyword: posts.focusKeyword,
+      secondaryKeywords: posts.secondaryKeywords,
       keywordSource: posts.keywordSource,
       businessId: posts.businessId,
+      auditScore: posts.auditScore,
     })
     .from(posts)
     .where(eq(posts.id, postId))

@@ -16,20 +16,22 @@
  *   12. detectCannibalisation — three posts sharing same keyword all flagged
  *   13. detectCannibalisation — unflagged posts not in flaggedPostIds
  *   14. detectCannibalisation — multiple duplicate groups detected simultaneously
- *   15. keyword.suggest tRPC — throws NOT_FOUND for unknown postId
- *   16. keyword.suggest tRPC — throws FORBIDDEN when post belongs to different user
- *   17. keyword.confirm tRPC — throws NOT_FOUND for unknown postId
- *   18. keyword.confirm tRPC — throws FORBIDDEN when post belongs to different user
- *   19. keyword.confirm tRPC — returns success: true on valid input
- *   20. keyword.runCannibalisationScan tRPC — throws NOT_FOUND for unknown businessId
- *   21. keyword.runCannibalisationScan tRPC — throws FORBIDDEN for wrong user
- *   22. keyword.listPosts tRPC — throws NOT_FOUND for unknown businessId
- *   23. keyword.listPosts tRPC — returns posts array for valid business
- *   24. keyword DB — updatePostKeyword sets keyword and source
- *   25. keyword DB — listPostsForBusiness returns correct fields
- *   26. keyword DB — updateCannibalisationFlags sets flags correctly
- *   27. keyword DB — getPostForKeyword returns null for unknown postId
- *   28. keyword DB — getPostForKeyword returns post fields for known postId
+ *   15. keyword.saveKeyword tRPC — throws NOT_FOUND for unknown postId
+ *   16. keyword.saveKeyword tRPC — throws FORBIDDEN when post belongs to different user
+ *   17. keyword.saveKeyword tRPC — returns success: true and clears audit on keyword change
+ *   18. keyword.confirm tRPC — throws NOT_FOUND for unknown postId
+ *   19. keyword.confirm tRPC — throws FORBIDDEN when post belongs to different user
+ *   20. keyword.confirm tRPC — returns success: true on valid input
+ *   21. keyword.runCannibalisationScan tRPC — throws NOT_FOUND for unknown businessId
+ *   22. keyword.runCannibalisationScan tRPC — throws FORBIDDEN for wrong user
+ *   23. keyword.listPosts tRPC — throws NOT_FOUND for unknown businessId
+ *   24. keyword.listPosts tRPC — returns posts array for valid business
+ *   25. keyword DB — updatePostKeyword sets keyword and source
+ *   26. keyword DB — listPostsForBusiness returns correct fields
+ *   27. keyword DB — updateCannibalisationFlags sets flags correctly
+ *   28. keyword DB — getPostForKeyword returns null for unknown postId
+ *   29. keyword DB — getPostForKeyword returns post fields for known postId
+ *   30. keyword DB — saveKeyword stores secondaryKeywords and clears audit
  */
 
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
@@ -43,6 +45,7 @@ import {
   listPostsForBusiness,
   updateCannibalisationFlags,
   getPostForKeyword,
+  saveKeyword,
 } from "./keyword.db";
 
 // ---------------------------------------------------------------------------
@@ -194,32 +197,32 @@ describe("detectCannibalisation", () => {
 // tRPC keyword router — unit tests (mocked DB)
 // ---------------------------------------------------------------------------
 
-describe("tRPC keyword.suggest", () => {
+describe("tRPC keyword.saveKeyword", () => {
   it("throws NOT_FOUND for unknown postId", async () => {
     vi.mock("./keyword.db", async (importOriginal) => {
       const actual = await importOriginal<typeof import("./keyword.db")>();
       return {
         ...actual,
-        // Use real implementations as defaults so DB helper tests work correctly.
-        // tRPC tests override with mockResolvedValueOnce where needed.
         getPostForKeyword: vi.fn().mockImplementation(actual.getPostForKeyword),
         listPostsForBusiness: vi.fn().mockImplementation(actual.listPostsForBusiness),
         updatePostKeyword: vi.fn().mockImplementation(actual.updatePostKeyword),
         updateCannibalisationFlags: vi.fn().mockImplementation(actual.updateCannibalisationFlags),
+        saveKeyword: vi.fn().mockImplementation(actual.saveKeyword),
       };
     });
+
+    const { getPostForKeyword } = await import("./keyword.db");
+    vi.mocked(getPostForKeyword).mockResolvedValueOnce(null);
 
     const { appRouter } = await import("./routers");
     const caller = appRouter.createCaller({ user: null, req: {} as any, res: {} as any });
     await expect(
-      caller.keyword.suggest({ postId: "nonexistent", iauditUserId: "user1" })
+      caller.keyword.saveKeyword({ postId: "nonexistent", iauditUserId: "user1", focusKeyword: "test", secondaryKeywords: [] })
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
   it("throws FORBIDDEN when post belongs to different user", async () => {
     const { getPostForKeyword } = await import("./keyword.db");
-    const { getBusinessById } = await import("./businesses.db");
-
     vi.mocked(getPostForKeyword).mockResolvedValueOnce({
       id: "post1",
       title: "Test Post",
@@ -227,28 +230,57 @@ describe("tRPC keyword.suggest", () => {
       focusKeyword: null,
       keywordSource: null,
       businessId: "biz1",
+      secondaryKeywords: null,
+      auditScore: null,
     });
 
     vi.spyOn(await import("./businesses.db"), "getBusinessById").mockResolvedValueOnce({
       id: "biz1",
       userId: "other-user",
-      name: "Test Business",
-      websiteUrl: "https://example.com",
-      brandVoice: null,
-      industry: null,
-      targetAudience: null,
-      scrapeStatus: "complete",
-      scrapeFailureType: null,
-      stage1Complete: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
     } as any);
 
     const { appRouter } = await import("./routers");
     const caller = appRouter.createCaller({ user: null, req: {} as any, res: {} as any });
     await expect(
-      caller.keyword.suggest({ postId: "post1", iauditUserId: "user1" })
+      caller.keyword.saveKeyword({ postId: "post1", iauditUserId: "user1", focusKeyword: "test", secondaryKeywords: [] })
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("returns success: true and clears audit when keyword changes", async () => {
+    const userId = nanoid(21);
+    const { getPostForKeyword, saveKeyword } = await import("./keyword.db");
+    vi.mocked(getPostForKeyword).mockResolvedValueOnce({
+      id: "post1",
+      title: "Test Post",
+      bodyOriginal: "Some content",
+      focusKeyword: "old keyword",
+      keywordSource: "user_entered",
+      businessId: "biz1",
+      secondaryKeywords: null,
+      auditScore: 12,
+    });
+    vi.spyOn(await import("./businesses.db"), "getBusinessById").mockResolvedValueOnce({
+      id: "biz1",
+      userId,
+    } as any);
+    vi.mocked(saveKeyword).mockResolvedValueOnce(undefined);
+
+    const { appRouter } = await import("./routers");
+    const caller = appRouter.createCaller({ user: null, req: {} as any, res: {} as any });
+    const result = await caller.keyword.saveKeyword({
+      postId: "post1",
+      iauditUserId: userId,
+      focusKeyword: "new keyword",
+      secondaryKeywords: ["secondary one", "secondary two"],
+    });
+    expect(result).toEqual({ success: true, auditCleared: true });
+    expect(saveKeyword).toHaveBeenCalledWith(
+      "post1",
+      "new keyword",
+      ["secondary one", "secondary two"],
+      "user_entered",
+      true // clearAudit = true because keyword changed
+    );
   });
 });
 
@@ -545,5 +577,25 @@ describe("keyword DB helpers", () => {
     const posts2 = await listPostsForBusiness(businessId);
     const post2 = posts2.find((p) => p.id === postId);
     expect(post2?.cannibalizationFlag).toBe(false);
+  });
+
+  it("saveKeyword stores secondaryKeywords and clears audit when clearAudit=true", async () => {
+    const { saveKeyword } = await import("./keyword.db");
+    await saveKeyword(
+      postId,
+      "new focus keyword",
+      ["secondary one", "secondary two"],
+      "user_entered",
+      false // don't clear audit for this test
+    );
+    const result = await getPostForKeyword(postId);
+    expect(result?.focusKeyword).toBe("new focus keyword");
+    expect(result?.keywordSource).toBe("user_entered");
+    // secondaryKeywords should be stored as JSON array
+    const secondary = result?.secondaryKeywords;
+    const parsed = typeof secondary === "string" ? JSON.parse(secondary) : secondary;
+    expect(Array.isArray(parsed)).toBe(true);
+    expect(parsed).toContain("secondary one");
+    expect(parsed).toContain("secondary two");
   });
 });

@@ -634,6 +634,10 @@ export default function ReviewEdit() {
   const [currentGrade, setCurrentGrade] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [approving, setApproving] = useState(false);
+  // ----- Keyword editing state -----
+  const [editingKeyword, setEditingKeyword] = useState(false);
+  const [keywordDraft, setKeywordDraft] = useState("");
+  const [secondaryKeywordsDraft, setSecondaryKeywordsDraft] = useState("");
   const autoSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastSavedRef = useRef<string>("");
 
@@ -690,6 +694,12 @@ export default function ReviewEdit() {
     setImageAlts(alts.map((_, i) => storedAlts[i] ?? alts[i] ?? ""));
     setCurrentScore(post.rewriteScore ?? post.auditScore ?? null);
     setCurrentGrade(post.rewriteGrade ?? post.auditGrade ?? null);
+    setKeywordDraft(post.focusKeyword ?? "");
+    setSecondaryKeywordsDraft(
+      Array.isArray(post.secondaryKeywords)
+        ? (post.secondaryKeywords as string[]).join(", ")
+        : (post.secondaryKeywords as string | null) ?? ""
+    );
     lastSavedRef.current = content;
   }, [post, editor]);
 
@@ -713,6 +723,16 @@ export default function ReviewEdit() {
       setSaveStatus("error");
       toast.error(err.message ?? "Save failed. Please try again.");
       setTimeout(() => setSaveStatus("idle"), 3000);
+    },
+  });
+
+  const saveKeywordMutation = trpc.keyword.saveKeyword.useMutation({
+    onSuccess: () => {
+      toast.success("Keyword saved. Re-run the audit to update your score.");
+      setEditingKeyword(false);
+    },
+    onError: (err) => {
+      toast.error(err.message ?? "Failed to save keyword.");
     },
   });
 
@@ -1181,18 +1201,82 @@ ${editor.getHTML()}
                   </div>
                 </div>
               )}
-              {/* Focus keyword */}
-              {post.focusKeyword && (
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">Keyword: </span>
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] h-4 px-1 text-violet-400 border-violet-400/40"
-                  >
-                    {post.focusKeyword}
-                  </Badge>
-                </div>
-              )}
+              {/* Focus keyword — editable */}
+              <div className="pt-1">
+                {editingKeyword ? (
+                  <div className="space-y-2">
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1">Focus Keyword</label>
+                      <Input
+                        value={keywordDraft}
+                        onChange={(e) => setKeywordDraft(e.target.value)}
+                        placeholder="e.g. pool installation cost"
+                        className="text-sm h-8"
+                        autoFocus
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1">Secondary Keywords <span className="font-normal">(comma-separated)</span></label>
+                      <Input
+                        value={secondaryKeywordsDraft}
+                        onChange={(e) => setSecondaryKeywordsDraft(e.target.value)}
+                        placeholder="e.g. pool cost, inground pool price"
+                        className="text-sm h-8"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 h-7 text-xs"
+                        onClick={() => { setEditingKeyword(false); setKeywordDraft(post.focusKeyword ?? ""); setSecondaryKeywordsDraft(Array.isArray(post.secondaryKeywords) ? (post.secondaryKeywords as string[]).join(", ") : (post.secondaryKeywords as string | null) ?? ""); }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="flex-1 h-7 text-xs"
+                        disabled={saveKeywordMutation.isPending || !keywordDraft.trim()}
+                        onClick={() => {
+                          if (!postId || !iauditUserId) return;
+                          const secondaryArr = secondaryKeywordsDraft
+                            .split(",")
+                            .map((s) => s.trim())
+                            .filter(Boolean);
+                          saveKeywordMutation.mutate({
+                            postId,
+                            iauditUserId,
+                            focusKeyword: keywordDraft.trim(),
+                            secondaryKeywords: secondaryArr,
+                          });
+                        }}
+                      >
+                        {saveKeywordMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : "Save Keyword"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-muted-foreground text-xs">Keyword:</span>
+                    {post.focusKeyword ? (
+                      <Badge variant="outline" className="text-[10px] h-4 px-1 text-violet-400 border-violet-400/40">
+                        {post.focusKeyword}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-amber-400">No keyword set</span>
+                    )}
+                    {Array.isArray(post.secondaryKeywords) && (post.secondaryKeywords as string[]).length > 0 && (
+                      <span className="text-xs text-muted-foreground">+{(post.secondaryKeywords as string[]).length} secondary</span>
+                    )}
+                    <button
+                      className="text-xs text-primary hover:underline ml-auto"
+                      onClick={() => setEditingKeyword(true)}
+                    >
+                      Edit
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

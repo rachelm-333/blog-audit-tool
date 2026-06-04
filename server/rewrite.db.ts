@@ -48,6 +48,8 @@ export async function getPostForRewrite(postId: string) {
       cannibalizationFlag: posts.cannibalizationFlag,
       paaQuestion: posts.paaQuestion,
       articleType: posts.articleType,
+      secondaryKeywords: posts.secondaryKeywords,
+      rewriteMode: posts.rewriteMode,
     })
     .from(posts)
     .where(eq(posts.id, postId))
@@ -111,6 +113,7 @@ export async function saveRewriteResult(
       rewrittenAt: new Date(),
       paaQuestion: result.paaQuestion,
       articleType: result.articleType,
+      rewriteMode: result.rewriteMode,
     })
     .where(eq(posts.id, postId));
 }

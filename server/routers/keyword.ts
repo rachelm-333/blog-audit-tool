@@ -2,10 +2,11 @@
  * iAudit — Keyword Identification tRPC Router (Layer 5 / Section 9)
  *
  * Procedures:
- *   keyword.suggest              — AI-suggest top 3 focus keywords for a post with no keyword
- *   keyword.confirm              — Confirm a keyword (ai_suggested | user_entered) for a post
+ *   keyword.saveKeyword          — Save focus keyword + secondary keywords for a post
+ *   keyword.confirm              — Confirm a keyword (cms_scraped | user_entered) for a post
  *   keyword.runCannibalisationScan — Scan all posts for a business, flag duplicates
  *   keyword.listPosts            — List all posts for a business with keyword status
+ *   keyword.exportCsv            — Export keyword registry as CSV
  *
  * Auth: publicProcedure + manual iauditUserId ownership validation.
  */
@@ -17,13 +18,11 @@ import { getBusinessById } from "../businesses.db";
 import {
   getPostForKeyword,
   listPostsForBusiness,
+  saveKeyword,
   updateCannibalisationFlags,
   updatePostKeyword,
 } from "../keyword.db";
-import {
-  detectCannibalisation,
-  suggestKeywordsForPost,
-} from "../keyword.service";
+import { detectCannibalisation } from "../keyword.service";
 
 // ---------------------------------------------------------------------------
 // Ownership helpers
@@ -67,42 +66,56 @@ async function assertBusinessOwnership(
 
 export const keywordRouter = router({
   /**
-   * keyword.suggest
-   * For a post with no focus keyword, call the LLM and return 3 suggestions.
-   * Returns the suggestions without persisting anything — the user must confirm.
+   * keyword.saveKeyword
+   * Save focus keyword + secondary keywords for a post.
+   * If the focus keyword has changed from the current value, clears audit results
+   * so the user must re-audit before rewriting.
    */
-  suggest: publicProcedure
+  saveKeyword: publicProcedure
     .input(
       z.object({
         postId: z.string().min(1),
+        focusKeyword: z.string().min(1).max(255),
+        secondaryKeywords: z.array(z.string().min(1).max(255)).max(10).default([]),
         iauditUserId: z.string().min(1),
       })
     )
     .mutation(async ({ input }) => {
       const post = await assertPostOwnership(input.postId, input.iauditUserId);
 
-      const suggestions = await suggestKeywordsForPost(
-        post.title,
-        post.bodyOriginal
+      // If the focus keyword changed and there's an existing audit score, clear it
+      const keywordChanged =
+        post.focusKeyword !== null &&
+        post.focusKeyword.toLowerCase().trim() !==
+          input.focusKeyword.toLowerCase().trim();
+      const hasAudit = post.auditScore !== null;
+      const clearAudit = keywordChanged && hasAudit;
+
+      await saveKeyword(
+        input.postId,
+        input.focusKeyword,
+        input.secondaryKeywords,
+        "user_entered",
+        clearAudit
       );
 
       return {
-        postId: post.id,
-        suggestions,
+        success: true,
+        auditCleared: clearAudit,
       };
     }),
 
   /**
    * keyword.confirm
    * Persist the user's chosen keyword + source to the post.
-   * source must be 'ai_suggested' or 'user_entered'.
+   * source must be 'cms_scraped' or 'user_entered'.
    */
   confirm: publicProcedure
     .input(
       z.object({
         postId: z.string().min(1),
         keyword: z.string().min(1).max(255),
-        source: z.enum(["ai_suggested", "user_entered"]),
+        source: z.enum(["cms_scraped", "user_entered"]),
         iauditUserId: z.string().min(1),
       })
     )
@@ -161,5 +174,40 @@ export const keywordRouter = router({
       await assertBusinessOwnership(input.businessId, input.iauditUserId);
       const postList = await listPostsForBusiness(input.businessId);
       return { posts: postList };
+    }),
+
+  /**
+   * keyword.exportCsv
+   * Export the keyword registry for a business as a CSV string.
+   * Columns: Post Title, Primary Keyword, Secondary Keywords, URL, Status, Audit Grade
+   */
+  exportCsv: publicProcedure
+    .input(
+      z.object({
+        businessId: z.string().min(1),
+        iauditUserId: z.string().min(1),
+      })
+    )
+    .query(async ({ input }) => {
+      await assertBusinessOwnership(input.businessId, input.iauditUserId);
+      const postList = await listPostsForBusiness(input.businessId);
+
+      const header = ["Post Title", "Primary Keyword", "Secondary Keywords", "URL", "Status", "Audit Grade"];
+      const rows = postList.map((p) => {
+        const secondary = Array.isArray(p.secondaryKeywords)
+          ? (p.secondaryKeywords as string[]).join("; ")
+          : "";
+        return [
+          `"${(p.title ?? "").replace(/"/g, '""')}"`,
+          `"${(p.focusKeyword ?? "").replace(/"/g, '""')}"`,
+          `"${secondary.replace(/"/g, '""')}"`,
+          `"${(p.url ?? "").replace(/"/g, '""')}"`,
+          `"${(p.auditStatus ?? "").replace(/"/g, '""')}"`,
+          `"${(p.auditGrade ?? "").replace(/"/g, '""')}"`,
+        ].join(",");
+      });
+
+      const csv = [header.join(","), ...rows].join("\n");
+      return { csv };
     }),
 });

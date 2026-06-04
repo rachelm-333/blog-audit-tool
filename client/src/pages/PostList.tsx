@@ -70,11 +70,6 @@ interface Post {
   rewriteGrade?: string | null;
 }
 
-interface KeywordSuggestion {
-  keyword: string;
-  rationale: string;
-}
-
 interface AuditPoint {
   point: string;
   name: string;
@@ -164,11 +159,6 @@ function KeywordBadge({
       label: "CMS",
       className:
         "text-sky-400 border-sky-400/40 bg-sky-400/5",
-    },
-    ai_suggested: {
-      label: "AI",
-      className:
-        "text-violet-400 border-violet-400/40 bg-violet-400/5",
     },
     user_entered: {
       label: "Custom",
@@ -630,7 +620,7 @@ function RewriteModal({
   paaSuggested: string;
   paaLoading: boolean;
   onPaaChange: (v: string) => void;
-  onConfirm: () => void;
+  onConfirm: (mode: "full_rewrite" | "smart_patch") => void;
   onClose: () => void;
   rewriteResult?: { rewriteScore: number; rewriteGrade: string; needsManualReview: boolean; message?: string } | null;
 }) {
@@ -689,23 +679,44 @@ function RewriteModal({
                 </>
               )}
             </div>
-            <div className="flex gap-2 pt-1">
+            <div className="space-y-2 pt-1">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className={`flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors ${
+                    !paaQuestion.trim() || paaLoading
+                      ? "opacity-50 cursor-not-allowed border-border"
+                      : "border-primary bg-primary/10 hover:bg-primary/20 cursor-pointer"
+                  }`}
+                  disabled={!paaQuestion.trim() || paaLoading}
+                  onClick={() => onConfirm("full_rewrite")}
+                >
+                  <span className="text-xs font-semibold text-primary flex items-center gap-1"><Zap size={12} /> Full Rewrite</span>
+                  <span className="text-[11px] text-muted-foreground">AI rewrites the entire post from scratch targeting all 16 points.</span>
+                  <span className="text-[10px] text-muted-foreground mt-0.5">1 Credit</span>
+                </button>
+                <button
+                  type="button"
+                  className={`flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors ${
+                    !paaQuestion.trim() || paaLoading
+                      ? "opacity-50 cursor-not-allowed border-border"
+                      : "border-violet-400/60 bg-violet-400/5 hover:bg-violet-400/10 cursor-pointer"
+                  }`}
+                  disabled={!paaQuestion.trim() || paaLoading}
+                  onClick={() => onConfirm("smart_patch")}
+                >
+                  <span className="text-xs font-semibold text-violet-400 flex items-center gap-1"><Zap size={12} /> Smart Patch</span>
+                  <span className="text-[11px] text-muted-foreground">Keeps your author's voice. Makes only the minimum changes to fix failing points.</span>
+                  <span className="text-[10px] text-muted-foreground mt-0.5">1 Credit</span>
+                </button>
+              </div>
               <Button
                 variant="outline"
                 size="sm"
-                className="flex-1"
+                className="w-full"
                 onClick={onClose}
               >
                 Cancel
-              </Button>
-              <Button
-                size="sm"
-                className="flex-1 gap-1.5"
-                disabled={!paaQuestion.trim() || paaLoading}
-                onClick={onConfirm}
-              >
-                <Zap size={14} />
-                Fix This Post · 1 Credit
               </Button>
             </div>
           </div>
@@ -764,7 +775,7 @@ function RewriteModal({
 }
 
 // ---------------------------------------------------------------------------
-// AI Keyword Suggestion Modal
+// Set Keyword Modal (replaces AI suggestion — user enters keyword manually)
 // ---------------------------------------------------------------------------
 function KeywordSuggestionModal({
   post,
@@ -778,135 +789,63 @@ function KeywordSuggestionModal({
   onConfirmed: () => void;
 }) {
   const iauditUserId = getIauditUserId();
-  const [customKeyword, setCustomKeyword] = useState("");
-  const [selected, setSelected] = useState<string | null>(null);
-
-  const suggestMutation = trpc.keyword.suggest.useMutation();
-  const [suggestions, setSuggestions] = useState<{ suggestions: KeywordSuggestion[] } | null>(null);
-  const [isSuggesting, setIsSuggesting] = useState(false);
-
-  useEffect(() => {
-    if (open && post?.id && iauditUserId) {
-      setIsSuggesting(true);
-      suggestMutation.mutate(
-        { postId: post.id, iauditUserId },
-        {
-          onSuccess: (data) => {
-            setSuggestions(data);
-            setIsSuggesting(false);
-          },
-          onError: () => {
-            setIsSuggesting(false);
-          },
-        }
-      );
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, post?.id]);
-
+  const [keyword, setKeyword] = useState("");
   const confirmMutation = trpc.keyword.confirm.useMutation();
 
-  const handleConfirm = useCallback(
-    (keyword: string, source: "ai_suggested" | "user_entered") => {
-      if (!post?.id || !iauditUserId) return;
-      confirmMutation.mutate(
-        { postId: post.id, keyword, source, iauditUserId },
-        {
-          onSuccess: () => {
-            toast.success(`Keyword confirmed: "${keyword}"`);
-            onConfirmed();
-            onClose();
-          },
-          onError: () => {
-            toast.error("Failed to confirm keyword. Please try again.");
-          },
-        }
-      );
-    },
-    [post?.id, iauditUserId, confirmMutation, onConfirmed, onClose]
-  );
-
   useEffect(() => {
-    if (!open) {
-      setCustomKeyword("");
-      setSelected(null);
-    }
+    if (!open) setKeyword("");
   }, [open]);
+
+  const handleConfirm = useCallback(() => {
+    const kw = keyword.trim();
+    if (!kw || !post?.id || !iauditUserId) return;
+    confirmMutation.mutate(
+      { postId: post.id, keyword: kw, source: "user_entered", iauditUserId },
+      {
+        onSuccess: () => {
+          toast.success(`Keyword saved: "${kw}"`);
+          onConfirmed();
+          onClose();
+        },
+        onError: () => {
+          toast.error("Failed to save keyword. Please try again.");
+        },
+      }
+    );
+  }, [keyword, post?.id, iauditUserId, confirmMutation, onConfirmed, onClose]);
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-base">Confirm Focus Keyword</DialogTitle>
+          <DialogTitle className="text-base">Set Focus Keyword</DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
-            No focus keyword was found for this post. These are our best guesses
-            based on your content — confirm one or type your own before the
-            audit runs. Changing the keyword after an audit has run will require
-            a full re-audit.
+            Enter the primary keyword this post should rank for. You can also
+            add secondary keywords in the Review &amp; Edit page. Changing the
+            keyword after an audit has run will require a full re-audit.
           </DialogDescription>
         </DialogHeader>
-
-        {isSuggesting ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="animate-spin text-primary" size={24} />
-          </div>
-        ) : (
-          <div className="space-y-3 mt-2">
-            {(suggestions?.suggestions ?? []).map((s, i) => (
-              <button
-                key={i}
-                onClick={() => setSelected(s.keyword)}
-                className={`w-full text-left rounded-xl border px-4 py-3 transition-colors ${
-                  selected === s.keyword
-                    ? "border-primary bg-primary/10"
-                    : "border-border bg-card hover:border-primary/50"
-                }`}
-              >
-                <div className="text-sm font-semibold text-foreground">
-                  {s.keyword}
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {s.rationale}
-                </div>
-              </button>
-            ))}
-
-            <div className="relative">
-              <Input
-                placeholder="Or type your own keyword…"
-                value={customKeyword}
-                onChange={(e) => {
-                  setCustomKeyword(e.target.value);
-                  setSelected(null);
-                }}
-                className="text-sm"
-              />
-            </div>
-
-            <Button
-              className="w-full font-semibold"
-              disabled={
-                confirmMutation.isPending ||
-                (!selected && customKeyword.trim().length === 0)
-              }
-              onClick={() => {
-                const kw = customKeyword.trim() || selected;
-                if (!kw) return;
-                const source =
-                  customKeyword.trim().length > 0
-                    ? "user_entered"
-                    : "ai_suggested";
-                handleConfirm(kw, source);
-              }}
-            >
-              {confirmMutation.isPending ? (
-                <Loader2 className="animate-spin" size={14} />
-              ) : (
-                "Confirm Keyword"
-              )}
-            </Button>
-          </div>
-        )}
+        <div className="space-y-3 mt-2">
+          <Input
+            placeholder="e.g. pool installation cost"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleConfirm()}
+            className="text-sm"
+            autoFocus
+          />
+          <Button
+            className="w-full font-semibold"
+            disabled={confirmMutation.isPending || keyword.trim().length === 0}
+            onClick={handleConfirm}
+          >
+            {confirmMutation.isPending ? (
+              <Loader2 className="animate-spin" size={14} />
+            ) : (
+              "Save Keyword"
+            )}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -996,6 +935,7 @@ export default function PostList() {
   const [paaLoading, setPaaLoading] = useState(false);
   const [paaSuggested, setPaaSuggested] = useState("");
   const [expandedRewritePostId, setExpandedRewritePostId] = useState<string | null>(null);
+  const [rewriteMode, setRewriteMode] = useState<"full_rewrite" | "smart_patch">("full_rewrite");
   const { data, isLoading, refetch } = trpc.keyword.listPosts.useQuery(
     { businessId, iauditUserId: iauditUserId ?? "" },
     { enabled: !!businessId && !!iauditUserId }
@@ -1116,11 +1056,12 @@ export default function PostList() {
   };
 
   /** Run the rewrite after PAA confirmation */
-  const handleRunRewrite = () => {
+  const handleRunRewrite = (mode: "full_rewrite" | "smart_patch" = rewriteMode) => {
     if (!rewritePost || !iauditUserId || !paaQuestion.trim()) return;
+    setRewriteMode(mode);
     setRewriteStep("running");
     runRewriteMutation.mutate(
-      { postId: rewritePost.id, iauditUserId, paaQuestion: paaQuestion.trim() },
+      { postId: rewritePost.id, iauditUserId, paaQuestion: paaQuestion.trim(), rewriteMode: mode },
       {
         onSuccess: (result) => {
           refetch();

@@ -194,9 +194,11 @@ export const posts = mysqlTable(
     focusKeyword: varchar("focus_keyword", { length: 255 }), // Null until confirmed by user
     keywordSource: mysqlEnum("keyword_source", [
       "cms_scraped",
-      "ai_suggested",
       "user_entered",
     ]),
+    // Secondary keywords — supporting/related terms that reinforce the primary keyword
+    // JSON array of strings, nullable. Scraped from CMS where available.
+    secondaryKeywords: json("secondary_keywords"),
     metaTitleOriginal: text("meta_title_original"),
     metaDescriptionOriginal: text("meta_description_original"),
     metaTitleRewritten: text("meta_title_rewritten"),
@@ -226,6 +228,8 @@ export const posts = mysqlTable(
       "cluster",
     ]), // Inferred from word count: cornerstone 2000+, pillar 1000-1999, cluster <1000
     schemaJson: json("schema_json"), // Generated Article/Breadcrumb/FAQ schema JSON-LD
+    // Which rewrite mode was used: full_rewrite or smart_patch
+    rewriteMode: mysqlEnum("rewrite_mode", ["full_rewrite", "smart_patch"]),
     rewriteStatus: mysqlEnum("rewrite_status", [
       "pending",
       "running",

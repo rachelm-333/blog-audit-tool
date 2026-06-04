@@ -51,9 +51,11 @@ export interface Pass1Input {
   businessContext: BusinessContext;
   internalLinks: InternalLink[];
   failingPoints: string[]; // e.g. ["P1 — Keyword Density", "P9 — Opening Answer Block"]
+  secondaryKeywords: string[]; // Additional keywords to weave in naturally
   url: string;
   metaTitleOriginal: string | null;
   metaDescriptionOriginal: string | null;
+  rewriteMode: "full_rewrite" | "smart_patch";
 }
 
 export interface Pass1Output {
@@ -72,6 +74,7 @@ export interface RewriteResult {
   auditResult: AuditResult;
   paaQuestion: string;
   articleType: "cornerstone" | "pillar" | "cluster";
+  rewriteMode: "full_rewrite" | "smart_patch";
 }
 
 // ---------------------------------------------------------------------------
@@ -231,6 +234,16 @@ function buildPass1SystemPrompt(input: Pass1Input): string {
       ? `The following points are currently FAILING and must be addressed:\n${input.failingPoints.map((p) => `  - ${p}`).join("\n")}`
       : "All 16 points are currently passing — preserve all of them.";
 
+  const secondaryKeywordsText =
+    input.secondaryKeywords.length > 0
+      ? `SECONDARY KEYWORDS: ${input.secondaryKeywords.map((k) => `"${k}"`).join(", ")} — weave these naturally into the content alongside the primary keyword.`
+      : "";
+
+  const isSmartPatch = input.rewriteMode === "smart_patch";
+  const modeInstruction = isSmartPatch
+    ? `REWRITE MODE: SMART PATCH\nDo NOT rewrite this post. Keep all existing sentences, paragraphs, and the author's voice intact. Make ONLY the minimum changes required to fix the failing points listed below. Weave the primary keyword and secondary keywords into existing sentences naturally where they are absent. Do NOT add new sections unless a failing point specifically requires one.`
+    : `REWRITE MODE: FULL REWRITE\nRewrite the entire post from scratch to pass all 16 points. Preserve the URL, author, publish date, and post status.`;
+
   return `You are an expert SEO content writer. Your task is to rewrite a blog post to pass the 16-Point Authority Standard.
 
 BUSINESS CONTEXT:
@@ -250,7 +263,9 @@ ${internalLinksText}
 ARTICLE TYPE: ${input.articleType.toUpperCase()}
 WORD COUNT TARGET: ${input.wordCountTarget.min}–${input.wordCountTarget.max} words
 FOCUS KEYWORD: "${input.focusKeyword}"
-PAA QUESTION (use this to structure the opening answer block): "${input.paaQuestion}"
+${secondaryKeywordsText ? secondaryKeywordsText + "\n" : ""}PAA QUESTION (use this to structure the opening answer block): "${input.paaQuestion}"
+
+${modeInstruction}
 
 16-POINT AUTHORITY STANDARD — ALL MUST PASS:
 P1 — Keyword Density: Focus keyword appears 4+ times. Density between 0.5% and 2.5%.
@@ -628,13 +643,15 @@ export async function runFullRewrite(params: {
   internalLinks: InternalLink[];
   failingPoints: string[];
   paaQuestion: string;
+  secondaryKeywords?: string[];
+  rewriteMode?: "full_rewrite" | "smart_patch";
 }): Promise<RewriteResult> {
-  const { post, businessContext, internalLinks, failingPoints, paaQuestion } = params;
+  const { post, businessContext, internalLinks, failingPoints, paaQuestion, secondaryKeywords = [], rewriteMode = "full_rewrite" } = params;
 
   const articleType = inferArticleType(post.bodyOriginal);
   const wordCountTarget = ARTICLE_TYPE_TARGETS[articleType];
 
-  // --- Pass 1: Full rewrite ---
+  // --- Pass 1: Full rewrite or Smart Patch ---
   const pass1Input: Pass1Input = {
     title: post.title,
     bodyHtml: post.bodyOriginal,
@@ -645,6 +662,8 @@ export async function runFullRewrite(params: {
     businessContext,
     internalLinks,
     failingPoints,
+    secondaryKeywords,
+    rewriteMode,
     url: post.url,
     metaTitleOriginal: post.metaTitleOriginal,
     metaDescriptionOriginal: post.metaDescriptionOriginal,
@@ -694,5 +713,6 @@ export async function runFullRewrite(params: {
     auditResult,
     paaQuestion,
     articleType,
+    rewriteMode,
   };
 }

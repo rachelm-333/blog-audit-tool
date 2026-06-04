@@ -108,6 +108,7 @@ export const rewriteRouter = router({
         postId: z.string().min(1),
         iauditUserId: z.string().min(1),
         paaQuestion: z.string().min(1), // Confirmed by user in the PAA modal
+        rewriteMode: z.enum(["full_rewrite", "smart_patch"]).default("full_rewrite"),
       })
     )
     .mutation(async ({ input }) => {
@@ -185,6 +186,13 @@ export const rewriteRouter = router({
         }
       }
 
+      // --- Parse secondary keywords (needed for both first attempt and auto-retry) ---
+      const secondaryKeywords = Array.isArray(post.secondaryKeywords)
+        ? (post.secondaryKeywords as string[])
+        : typeof post.secondaryKeywords === "string" && post.secondaryKeywords
+          ? (post.secondaryKeywords as string).split(",").map((s: string) => s.trim()).filter(Boolean)
+          : [];
+
       // --- Run Pass 1 rewrite ---
       let rewriteResult;
       try {
@@ -205,6 +213,8 @@ export const rewriteRouter = router({
           internalLinks,
           failingPoints,
           paaQuestion: input.paaQuestion,
+          secondaryKeywords,
+          rewriteMode: input.rewriteMode,
         });
       } catch (err) {
         await setRewriteStatus(post.id, "failed");
@@ -235,6 +245,8 @@ export const rewriteRouter = router({
             internalLinks,
             failingPoints,
             paaQuestion: input.paaQuestion,
+            secondaryKeywords,
+            rewriteMode: input.rewriteMode,
           });
 
           if (retryResult.rewriteScore >= 13) {

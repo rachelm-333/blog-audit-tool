@@ -354,3 +354,40 @@
 - [x] Frontend: If Solo user navigates to /business/setup when they already have a business, show error and redirect
 - [x] Write Layer 14 vitest tests (25 new tests)
 - [x] Run full test suite — all 410 tests pass, zero TypeScript errors
+
+## Corrections to Layers 5 and 7 (pre-Layer 15)
+
+### Correction 1 — Layer 5: Remove AI keyword suggestion, add secondary_keywords
+- [ ] Add `secondary_keywords` JSON column to `posts` table in `drizzle/schema.ts`
+- [ ] Add `rewrite_mode` enum column (`full_rewrite | smart_patch`) to `posts` table in `drizzle/schema.ts`
+- [ ] Generate migration SQL and apply via `webdev_execute_sql`
+- [ ] Remove `suggestKeywordsForPost`, `extractFirst500Words`, `KeywordSuggestion`, `KeywordSuggestionResult` from `server/keyword.service.ts`
+- [ ] Remove `keyword.suggest` procedure from `server/routers/keyword.ts`
+- [ ] Remove `ai_suggested` from `keywordSource` enum (replace with `cms_scraped | user_entered`)
+- [ ] Update `keyword.confirm` — accept `source: 'cms_scraped' | 'user_entered'` only
+- [ ] Add `keyword.saveKeyword` mutation — saves focusKeyword + secondaryKeywords + source, clears audit if keyword changed
+- [ ] Update WordPress CMS import to scrape secondary keywords (Yoast related fields, RankMath additional terms)
+- [ ] Update Wix CMS import to scrape secondary keywords from `post.seoData.tags`
+- [ ] Update Shopify CMS import to scrape secondary keywords from metafields
+- [ ] Update `keyword.db.ts` — add `secondaryKeywords` to `updatePostKeyword` and `getPostForKeyword`
+- [ ] Update `keyword.listPosts` — include `secondaryKeywords` in response
+- [ ] Add `keyword.exportCsv` procedure — returns CSV with post title, primary keyword, secondary keywords, post URL, post status, audit grade
+- [x] Update Layer 5 tests — remove AI suggestion tests, add secondary keyword tests
+
+### Correction 2 — Layer 5: Editable keyword with Save before Rewrite
+- [ ] Update `ReviewEdit.tsx` — keyword and secondary keywords are editable fields with Save Keyword button
+- [ ] Rewrite button disabled until keyword is saved (track `keywordSaved` state)
+- [ ] Show warning when keyword changed after audit: "Changing the keyword will require a full re-audit. Your current audit results will be cleared."
+- [ ] On confirm: clear `auditScore`, `auditGrade`, `auditResults` for the post and re-run audit before enabling rewrite
+
+### Correction 3 — Layer 7: Smart Patch mode + secondary keywords in prompts
+- [ ] Add `runSmartPatch` function to `server/rewrite.service.ts` with Smart Patch prompt
+- [ ] Update `Pass1Input` interface — add `secondaryKeywords: string[]` field
+- [ ] Update `buildPass1SystemPrompt` — include secondary keywords in prompt
+- [ ] Update `runFullRewrite` — accept `secondaryKeywords` and pass to Pass1
+- [ ] Update `rewrite.runRewrite` tRPC procedure — accept `rewriteMode: 'full_rewrite' | 'smart_patch'` input
+- [ ] Dispatch to `runFullRewrite` or `runSmartPatch` based on `rewriteMode`
+- [ ] Save `rewriteMode` to `posts.rewriteMode` column after rewrite
+- [ ] Update `ReviewEdit.tsx` — show Full Rewrite and Smart Patch buttons
+- [x] Update Layer 7 tests — add Smart Patch tests, secondary keyword prompt tests
+- [ ] Run full test suite — all tests pass

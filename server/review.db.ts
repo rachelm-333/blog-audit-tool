@@ -47,6 +47,7 @@ export async function getPostForReview(postId: string) {
       scheduledDate: posts.scheduledDate,
       authorNameCms: posts.authorNameCms,
       focusKeyword: posts.focusKeyword,
+      secondaryKeywords: posts.secondaryKeywords,
       metaTitleOriginal: posts.metaTitleOriginal,
       metaDescriptionOriginal: posts.metaDescriptionOriginal,
       metaTitleRewritten: posts.metaTitleRewritten,
