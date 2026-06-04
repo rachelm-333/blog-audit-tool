@@ -34,6 +34,7 @@ import {
   Zap,
 } from "lucide-react";
 import { toast } from "sonner";
+import { HelpTooltip } from "@/components/HelpTooltip";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -314,16 +315,16 @@ export default function CmsConnect() {
             {error && <ErrorBanner error={error} onDismiss={() => setError(null)} />}
             <div className="space-y-5 mt-6">
               <div>
-                <Label className="text-white/80 mb-1.5 block">WordPress Site URL</Label>
+                <Label className="text-white/80 mb-1.5 flex items-center">WordPress Site URL <HelpTooltip text="The full web address of your WordPress website, for example https://yourwebsite.com.au. Do not include a page path — just the root domain." /></Label>
                 <Input type="url" placeholder="https://yoursite.com" value={wpUrl} onChange={(e) => setWpUrl(e.target.value)} className="bg-white/5 border-white/20 text-white placeholder:text-white/30 focus:border-blue-400" />
                 <p className="text-xs text-white/40 mt-1">Enter the root URL of your WordPress site.</p>
               </div>
               <div>
-                <Label className="text-white/80 mb-1.5 block">WordPress Username</Label>
+                <Label className="text-white/80 mb-1.5 flex items-center">WordPress Username <HelpTooltip text="Your WordPress login username — the one you use to log in to your WordPress admin area. This is usually your email address or a short username you chose when you set up WordPress." /></Label>
                 <Input type="text" placeholder="admin" value={wpUsername} onChange={(e) => setWpUsername(e.target.value)} className="bg-white/5 border-white/20 text-white placeholder:text-white/30 focus:border-blue-400" />
               </div>
               <div>
-                <Label className="text-white/80 mb-1.5 block">Application Password</Label>
+                <Label className="text-white/80 mb-1.5 flex items-center">Application Password <HelpTooltip text="An Application Password is a special password just for iAudit — it is not your normal WordPress login password. Create one in WordPress Admin → Users → Your Profile → scroll down to Application Passwords → type 'iAudit' → click Add New." /></Label>
                 <Input type="password" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx" value={wpAppPassword} onChange={(e) => setWpAppPassword(e.target.value)} className="bg-white/5 border-white/20 text-white placeholder:text-white/30 focus:border-blue-400" />
                 <p className="text-xs text-white/40 mt-1">Generate this in WordPress Admin → Users → Your Profile → Application Passwords.</p>
               </div>
@@ -373,12 +374,12 @@ export default function CmsConnect() {
             {error && <ErrorBanner error={error} onDismiss={() => setError(null)} />}
             <div className="space-y-5 mt-6">
               <div>
-                <Label className="text-white/80 mb-1.5 block">Wix Site ID</Label>
+                <Label className="text-white/80 mb-1.5 flex items-center">Wix Site ID <HelpTooltip text="Your Wix Site ID is a unique code that identifies your website. Find it by logging in to manage.wix.com, opening your site's dashboard, and looking at the URL — it is the long string of letters and numbers between /dashboard/ and /home." /></Label>
                 <Input type="text" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" value={wixSiteId} onChange={(e) => setWixSiteId(e.target.value)} className="bg-white/5 border-white/20 text-white placeholder:text-white/30 focus:border-blue-400" />
                 <p className="text-xs text-white/40 mt-1">Find this in Wix Dashboard → Settings → General Info → Site ID.</p>
               </div>
               <div>
-                <Label className="text-white/80 mb-1.5 block">API Key</Label>
+                <Label className="text-white/80 mb-1.5 flex items-center">API Key <HelpTooltip text="A Wix API Key lets iAudit read and update your blog posts. Create one in your Wix Dashboard → Settings → API Keys. Give it a name like 'iAudit' and make sure you tick the Wix Blog permission. Save the key somewhere safe — Wix only shows it once." /></Label>
                 <Input type="password" placeholder="Your Wix API key" value={wixApiKey} onChange={(e) => setWixApiKey(e.target.value)} className="bg-white/5 border-white/20 text-white placeholder:text-white/30 focus:border-blue-400" />
                 <p className="text-xs text-white/40 mt-1">Create an API key in Wix Dashboard → Settings → API Keys. Requires Blog read/write permissions.</p>
               </div>
@@ -428,12 +429,12 @@ export default function CmsConnect() {
             {error && <ErrorBanner error={error} onDismiss={() => setError(null)} />}
             <div className="space-y-5 mt-6">
               <div>
-                <Label className="text-white/80 mb-1.5 block">Shopify Store Domain</Label>
+                <Label className="text-white/80 mb-1.5 flex items-center">Shopify Store Domain <HelpTooltip text="Your Shopify store domain ends in .myshopify.com. For example, if your store is at yourstore.myshopify.com, enter that exactly. Do not include https:// — just the domain name." /></Label>
                 <Input type="text" placeholder="your-store.myshopify.com" value={shopifyShop} onChange={(e) => setShopifyShop(e.target.value)} className="bg-white/5 border-white/20 text-white placeholder:text-white/30 focus:border-blue-400" />
                 <p className="text-xs text-white/40 mt-1">Enter your store's .myshopify.com domain (without https://).</p>
               </div>
               <div>
-                <Label className="text-white/80 mb-1.5 block">Admin API Access Token</Label>
+                <Label className="text-white/80 mb-1.5 flex items-center">Admin API Access Token <HelpTooltip text="This token lets iAudit read and update your Shopify blog posts. Create a Custom App in Shopify Admin → Settings → Apps and sales channels → Develop apps. Give it read_content and write_content permissions. The token starts with shpat_ — copy it immediately as Shopify only shows it once." /></Label>
                 <Input type="password" placeholder="shpat_xxxxxxxxxxxxxxxxxxxx" value={shopifyAccessToken} onChange={(e) => setShopifyAccessToken(e.target.value)} className="bg-white/5 border-white/20 text-white placeholder:text-white/30 focus:border-blue-400" />
                 <p className="text-xs text-white/40 mt-1">Create a Custom App in Shopify Admin → Apps → Develop Apps. Requires read_content and write_content scopes.</p>
               </div>
@@ -518,8 +519,9 @@ export default function CmsConnect() {
               </div>
 
               <div>
-                <Label className="text-white/80 mb-1.5 block">
-                  Outbound Webhook URL <span className="text-white/40 font-normal">(optional)</span>
+                <Label className="text-white/80 mb-1.5 flex items-center">
+                  Outbound Webhook URL <span className="text-white/40 font-normal ml-1">(optional)</span>
+                  <HelpTooltip text="When a rewrite is approved in iAudit, it will send the rewritten post to this Zapier webhook URL so Zapier can push it back to your CMS automatically. Leave this blank if you just want to copy and paste the content manually." />
                 </Label>
                 <Input
                   type="url"

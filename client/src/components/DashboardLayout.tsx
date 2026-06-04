@@ -36,6 +36,7 @@ import {
   PlusCircle,
   ChevronRight,
   Shield,
+  LifeBuoy,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -49,6 +50,7 @@ const menuItems = [
   { icon: Plug, label: "CMS Connect", path: "/cms/connect" },
   { icon: CreditCard, label: "Credits", path: "/credits" },
   { icon: Globe, label: "Free Audit", path: "/audit" },
+  { icon: LifeBuoy, label: "Support", path: "/support" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";

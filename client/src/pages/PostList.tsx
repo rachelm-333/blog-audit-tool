@@ -50,6 +50,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
+import { HelpTooltip } from "@/components/HelpTooltip";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -680,6 +681,10 @@ function RewriteModal({
               )}
             </div>
             <div className="space-y-2 pt-1">
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center mb-1">
+                Choose rewrite mode
+                <HelpTooltip text="Full Rewrite rebuilds the entire post from scratch to fix all 16 SEO points — best for posts scoring below 8/16. Smart Patch makes targeted fixes while keeping your writing style — best for posts scoring 8/16 or above. Both use 1 credit." />
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"

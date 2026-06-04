@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Loader2, Globe, CheckCircle2, AlertCircle, RefreshCw, Save } from "lucide-react";
+import { HelpTooltip } from "@/components/HelpTooltip";
 
 // ─── Required fields (cannot confirm without these) ───────────────────────────
 const REQUIRED_FIELDS = [
@@ -345,7 +346,15 @@ export default function BusinessSetup() {
 
         <FormSection title="Brand Voice & Messaging">
           <FormField label="Unique Value Proposition" required value={form.uvp} onChange={(v) => handleFieldChange("uvp", v)} placeholder="We help SMEs rank on page 1 with content that converts" textarea />
-          <FormField label="Brand Voice" required value={form.brandVoice} onChange={(v) => handleFieldChange("brandVoice", v)} placeholder="Confident, approachable, data-driven" textarea />
+          <FormField
+            label="Brand Voice"
+            required
+            value={form.brandVoice}
+            onChange={(v) => handleFieldChange("brandVoice", v)}
+            placeholder="Confident, approachable, data-driven"
+            textarea
+            tooltip="Your brand voice describes how your business sounds in writing. Use 2–4 adjectives like 'friendly, professional, direct'. iAudit uses this to match your writing style when it rewrites your posts."
+          />
           <FormField label="Tone" required value={form.tone} onChange={(v) => handleFieldChange("tone", v)} placeholder="Professional but conversational" />
           <FormField label="Target Audience" required value={form.targetAudience} onChange={(v) => handleFieldChange("targetAudience", v)} placeholder="Australian SMEs in professional services" textarea />
           <FormField label="Language Style" value={form.languageStyle} onChange={(v) => handleFieldChange("languageStyle", v)} placeholder="Australian English, plain language" />
@@ -353,7 +362,14 @@ export default function BusinessSetup() {
 
         <FormSection title="Services & CTAs">
           <FormField label="Services (comma-separated)" value={form.services} onChange={(v) => handleFieldChange("services", v)} placeholder="SEO, Content Marketing, Google Ads, Social Media" textarea />
-          <FormField label="Primary CTA URL" required value={form.primaryCtaUrl} onChange={(v) => handleFieldChange("primaryCtaUrl", v)} placeholder="https://noize.com.au/contact" />
+          <FormField
+            label="Primary CTA URL"
+            required
+            value={form.primaryCtaUrl}
+            onChange={(v) => handleFieldChange("primaryCtaUrl", v)}
+            placeholder="https://noize.com.au/contact"
+            tooltip="This is the link iAudit will use in your rewritten posts when directing readers to take action — for example, your contact page, booking page, or free consultation form."
+          />
           <FormField label="Primary CTA Label" value={form.primaryCtaLabel} onChange={(v) => handleFieldChange("primaryCtaLabel", v)} placeholder="Book a Free Strategy Call" />
           <FormField label="Competitors (comma-separated)" value={form.competitors} onChange={(v) => handleFieldChange("competitors", v)} placeholder="Impressive Digital, Clearwater Agency" />
         </FormSection>
@@ -390,10 +406,10 @@ function FormSection({ title, children }: { title: string; children: React.React
 }
 
 function FormField({
-  label, required, value, onChange, placeholder, textarea,
+  label, required, value, onChange, placeholder, textarea, tooltip,
 }: {
   label: string; required?: boolean; value: string;
-  onChange: (v: string) => void; placeholder?: string; textarea?: boolean;
+  onChange: (v: string) => void; placeholder?: string; textarea?: boolean; tooltip?: string;
 }) {
   const id = label.toLowerCase().replace(/\s+/g, "-");
   // Show error state when a required field is empty
@@ -403,8 +419,9 @@ function FormField({
     : "border-border";
   return (
     <div className={`space-y-1.5 ${textarea ? "md:col-span-2" : ""}`}>
-      <Label htmlFor={id} className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <Label htmlFor={id} className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center">
         {label}{required && <span className="text-destructive ml-1">*</span>}
+        {tooltip && <HelpTooltip text={tooltip} />}
       </Label>
       {textarea ? (
         <Textarea

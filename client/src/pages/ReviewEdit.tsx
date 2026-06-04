@@ -53,6 +53,7 @@ import {
   PartyPopper,
   XCircle,
 } from "lucide-react";
+import { HelpTooltip } from "@/components/HelpTooltip";
 
 // ---------------------------------------------------------------------------
 // Grade config (mirrors PostList.tsx)
@@ -153,8 +154,9 @@ function MetaTitleField({
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-foreground">
+        <label className="text-sm font-medium text-foreground flex items-center">
           Meta Title
+          <HelpTooltip text="The Meta Title is the headline that appears in Google search results. It should be 50–60 characters long and include your focus keyword. Keep it clear and descriptive — this is what people see before they click." />
         </label>
         <span
           className={`text-xs font-mono ${isOver ? "text-red-400 font-bold" : "text-muted-foreground"}`}
@@ -189,8 +191,9 @@ function MetaDescriptionField({
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-foreground">
+        <label className="text-sm font-medium text-foreground flex items-center">
           Meta Description
+          <HelpTooltip text="The Meta Description is the short paragraph that appears under your title in Google search results. It should be 140–160 characters and include your focus keyword. It does not directly affect your ranking, but a good description gets more people to click." />
         </label>
         <span
           className={`text-xs font-mono ${
@@ -1206,7 +1209,7 @@ ${editor.getHTML()}
                 {editingKeyword ? (
                   <div className="space-y-2">
                     <div>
-                      <label className="text-xs text-muted-foreground block mb-1">Focus Keyword</label>
+                      <label className="text-xs text-muted-foreground flex items-center mb-1">Focus Keyword <HelpTooltip text="Your focus keyword is the main phrase this post is trying to rank for in Google. Every post should have exactly one. iAudit checks that this keyword appears in the right places throughout your post." /></label>
                       <Input
                         value={keywordDraft}
                         onChange={(e) => setKeywordDraft(e.target.value)}
@@ -1216,7 +1219,7 @@ ${editor.getHTML()}
                       />
                     </div>
                     <div>
-                      <label className="text-xs text-muted-foreground block mb-1">Secondary Keywords <span className="font-normal">(comma-separated)</span></label>
+                      <label className="text-xs text-muted-foreground flex items-center mb-1">Secondary Keywords <span className="font-normal ml-1">(comma-separated)</span><HelpTooltip text="Secondary keywords are related phrases that support your main focus keyword. Separate them with commas. iAudit weaves these into the rewritten post to help it appear in more searches without losing focus on the main topic." /></label>
                       <Input
                         value={secondaryKeywordsDraft}
                         onChange={(e) => setSecondaryKeywordsDraft(e.target.value)}
@@ -1283,8 +1286,9 @@ ${editor.getHTML()}
           {/* Schema JSON preview — always shown when schema exists */}
           {!!post.schemaJson && (
             <div className="bg-card border border-border rounded-lg p-4 space-y-2">
-              <div className="text-sm font-semibold text-foreground">
+              <div className="text-sm font-semibold text-foreground flex items-center">
                 Schema Markup
+                <HelpTooltip text="Schema markup is invisible code that tells Google what your page is about. It can help your post appear with star ratings, FAQs, or other rich results in Google. iAudit generates this automatically and injects it when you post back to your website." />
               </div>
               <p className="text-xs text-muted-foreground">
                 iAudit will attempt to inject this schema automatically when you

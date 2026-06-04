@@ -31,7 +31,7 @@
 - [x] Layer 13: Wix & Shopify CMS integrations
 - [x] Layer 14: Agency features
 - [ ] Layer 15: Admin Panel
-- [ ] Layer 16: Support Centre
+- [x] Layer 16: Support Centre
 - [ ] Layer 17: Onboarding flow & UX polish
 
 ## Layer 2: Authentication (Section 4 of Scope)
@@ -419,3 +419,18 @@
 - [x] Register /admin route in App.tsx
 - [x] Write Layer 15 vitest tests (admin guard FORBIDDEN for non-admin, listUsers, addCredits, suspendUser, deleteUser, getUsageDashboard, getRevenueDashboard, getErrorLog, markErrorReviewed, downloadKeywordRegistry, error_log population)
 - [x] Run full test suite — all tests pass, zero TypeScript errors
+
+## Layer 16: Support Centre
+
+- [x] Create `server/routers/support.ts` — `sendContactEmail` procedure (Resend to rachel.m@noize.com.au)
+- [x] Wire support router into `server/routers.ts`
+- [x] Create `client/src/components/HelpTooltip.tsx` — reusable inline `?` icon with 2–3 sentence tooltip
+- [x] Create `client/src/pages/SupportCentre.tsx` — 15 articles, real-time search, contact form
+- [x] Add Support nav item to DashboardLayout sidebar (visible to all authenticated users)
+- [x] Add `/support` route to App.tsx
+- [x] Wire tooltips into BusinessSetup.tsx (Brand Voice, Primary CTA URL)
+- [x] Wire tooltips into CmsConnect.tsx (all CMS credential fields)
+- [x] Wire tooltips into ReviewEdit.tsx (focus keyword, secondary keywords, meta title, meta description, schema injection)
+- [x] Wire tooltips into PostList.tsx (rewrite mode selector)
+- [x] Write Layer 16 vitest tests (sendContactEmail, article search, tooltip rendering)
+- [x] Run full test suite — all tests pass
