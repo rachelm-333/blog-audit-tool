@@ -391,3 +391,31 @@
 - [ ] Update `ReviewEdit.tsx` — show Full Rewrite and Smart Patch buttons
 - [x] Update Layer 7 tests — add Smart Patch tests, secondary keyword prompt tests
 - [ ] Run full test suite — all tests pass
+
+## Layer 15: Admin Panel
+
+- [x] Add `error_log` table to drizzle/schema.ts (id UUID PK, user_id FK iaudit_users, business_id FK businesses nullable, post_id FK posts nullable, error_type TEXT, error_message TEXT, layer TEXT, reviewed BOOLEAN default false, created_at TIMESTAMP)
+- [x] Generate and apply migration for error_log table
+- [x] Build server/admin.db.ts with all admin query helpers (listAllUsers, getUserStats, addCredits, setSuspended, deleteUserAndData, getUsageDashboard, getRevenueDashboard, getErrorLog, markErrorReviewed, getKeywordRegistryForUser)
+- [x] Build server/routers/admin.ts with adminProcedure guard (FORBIDDEN for non-admin)
+- [x] `admin.listUsers` — all users with name, email, accountType, joinDate, creditsRemaining, totalRewrites, lastActive, isSuspended
+- [x] `admin.addCredits` — increment creditsRemaining, log admin_grant credit_transaction with note
+- [x] `admin.suspendUser` — toggle isSuspended true/false
+- [x] `admin.deleteUser` — delete user and all associated data (businesses, posts, cms_connections, credit_transactions, error_log rows)
+- [x] `admin.getUsageDashboard` — total audits, total rewrites, free rewrites, rewrite breakdown by mode, per-user breakdown
+- [x] `admin.getRevenueDashboard` — total purchases, total revenue AUD, breakdown by pack size, Stripe test mode detection
+- [x] `admin.getErrorLog` — all error_log rows with user email, business name, error type, message, timestamp, reviewed status
+- [x] `admin.markErrorReviewed` — toggle reviewed boolean on error_log row
+- [x] `admin.downloadKeywordRegistry` — CSV for all businesses of a given userId
+- [x] Wire admin router into server/routers.ts
+- [x] Wire logError into Layer 3 (business scrape failures), Layer 4 (CMS import failures), Layer 7 (rewrite failures), Layer 9 (post-back failures), Layer 13 (Wix/Shopify/Zapier failures)
+- [x] Build client/src/pages/AdminPanel.tsx with 4 views: User List, Usage Dashboard, Revenue Dashboard, Error Log
+- [x] User List view: table with all required columns, Add Credits button, Suspend/Unsuspend toggle, Delete Account (confirmation dialog), Download Keyword Registry button
+- [x] Add Credits modal: number input + required note field, success toast
+- [x] Usage Dashboard view: total audits, total rewrites, free rewrites, rewrite mode breakdown, per-user table, Export CSV button
+- [x] Revenue Dashboard view: total purchases, total revenue, breakdown by pack, Stripe test mode banner, Export CSV button
+- [x] Error Log view: table with timestamp, user email, business name, error type, error message, Mark as Reviewed checkbox, unreviewed rows highlighted
+- [x] Admin nav item in DashboardLayout sidebar — completely absent from DOM for non-admin users (no hidden/greyed, not in DOM at all)
+- [x] Register /admin route in App.tsx
+- [x] Write Layer 15 vitest tests (admin guard FORBIDDEN for non-admin, listUsers, addCredits, suspendUser, deleteUser, getUsageDashboard, getRevenueDashboard, getErrorLog, markErrorReviewed, downloadKeywordRegistry, error_log population)
+- [x] Run full test suite — all tests pass, zero TypeScript errors

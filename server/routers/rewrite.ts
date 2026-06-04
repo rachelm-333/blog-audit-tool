@@ -36,6 +36,7 @@ import {
 } from "../rewrite.service";
 import type { BusinessContext } from "../rewrite.service";
 import { notifyOwner } from "../_core/notification";
+import { logError } from "../admin.db";
 
 // ---------------------------------------------------------------------------
 // Ownership helpers
@@ -218,6 +219,14 @@ export const rewriteRouter = router({
         });
       } catch (err) {
         await setRewriteStatus(post.id, "failed");
+        void logError({
+          userId: input.iauditUserId,
+          businessId: post.businessId,
+          postId: post.id,
+          errorType: "rewrite_failed",
+          errorMessage: err instanceof Error ? err.message : String(err),
+          layer: "layer_7_rewrite",
+        });
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Rewrite failed. Your credit has not been refunded as the attempt was made.",

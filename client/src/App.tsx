@@ -16,6 +16,7 @@ import PostList from "./pages/PostList";
 import ReviewEdit from "@/pages/ReviewEdit";
 import AuditPage from "@/pages/Audit";
 import Credits from "@/pages/Credits";
+import AdminPanel from "@/pages/AdminPanel";
 
 function Router() {
   return (
@@ -33,6 +34,7 @@ function Router() {
       <Route path="/audit" component={AuditPage} />
       <Route path="/credits" component={Credits} />
       <Route path="/credits/success" component={Credits} />
+      <Route path="/admin" component={AdminPanel} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

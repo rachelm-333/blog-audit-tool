@@ -64,6 +64,13 @@
       "when": 1780534350380,
       "tag": "0008_freezing_marten_broadcloak",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1780544565329,
+      "tag": "0009_fluffy_ogun",
+      "breakpoints": true
     }
   ]
 }

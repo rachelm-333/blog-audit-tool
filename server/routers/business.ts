@@ -27,6 +27,7 @@ import {
 } from "../businesses.db";
 import { scrapeBusinessWebsite } from "../scrape.service";
 import { getIauditUserById } from "../iauth.db";
+import { logError } from "../admin.db";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -159,6 +160,13 @@ export const businessRouter = router({
         scrapeResult = await scrapeBusinessWebsite(normalised);
       } catch (err) {
         await updateBusiness(id, { scrapeStatus: "failed" });
+        void logError({
+          userId: iauditUserId,
+          businessId: id,
+          errorType: "scrape_failed",
+          errorMessage: err instanceof Error ? err.message : String(err),
+          layer: "layer_3_scrape",
+        });
         return {
           businessId: id,
           scrapeStatus: "failed" as const,

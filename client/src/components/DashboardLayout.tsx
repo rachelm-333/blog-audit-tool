@@ -35,6 +35,7 @@ import {
   Building2,
   PlusCircle,
   ChevronRight,
+  Shield,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -293,6 +294,20 @@ function DashboardLayoutContent({
                   </SidebarMenuItem>
                 );
               })}
+              {/* Admin-only nav item */}
+              {iauditUser?.accountType === "admin" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={location === "/admin"}
+                    onClick={() => setLocation("/admin")}
+                    tooltip="Admin Panel"
+                    className="h-10 transition-all font-normal"
+                  >
+                    <Shield className={`h-4 w-4 ${location === "/admin" ? "text-primary" : ""}`} />
+                    <span>Admin Panel</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarContent>
 

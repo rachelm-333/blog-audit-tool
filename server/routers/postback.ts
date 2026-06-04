@@ -36,6 +36,7 @@ import { postBackToWix } from "../wix.service";
 import { postBackToShopify } from "../shopify.service";
 import { postBackViaZapier } from "../zapier.service";
 import { getCreditsRemaining } from "../rewrite.db";
+import { logError } from "../admin.db";
 import type { WordPressCredentials, WixCredentials, ShopifyCredentials, ZapierCredentials } from "../encryption.service";
 
 // ---------------------------------------------------------------------------
@@ -230,6 +231,14 @@ export const postbackRouter = router({
 
         // Unknown error
         await setPostBackFailed(input.postId).catch(() => {});
+        void logError({
+          userId: input.iauditUserId,
+          businessId: post.businessId,
+          postId: post.id,
+          errorType: "postback_failed",
+          errorMessage: err instanceof Error ? err.message : String(err),
+          layer: "layer_9_postback",
+        });
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message:

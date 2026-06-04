@@ -405,3 +405,40 @@ export const freeRewrites = mysqlTable(
 
 export type FreeRewrite = typeof freeRewrites.$inferSelect;
 export type InsertFreeRewrite = typeof freeRewrites.$inferInsert;
+// ---------------------------------------------------------------------------
+// error_log — Centralised error log for admin panel (Layer 15)
+// Captures failed rewrites, post-backs, CMS connections, and scrapes.
+// ---------------------------------------------------------------------------
+export const errorLog = mysqlTable(
+  "error_log",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(), // UUID
+    // FK → iaudit_users.id
+    userId: varchar("user_id", { length: 36 })
+      .notNull()
+      .references(() => iauditUsers.id),
+    // FK → businesses.id (nullable — some errors occur before a business is selected)
+    businessId: varchar("business_id", { length: 36 }).references(
+      () => businesses.id
+    ),
+    // FK → posts.id (nullable — some errors occur before a post is selected)
+    postId: varchar("post_id", { length: 36 }).references(() => posts.id),
+    // Short machine-readable error category (e.g. 'scrape_failed', 'rewrite_failed')
+    errorType: varchar("error_type", { length: 100 }).notNull(),
+    // Full error message or stack trace excerpt
+    errorMessage: text("error_message").notNull(),
+    // Which layer produced this error (e.g. 'layer_3_scrape', 'layer_7_rewrite')
+    layer: varchar("layer", { length: 50 }).notNull(),
+    // Admin can mark errors as reviewed to reduce noise
+    reviewed: boolean("reviewed").notNull().default(false),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("error_log_user_id_idx").on(table.userId),
+    index("error_log_reviewed_idx").on(table.reviewed),
+    index("error_log_created_at_idx").on(table.createdAt),
+  ]
+);
+
+export type ErrorLog = typeof errorLog.$inferSelect;
+export type InsertErrorLog = typeof errorLog.$inferInsert;
