@@ -1,9 +1,9 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -38,12 +38,16 @@ import {
   Shield,
   LifeBuoy,
   ExternalLink,
+  Zap,
+  Settings,
+  User,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
@@ -55,9 +59,9 @@ const menuItems = [
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
-const DEFAULT_WIDTH = 280;
+const DEFAULT_WIDTH = 260;
 const MIN_WIDTH = 200;
-const MAX_WIDTH = 480;
+const MAX_WIDTH = 400;
 
 export default function DashboardLayout({
   children,
@@ -75,27 +79,30 @@ export default function DashboardLayout({
   }, [sidebarWidth]);
 
   if (loading) {
-    return <DashboardLayoutSkeleton />
+    return <DashboardLayoutSkeleton />;
   }
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="flex flex-col items-center gap-8 p-8 max-w-md w-full">
-          <div className="flex flex-col items-center gap-6">
-            <h1 className="text-2xl font-semibold tracking-tight text-center">
-              Sign in to continue
-            </h1>
-            <p className="text-sm text-muted-foreground text-center max-w-sm">
-              Access to this dashboard requires authentication. Continue to launch the login flow.
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="flex flex-col items-center gap-8 p-8 max-w-sm w-full">
+          {/* Logo */}
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center shadow-md">
+              <Zap className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-xl font-bold tracking-tight text-foreground">iAudit</span>
+          </div>
+          <div className="text-center space-y-2">
+            <h1 className="text-2xl font-semibold tracking-tight">Sign in to continue</h1>
+            <p className="text-sm text-muted-foreground">
+              Access your blog audit dashboard.
             </p>
           </div>
           <Button
-            onClick={() => {
-              window.location.href = getLoginUrl();
-            }}
+            onClick={() => { window.location.href = getLoginUrl(); }}
             size="lg"
-            className="w-full shadow-lg hover:shadow-xl transition-all"
+            className="w-full btn-primary-glow"
           >
             Sign in
           </Button>
@@ -106,11 +113,7 @@ export default function DashboardLayout({
 
   return (
     <SidebarProvider
-      style={
-        {
-          "--sidebar-width": `${sidebarWidth}px`,
-        } as CSSProperties
-      }
+      style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}
     >
       <DashboardLayoutContent setSidebarWidth={setSidebarWidth}>
         {children}
@@ -124,10 +127,7 @@ type DashboardLayoutContentProps = {
   setSidebarWidth: (width: number) => void;
 };
 
-function DashboardLayoutContent({
-  children,
-  setSidebarWidth,
-}: DashboardLayoutContentProps) {
+function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutContentProps) {
   const { user, logout } = useAuth();
   const { user: iauditUser } = useIauditAuth();
   const iauditUserId = getIauditUserId();
@@ -142,13 +142,11 @@ function DashboardLayoutContent({
 
   const isAgency = iauditUser?.accountType === "agency" || iauditUser?.accountType === "admin";
 
-  // Fetch businesses for agency accounts to show in sidebar
   const { data: bizData } = trpc.dashboard.listBusinesses.useQuery(
     { iauditUserId: iauditUserId ?? "" },
     { enabled: !!iauditUserId && isAgency }
   );
 
-  // Auto-select first business if none selected
   useEffect(() => {
     if (!selectedBusinessId && bizData?.businesses && bizData.businesses.length > 0) {
       setSelectedBusinessId(bizData.businesses[0].id);
@@ -156,33 +154,23 @@ function DashboardLayoutContent({
   }, [selectedBusinessId, bizData, setSelectedBusinessId]);
 
   useEffect(() => {
-    if (isCollapsed) {
-      setIsResizing(false);
-    }
+    if (isCollapsed) setIsResizing(false);
   }, [isCollapsed]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing) return;
-
       const sidebarLeft = sidebarRef.current?.getBoundingClientRect().left ?? 0;
       const newWidth = e.clientX - sidebarLeft;
-      if (newWidth >= MIN_WIDTH && newWidth <= MAX_WIDTH) {
-        setSidebarWidth(newWidth);
-      }
+      if (newWidth >= MIN_WIDTH && newWidth <= MAX_WIDTH) setSidebarWidth(newWidth);
     };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-    };
-
+    const handleMouseUp = () => setIsResizing(false);
     if (isResizing) {
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
     }
-
     return () => {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
@@ -193,42 +181,50 @@ function DashboardLayoutContent({
 
   function handleBusinessSelect(id: string) {
     setSelectedBusinessId(id);
-    // Navigate to dashboard with new business
     setLocation("/dashboard");
   }
 
+  const initials = user?.name
+    ? user.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
+    : "?";
+
   return (
     <>
+      {/* ── Sidebar ── */}
       <div className="relative" ref={sidebarRef}>
         <Sidebar
           collapsible="icon"
-          className="border-r-0"
+          className="border-r border-border/60 bg-sidebar"
           disableTransition={isResizing}
         >
-          <SidebarHeader className="h-16 justify-center">
-            <div className="flex items-center gap-3 px-2 transition-all w-full">
+          {/* Header / Logo */}
+          <SidebarHeader className="h-16 border-b border-border/60 justify-center">
+            <div className="flex items-center gap-3 px-3">
               <button
                 onClick={toggleSidebar}
-                className="h-8 w-8 flex items-center justify-center hover:bg-accent rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring shrink-0"
+                className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-accent transition-colors shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label="Toggle navigation"
               >
                 <PanelLeft className="h-4 w-4 text-muted-foreground" />
               </button>
-              {!isCollapsed ? (
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="font-semibold tracking-tight truncate">
+              {!isCollapsed && (
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center shadow-sm shrink-0">
+                    <Zap className="h-4 w-4 text-white" />
+                  </div>
+                  <span className="font-bold text-base tracking-tight text-foreground truncate">
                     iAudit
                   </span>
                 </div>
-              ) : null}
+              )}
             </div>
           </SidebarHeader>
 
-          <SidebarContent className="gap-0">
+          <SidebarContent className="gap-0 py-2">
             {/* Agency business selector */}
             {isAgency && bizData && bizData.businesses.length > 0 && !isCollapsed && (
-              <div className="px-3 py-2 border-b border-border/50">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 px-1">
+              <div className="px-3 pb-2 mb-1 border-b border-border/60">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1.5 px-1">
                   Client
                 </p>
                 <div className="space-y-0.5">
@@ -239,7 +235,7 @@ function DashboardLayoutContent({
                         key={biz.id}
                         onClick={() => handleBusinessSelect(biz.id)}
                         className={cn(
-                          "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors text-left",
+                          "w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm transition-colors text-left",
                           isSelected
                             ? "bg-primary/10 text-primary font-medium"
                             : "text-muted-foreground hover:text-foreground hover:bg-accent"
@@ -247,13 +243,13 @@ function DashboardLayoutContent({
                       >
                         <Building2 className="h-3.5 w-3.5 shrink-0" />
                         <span className="truncate flex-1">{biz.name || "Unnamed"}</span>
-                        {isSelected && <ChevronRight className="h-3 w-3 shrink-0" />}
+                        {isSelected && <ChevronRight className="h-3 w-3 shrink-0 opacity-60" />}
                       </button>
                     );
                   })}
                   <button
                     onClick={() => setLocation("/business/setup")}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors text-left"
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors text-left"
                   >
                     <PlusCircle className="h-3.5 w-3.5 shrink-0" />
                     <span>Add Business</span>
@@ -262,14 +258,13 @@ function DashboardLayoutContent({
               </div>
             )}
 
-            {/* Agency collapsed: show building icon for business selector */}
             {isAgency && isCollapsed && (
-              <SidebarMenu className="px-2 py-1 border-b border-border/50">
+              <SidebarMenu className="px-2 py-1 border-b border-border/60">
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => setLocation("/business/setup")}
                     tooltip="Add Business"
-                    className="h-10 transition-all font-normal"
+                    className="h-10 font-normal"
                   >
                     <Building2 className="h-4 w-4" />
                     <span>Businesses</span>
@@ -278,7 +273,8 @@ function DashboardLayoutContent({
               </SidebarMenu>
             )}
 
-            <SidebarMenu className="px-2 py-1">
+            {/* Nav items */}
+            <SidebarMenu className="px-2">
               {menuItems.map(item => {
                 const isActive = location === item.path;
                 return (
@@ -287,26 +283,34 @@ function DashboardLayoutContent({
                       isActive={isActive}
                       onClick={() => setLocation(item.path)}
                       tooltip={item.label}
-                      className={`h-10 transition-all font-normal`}
+                      className={cn(
+                        "h-10 font-normal rounded-lg transition-all",
+                        isActive
+                          ? "bg-primary/10 text-primary font-medium"
+                          : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                      )}
                     >
-                      <item.icon
-                        className={`h-4 w-4 ${isActive ? "text-primary" : ""}`}
-                      />
+                      <item.icon className={cn("h-4 w-4 shrink-0", isActive ? "text-primary" : "")} />
                       <span>{item.label}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
               })}
-              {/* Admin-only nav item */}
+              {/* Admin only */}
               {iauditUser?.accountType === "admin" && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     isActive={location === "/admin"}
                     onClick={() => setLocation("/admin")}
                     tooltip="Admin Panel"
-                    className="h-10 transition-all font-normal"
+                    className={cn(
+                      "h-10 font-normal rounded-lg transition-all",
+                      location === "/admin"
+                        ? "bg-primary/10 text-primary font-medium"
+                        : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                    )}
                   >
-                    <Shield className={`h-4 w-4 ${location === "/admin" ? "text-primary" : ""}`} />
+                    <Shield className={cn("h-4 w-4 shrink-0", location === "/admin" ? "text-primary" : "")} />
                     <span>Admin Panel</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -314,86 +318,97 @@ function DashboardLayoutContent({
             </SidebarMenu>
           </SidebarContent>
 
-          {/* Blog Batcher upsell — persistent sidebar CTA */}
+          {/* Blog Batcher upsell */}
           <div className="px-3 pb-2 group-data-[collapsible=icon]:hidden">
             <a
               href="https://blogbatcher.com.au"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-start gap-2.5 rounded-xl border border-blue-500/25 bg-blue-500/5 hover:bg-blue-500/10 hover:border-blue-500/40 p-3 transition-all duration-200 group/bb"
+              className="flex items-start gap-2.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 hover:border-indigo-300 p-3 transition-all duration-200 group/bb"
             >
               <div className="flex-1 min-w-0">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-0.5">
+                <div className="text-[10px] font-bold uppercase tracking-widest text-indigo-500 mb-0.5">
                   Blog Batcher
                 </div>
-                <div className="text-xs font-semibold text-foreground leading-snug">
+                <div className="text-xs font-semibold text-indigo-900 leading-snug">
                   Need new posts from scratch?
                 </div>
-                <div className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
+                <div className="text-[10px] text-indigo-600 mt-0.5 leading-snug">
                   Bulk-generate SEO content with Noize's companion tool.
                 </div>
               </div>
-              <ExternalLink className="h-3.5 w-3.5 text-blue-400 shrink-0 mt-0.5 opacity-70 group-hover/bb:opacity-100 transition-opacity" />
+              <ExternalLink className="h-3.5 w-3.5 text-indigo-400 shrink-0 mt-0.5 opacity-70 group-hover/bb:opacity-100 transition-opacity" />
             </a>
           </div>
 
-          <SidebarFooter className="p-3">
+          {/* Footer / User */}
+          <SidebarFooter className="p-3 border-t border-border/60">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-accent/50 transition-colors w-full text-left group-data-[collapsible=icon]:justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <Avatar className="h-9 w-9 border shrink-0">
-                    <AvatarFallback className="text-xs font-medium">
-                      {user?.name?.charAt(0).toUpperCase()}
+                <button className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-accent transition-colors w-full text-left group-data-[collapsible=icon]:justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <Avatar className="h-8 w-8 shrink-0 ring-2 ring-primary/20">
+                    <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
+                      {initials}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
-                    <p className="text-sm font-medium truncate leading-none">
-                      {user?.name || "-"}
+                    <p className="text-sm font-semibold truncate leading-none text-foreground">
+                      {user?.name || "—"}
                     </p>
-                    <p className="text-xs text-muted-foreground truncate mt-1.5">
-                      {user?.email || "-"}
+                    <p className="text-xs text-muted-foreground truncate mt-1">
+                      {user?.email || "—"}
                     </p>
                   </div>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuContent align="end" className="w-52 shadow-lg">
+                <div className="px-3 py-2 border-b border-border/60">
+                  <p className="text-sm font-semibold text-foreground truncate">{user?.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                </div>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={logout}
-                  className="cursor-pointer text-destructive focus:text-destructive"
+                  className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10 gap-2"
                 >
-                  <LogOut className="mr-2 h-4 w-4" />
+                  <LogOut className="h-4 w-4" />
                   <span>Sign out</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarFooter>
         </Sidebar>
+
+        {/* Resize handle */}
         <div
-          className={`absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/20 transition-colors ${isCollapsed ? "hidden" : ""}`}
-          onMouseDown={() => {
-            if (isCollapsed) return;
-            setIsResizing(true);
-          }}
+          className={cn(
+            "absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/20 transition-colors",
+            isCollapsed ? "hidden" : ""
+          )}
+          onMouseDown={() => { if (!isCollapsed) setIsResizing(true); }}
           style={{ zIndex: 50 }}
         />
       </div>
 
-      <SidebarInset>
+      {/* ── Main content ── */}
+      <SidebarInset className="bg-background">
+        {/* Mobile top bar */}
         {isMobile && (
-          <div className="flex border-b h-14 items-center justify-between bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
-            <div className="flex items-center gap-2">
-              <SidebarTrigger className="h-9 w-9 rounded-lg bg-background" />
-              <div className="flex items-center gap-3">
-                <div className="flex flex-col gap-1">
-                  <span className="tracking-tight text-foreground">
-                    {activeMenuItem?.label ?? "Menu"}
-                  </span>
+          <div className="flex border-b border-border/60 h-14 items-center justify-between bg-background px-4 sticky top-0 z-40 shadow-sm">
+            <div className="flex items-center gap-3">
+              <SidebarTrigger className="h-9 w-9 rounded-lg hover:bg-accent transition-colors" />
+              <div className="flex items-center gap-2">
+                <div className="h-6 w-6 rounded-md bg-primary flex items-center justify-center">
+                  <Zap className="h-3.5 w-3.5 text-white" />
                 </div>
+                <span className="font-semibold text-sm text-foreground">
+                  {activeMenuItem?.label ?? "iAudit"}
+                </span>
               </div>
             </div>
           </div>
         )}
-        <main className="flex-1 p-4">{children}</main>
+        <main className="flex-1 p-6">{children}</main>
       </SidebarInset>
     </>
   );

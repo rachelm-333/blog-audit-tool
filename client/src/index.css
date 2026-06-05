@@ -40,85 +40,109 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
+/* ─────────────────────────────────────────────────────────────
+   iAudit Light — clean white SaaS palette
+   Primary:   Indigo  #4F46E5
+   Accent:    Violet  #7C3AED
+   Success:   Emerald #10B981
+   Sidebar:   Slate   #F8FAFC
+   ───────────────────────────────────────────────────────────── */
 :root {
-  --primary: var(--color-blue-700);
-  --primary-foreground: var(--color-blue-50);
-  --sidebar-primary: var(--color-blue-600);
-  --sidebar-primary-foreground: var(--color-blue-50);
-  --chart-1: var(--color-blue-300);
-  --chart-2: var(--color-blue-500);
-  --chart-3: var(--color-blue-600);
-  --chart-4: var(--color-blue-700);
-  --chart-5: var(--color-blue-800);
-  --radius: 0.65rem;
+  --radius: 0.625rem;
+
+  /* Indigo primary */
+  --primary: oklch(0.511 0.237 264.1);          /* #4F46E5 */
+  --primary-foreground: oklch(0.99 0 0);
+
+  /* Violet sidebar primary */
+  --sidebar-primary: oklch(0.511 0.237 264.1);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+
+  /* Pure white background */
   --background: oklch(1 0 0);
-  --foreground: oklch(0.235 0.015 65);
+  --foreground: oklch(0.145 0.008 264);          /* #0F172A slate-900 */
+
+  /* White cards with shadow (shadow applied via utility) */
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.235 0.015 65);
+  --card-foreground: oklch(0.145 0.008 264);
+
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.235 0.015 65);
-  --secondary: oklch(0.98 0.001 286.375);
-  --secondary-foreground: oklch(0.4 0.015 65);
-  --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.967 0.001 286.375);
-  --accent-foreground: oklch(0.141 0.005 285.823);
+  --popover-foreground: oklch(0.145 0.008 264);
+
+  /* Slate-50 secondary */
+  --secondary: oklch(0.984 0.003 264);           /* #F8FAFC */
+  --secondary-foreground: oklch(0.32 0.012 264); /* #334155 */
+
+  /* Slate-100 muted */
+  --muted: oklch(0.968 0.004 264);               /* #F1F5F9 */
+  --muted-foreground: oklch(0.554 0.014 264);    /* #64748B */
+
+  /* Slate-100 accent */
+  --accent: oklch(0.968 0.004 264);
+  --accent-foreground: oklch(0.145 0.008 264);
+
+  /* Red destructive */
   --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.623 0.214 259.815);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.235 0.015 65);
-  --sidebar-accent: oklch(0.967 0.001 286.375);
-  --sidebar-accent-foreground: oklch(0.141 0.005 285.823);
-  --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: oklch(0.623 0.214 259.815);
+  --destructive-foreground: oklch(0.99 0 0);
+
+  /* Slate-200 borders */
+  --border: oklch(0.928 0.006 264);              /* #E2E8F0 */
+  --input: oklch(0.928 0.006 264);
+  --ring: oklch(0.511 0.237 264.1);
+
+  /* Charts — indigo scale */
+  --chart-1: oklch(0.72 0.18 264);
+  --chart-2: oklch(0.60 0.21 264);
+  --chart-3: oklch(0.511 0.237 264);
+  --chart-4: oklch(0.42 0.22 264);
+  --chart-5: oklch(0.35 0.19 264);
+
+  /* Sidebar — slate-50 with slate-200 border */
+  --sidebar: oklch(0.984 0.003 264);             /* #F8FAFC */
+  --sidebar-foreground: oklch(0.32 0.012 264);   /* #334155 */
+  --sidebar-accent: oklch(0.968 0.004 264);      /* #F1F5F9 */
+  --sidebar-accent-foreground: oklch(0.145 0.008 264);
+  --sidebar-border: oklch(0.928 0.006 264);      /* #E2E8F0 */
+  --sidebar-ring: oklch(0.511 0.237 264.1);
 }
 
+/* Dark mode kept for completeness but not the default */
 .dark {
-  /* iAudit dark navy palette — matches UI mockup */
-  --primary: oklch(0.52 0.18 240);       /* #2E6DA4 accent blue */
-  --primary-foreground: oklch(0.98 0 0);
-  --sidebar-primary: oklch(0.58 0.18 240);
-  --sidebar-primary-foreground: oklch(0.98 0 0);
-  /* bg: #0F0F1A */
+  --primary: oklch(0.62 0.22 264);
+  --primary-foreground: oklch(0.99 0 0);
+  --sidebar-primary: oklch(0.62 0.22 264);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
   --background: oklch(0.12 0.015 265);
-  --foreground: oklch(0.91 0.006 240);   /* #E8EAF0 */
-  /* card: #16213E */
+  --foreground: oklch(0.91 0.006 240);
   --card: oklch(0.18 0.04 255);
   --card-foreground: oklch(0.91 0.006 240);
-  /* popover same as card */
   --popover: oklch(0.18 0.04 255);
   --popover-foreground: oklch(0.91 0.006 240);
-  /* secondary: #1A2850 */
   --secondary: oklch(0.21 0.05 258);
   --secondary-foreground: oklch(0.91 0.006 240);
-  /* muted: slightly lighter than card */
   --muted: oklch(0.22 0.04 258);
-  --muted-foreground: oklch(0.58 0.015 250); /* #8892A4 */
+  --muted-foreground: oklch(0.58 0.015 250);
   --accent: oklch(0.22 0.04 258);
   --accent-foreground: oklch(0.91 0.006 240);
   --destructive: oklch(0.62 0.22 25);
   --destructive-foreground: oklch(0.98 0 0);
-  /* border: #2A3560 */
   --border: oklch(0.26 0.06 258);
   --input: oklch(0.21 0.05 258);
-  --ring: oklch(0.52 0.18 240);
-  --chart-1: oklch(0.65 0.18 240);
-  --chart-2: oklch(0.52 0.18 240);
-  --chart-3: oklch(0.42 0.15 240);
-  --chart-4: oklch(0.35 0.12 240);
-  --chart-5: oklch(0.28 0.08 240);
-  /* sidebar: #0D1117 */
+  --ring: oklch(0.62 0.22 264);
+  --chart-1: oklch(0.72 0.18 264);
+  --chart-2: oklch(0.60 0.21 264);
+  --chart-3: oklch(0.511 0.237 264);
+  --chart-4: oklch(0.42 0.22 264);
+  --chart-5: oklch(0.35 0.19 264);
   --sidebar: oklch(0.10 0.012 265);
   --sidebar-foreground: oklch(0.91 0.006 240);
   --sidebar-accent: oklch(0.18 0.04 255);
   --sidebar-accent-foreground: oklch(0.98 0 0);
   --sidebar-border: oklch(0.26 0.06 258);
-  --sidebar-ring: oklch(0.52 0.18 240);
+  --sidebar-ring: oklch(0.62 0.22 264);
 }
 
 @layer base {
@@ -126,7 +150,7 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
@@ -139,47 +163,61 @@
   input[type="radio"]:not(:disabled) {
     @apply cursor-pointer;
   }
+  /* Smooth focus rings */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
 }
 
 @layer components {
-  /**
-   * Custom container utility that centers content and adds responsive padding.
-   *
-   * This overrides Tailwind's default container behavior to:
-   * - Auto-center content (mx-auto)
-   * - Add responsive horizontal padding
-   * - Set max-width for large screens
-   *
-   * Usage: <div className="container">...</div>
-   *
-   * For custom widths, use max-w-* utilities directly:
-   * <div className="max-w-6xl mx-auto px-4">...</div>
-   */
+  /* ── Container ── */
   .container {
     width: 100%;
     margin-left: auto;
     margin-right: auto;
-    padding-left: 1rem; /* 16px - mobile padding */
+    padding-left: 1rem;
     padding-right: 1rem;
   }
+  @media (min-width: 640px) {
+    .container {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+  }
+  @media (min-width: 1024px) {
+    .container {
+      padding-left: 2rem;
+      padding-right: 2rem;
+      max-width: 1280px;
+    }
+  }
 
+  /* ── Flex min-size reset ── */
   .flex {
     min-height: 0;
     min-width: 0;
   }
 
-  @media (min-width: 640px) {
-    .container {
-      padding-left: 1.5rem; /* 24px - tablet padding */
-      padding-right: 1.5rem;
-    }
+  /* ── SaaS card shadow ── */
+  .card-saas {
+    @apply bg-card rounded-xl border border-border shadow-sm;
   }
 
-  @media (min-width: 1024px) {
-    .container {
-      padding-left: 2rem; /* 32px - desktop padding */
-      padding-right: 2rem;
-      max-width: 1280px; /* Standard content width */
-    }
+  /* ── Gradient badge ── */
+  .badge-indigo {
+    @apply inline-flex items-center gap-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  /* ── Primary button glow ── */
+  .btn-primary-glow {
+    box-shadow: 0 0 0 0 oklch(0.511 0.237 264.1 / 0);
+    transition: box-shadow 200ms ease-out;
+  }
+  .btn-primary-glow:hover {
+    box-shadow: 0 4px 14px oklch(0.511 0.237 264.1 / 0.35);
+  }
+  .btn-primary-glow:active {
+    transform: scale(0.97);
   }
 }
