@@ -130,36 +130,45 @@ export async function importWixPosts(
 ): Promise<WixImportResult> {
   const allPosts: WpImportedPost[] = [];
   const errors: string[] = [];
-  let cursor: string | null = null;
+  let cursor: string | undefined = undefined;
   let page = 0;
 
   do {
     page++;
-    const params = new URLSearchParams({
-      "fieldsets": "SEO",
-      "paging.limit": "100",
-    });
-    if (cursor) params.set("paging.cursor", cursor);
+    // Use POST /v3/posts/query — supports all post types (published, scheduled, draft)
+    // GET /v3/posts only returns published posts
+    const queryBody: any = {
+      fieldsets: ["SEO", "RICH_CONTENT"],
+      paging: { limit: 100 },
+    };
+    if (cursor) queryBody.paging.cursor = cursor;
 
-    const url = `${WIX_BASE}/posts?${params.toString()}`;
-    // Note: Wix Blog v3 API uses /v3/posts with Authorization: Bearer <api-key> + wix-site-id header
-    const res = await wixFetch(url, creds);
+    const url = `${WIX_BASE}/posts/query`;
+    const res = await wixFetch(url, creds, {
+      method: "POST",
+      body: JSON.stringify(queryBody),
+    });
 
     if (res.status === 401 || res.status === 403) {
+      let detail = "";
+      try { const b = await res.json(); detail = JSON.stringify(b); } catch {}
       throw new WixImportException(
         "invalid_credentials",
-        "We could not connect to your Wix site. Please check your Site ID and API Key."
+        `We could not connect to your Wix site. Please check your Site ID and API Key. (HTTP ${res.status}${detail ? ": " + detail : ""})`
       );
     }
     if (res.status === 429) {
       throw new WixImportException("rate_limit", "Import paused — too many requests to Wix API. Please try again in 60 seconds.");
     }
     if (!res.ok) {
-      throw new WixImportException("site_unreachable", `Unexpected response from Wix API (HTTP ${res.status}).`);
+      let detail = "";
+      try { const b = await res.json(); detail = JSON.stringify(b); } catch {}
+      throw new WixImportException("site_unreachable", `Unexpected response from Wix API (HTTP ${res.status}${detail ? ": " + detail : ""}).`);
     }
 
     const body = await res.json() as any;
-        const rawPosts: any[] = body.posts ?? [];
+    console.log(`[Wix Import] Page ${page}: received ${body.posts?.length ?? 0} posts, pagingMetadata:`, JSON.stringify(body.pagingMetadata ?? body.metaData ?? {}));
+    const rawPosts: any[] = body.posts ?? [];
 
     for (const raw of rawPosts) {
       try {
@@ -252,8 +261,8 @@ export async function importWixPosts(
       }
     }
 
-        // Cursor-based pagination
-    cursor = body.metaData?.cursor ?? null;
+    // Cursor-based pagination — Wix Query returns pagingMetadata.cursors.next
+    cursor = body.pagingMetadata?.cursors?.next ?? body.metaData?.cursor ?? undefined;
     // Stop if no more pages
     if (!cursor || rawPosts.length === 0) break;
   } while (cursor && page < 50); // Safety cap at 5000 posts
