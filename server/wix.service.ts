@@ -21,7 +21,7 @@ import type { WpImportedPost, WpPostStatus } from "./wordpress.service";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const WIX_BASE = "https://www.wixapis.com/blog/v3";
+const WIX_BASE = "https://www.wixapis.com/v3";
 
 // ─── Error types ──────────────────────────────────────────────────────────────
 
@@ -54,7 +54,7 @@ const WIX_STATUS_MAP: Record<string, WpPostStatus> = {
 
 function buildHeaders(creds: WixCredentials): Record<string, string> {
   return {
-    "wix-api-key": creds.apiKey,
+    "Authorization": `Bearer ${creds.apiKey}`,
     "wix-site-id": creds.siteId,
     "Content-Type": "application/json",
   };
@@ -94,7 +94,7 @@ export async function testWixConnection(
 ): Promise<{ ok: true; siteId: string } | { ok: false; errorCode: string; message: string }> {
   let res: Response;
   try {
-    const url = `${WIX_BASE}/posts?fieldsets=SEO&paging.limit=1`;
+    const url = `${WIX_BASE}/posts?fieldsets=SEO&paging.limit=1&paging.offset=0`;
     res = await wixFetch(url, creds);
   } catch {
     return { ok: false, errorCode: "site_unreachable", message: "Could not reach the Wix API. Please check your credentials and try again." };
@@ -142,6 +142,7 @@ export async function importWixPosts(
     if (cursor) params.set("paging.cursor", cursor);
 
     const url = `${WIX_BASE}/posts?${params.toString()}`;
+    // Note: Wix Blog v3 API uses /v3/posts with Authorization: Bearer <api-key> + wix-site-id header
     const res = await wixFetch(url, creds);
 
     if (res.status === 401 || res.status === 403) {
@@ -345,6 +346,7 @@ export async function postBackToWix(
   schemaJson: unknown | null
 ): Promise<WixPostBackResult> {
   const url = `${WIX_BASE}/posts/${payload.cmsPostId}`;
+  // Wix Blog v3 PATCH — Authorization: Bearer <api-key> + wix-site-id header
 
   // Build SEO tags for meta title and description
   const seoData = {
