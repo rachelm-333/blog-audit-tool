@@ -442,28 +442,45 @@ export const cmsRouter = router({
     .mutation(async ({ input }) => {
       const connection = await assertConnectionOwnership(input.connectionId, input.iauditUserId);
 
-      if (connection.platform !== "wordpress") {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Post import is only available for WordPress connections in this version.",
-        });
-      }
-
       const rawCreds = decryptConnectionCredentials(connection);
-      const creds: WordPressCredentials = {
-        siteUrl: rawCreds["siteUrl"] ?? "",
-        username: rawCreds["username"] ?? "",
-        applicationPassword: rawCreds["applicationPassword"] ?? "",
-      };
+      let importResult: { posts: any[]; errors: string[] };
 
-      let importResult;
       try {
-        importResult = await importWordPressPosts(creds, {
-          statusFilter: input.statusFilter,
-        });
+        if (connection.platform === "wordpress") {
+          const creds: WordPressCredentials = {
+            siteUrl: rawCreds["siteUrl"] ?? "",
+            username: rawCreds["username"] ?? "",
+            applicationPassword: rawCreds["applicationPassword"] ?? "",
+          };
+          importResult = await importWordPressPosts(creds, { statusFilter: input.statusFilter });
+        } else if (connection.platform === "wix") {
+          const creds: WixCredentials = {
+            siteId: rawCreds["siteId"] ?? "",
+            apiKey: rawCreds["apiKey"] ?? "",
+          };
+          importResult = await importWixPosts(creds, input.statusFilter);
+        } else if (connection.platform === "shopify") {
+          const creds: ShopifyCredentials = {
+            shop: rawCreds["shop"] ?? rawCreds["shopDomain"] ?? "",
+            accessToken: rawCreds["accessToken"] ?? "",
+          };
+          importResult = await importShopifyPosts(creds);
+        } else {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Post import is not yet supported for ${connection.platform} connections.`,
+          });
+        }
       } catch (err) {
         await updateCmsConnectionStatus(connection.id, "error");
         if (err instanceof WpImportException) throw mapWpError(err);
+        if (err instanceof WixImportException) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: err.message });
+        }
+        if (err instanceof ShopifyImportException) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: err.message });
+        }
+        if (err instanceof TRPCError) throw err;
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "An unexpected error occurred during import.",
@@ -473,13 +490,14 @@ export const cmsRouter = router({
       // Upsert all imported posts
       const upsertedIds: string[] = [];
       const upsertErrors: string[] = [];
+      const platform = connection.platform as "wordpress" | "wix" | "shopify" | "zapier";
 
       for (const post of importResult.posts) {
         try {
           const id = await upsertPost({
             ...post,
             businessId: connection.businessId,
-            cmsPlatform: "wordpress",
+            cmsPlatform: platform,
           });
           upsertedIds.push(id);
         } catch (err: any) {
@@ -493,7 +511,8 @@ export const cmsRouter = router({
       // Count by status
       const counts = { published: 0, scheduled: 0, draft: 0 };
       for (const post of importResult.posts) {
-        counts[post.status] = (counts[post.status] ?? 0) + 1;
+        const s = post.status as "published" | "scheduled" | "draft";
+        if (s in counts) counts[s] = (counts[s] ?? 0) + 1;
       }
 
       return {
