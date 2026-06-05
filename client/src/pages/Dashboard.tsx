@@ -365,7 +365,7 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="flex items-center justify-center py-32">
         <Loader2 className="animate-spin text-primary" size={32} />
       </div>
     );
@@ -374,7 +374,7 @@ export default function Dashboard() {
   // ---- Empty state: no businesses ----
   if (!bizLoading && (!bizData?.businesses || bizData.businesses.length === 0)) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-8">
+      <div className="flex items-center justify-center p-8">
         <div className="max-w-md w-full text-center">
           <div className="bg-card border border-border rounded-2xl p-10 flex flex-col items-center gap-6">
             <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
@@ -449,71 +449,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* ── Top bar ── */}
-      <div className="border-b border-border bg-card/50 sticky top-0 z-30 backdrop-blur">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
-          {/* Logo + current business name */}
-          <div className="flex items-center gap-3">
-            <span className="font-extrabold text-primary text-lg tracking-tight">
-              iAudit
-            </span>
-            <span className="text-sm font-medium text-foreground">
-              {business?.name ?? "—"}
-            </span>
-          </div>
-
-          {/* Nav links */}
-          <nav className="hidden md:flex items-center gap-1">
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium bg-primary/10 text-primary"
-            >
-              Dashboard
-            </button>
-            <button
-              onClick={() => navigate("/posts")}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-            >
-              All Posts
-            </button>
-            <button
-              onClick={() => navigate("/audit")}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-            >
-              Free Audit
-            </button>
-          </nav>
-
-          {/* Credits + refresh */}
-          <div className="flex items-center gap-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-card border border-border text-sm">
-                  <CreditCard className="h-3.5 w-3.5 text-primary" />
-                  <span className="font-semibold text-foreground">
-                    {creditsRemaining}
-                  </span>
-                  <span className="text-muted-foreground text-xs">credits</span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>Credits remaining</TooltipContent>
-            </Tooltip>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => refetchStats()}
-              aria-label="Refresh dashboard"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Main content ── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+    <div className="space-y-6">
 
         {/* Page header */}
         <div>
@@ -1053,6 +989,5 @@ export default function Dashboard() {
           </div>
         )}
       </div>
-    </div>
   );
 }

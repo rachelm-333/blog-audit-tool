@@ -221,12 +221,8 @@ export default function BusinessSetup() {
   // Step 1: URL input
   if (step === "url") {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="flex items-center justify-center p-4">
         <div className="w-full max-w-lg">
-          <div className="text-center mb-8">
-            <div className="text-3xl font-extrabold text-primary tracking-tight">iAudit</div>
-            <div className="text-xs text-muted-foreground uppercase tracking-widest mt-1">Step 1 of 2 — Business Setup</div>
-          </div>
           <div className="bg-card border border-border rounded-xl p-8 shadow-lg">
             <h1 className="text-xl font-bold text-foreground mb-1">Enter your website URL</h1>
             <p className="text-sm text-muted-foreground mb-6">
@@ -260,9 +256,8 @@ export default function BusinessSetup() {
   // Step 2: Scraping in progress
   if (step === "scraping") {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="flex items-center justify-center p-4">
         <div className="w-full max-w-md text-center">
-          <div className="text-3xl font-extrabold text-primary tracking-tight mb-8">iAudit</div>
           <div className="bg-card border border-border rounded-xl p-8">
             <div className="flex justify-center mb-4">
               <div className="relative">
@@ -287,31 +282,24 @@ export default function BusinessSetup() {
   const failureInfo = scrapeFailureType ? FAILURE_MESSAGES[scrapeFailureType] ?? FAILURE_MESSAGES.failed : null;
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-card/80 backdrop-blur border-b border-border px-6 py-3 flex items-center justify-between">
-        <div>
-          <span className="text-sm font-bold text-foreground">iAudit</span>
-          <span className="text-xs text-muted-foreground ml-2">— Step 2 of 2: Review Business Profile</span>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleSaveProgress} disabled={isSaving || !businessId}>
-            {isSaving ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Save size={14} className="mr-1.5" />}
-            Save Progress
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleConfirm}
-            disabled={!isFormComplete || isConfirming}
-            className="font-semibold"
-            title={!isFormComplete ? "Please fill in all required fields before confirming" : ""}
-          >
-            {isConfirming ? <><Loader2 size={14} className="animate-spin mr-1.5" />Confirming…</> : <><CheckCircle2 size={14} className="mr-1.5" />Confirm Profile</>}
-          </Button>
-        </div>
+    <div className="max-w-3xl space-y-6">
+      {/* Action buttons row */}
+      <div className="flex gap-2 justify-end">
+        <Button variant="outline" size="sm" onClick={handleSaveProgress} disabled={isSaving || !businessId}>
+          {isSaving ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Save size={14} className="mr-1.5" />}
+          Save Progress
+        </Button>
+        <Button
+          size="sm"
+          onClick={handleConfirm}
+          disabled={!isFormComplete || isConfirming}
+          className="font-semibold"
+          title={!isFormComplete ? "Please fill in all required fields before confirming" : ""}
+        >
+          {isConfirming ? <><Loader2 size={14} className="animate-spin mr-1.5" />Confirming…</> : <><CheckCircle2 size={14} className="mr-1.5" />Confirm Profile</>}
+        </Button>
       </div>
-
-      <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+      <div>
         {/* Failure banner */}
         {failureInfo && (
           <div className="flex gap-3 bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">

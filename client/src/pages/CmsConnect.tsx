@@ -137,10 +137,10 @@ function StepIndicator({ step }: { step: Step }) {
           <div
             className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold transition-colors ${
               i < currentIndex
-                ? "bg-emerald-500 text-white"
+                ? "bg-emerald-500 text-foreground"
                 : i === currentIndex
-                ? "bg-blue-500 text-white"
-                : "bg-white/10 text-white/40"
+                ? "bg-blue-500 text-foreground"
+                : "bg-white/10 text-foreground/40"
             }`}
           >
             {i < currentIndex ? <CheckCircle2 className="w-4 h-4" /> : i + 1}
@@ -148,16 +148,16 @@ function StepIndicator({ step }: { step: Step }) {
           <span
             className={`text-sm ${
               i === currentIndex
-                ? "text-white"
+                ? "text-foreground"
                 : i < currentIndex
                 ? "text-emerald-400"
-                : "text-white/40"
+                : "text-foreground/40"
             }`}
           >
             {s.label}
           </span>
           {i < steps.length - 1 && (
-            <ChevronRight className="w-4 h-4 text-white/20 mx-1" />
+            <ChevronRight className="w-4 h-4 text-foreground/20 mx-1" />
           )}
         </div>
       ))}
@@ -212,7 +212,7 @@ export default function CmsConnect() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center">
+      <div className="flex items-center justify-center py-16">
         <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
       </div>
     );
@@ -220,9 +220,9 @@ export default function CmsConnect() {
 
   if (!businessId) {
     return (
-      <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center">
+      <div className="flex items-center justify-center py-16">
         <div className="text-center">
-          <p className="text-white/60 mb-4">No business selected.</p>
+          <p className="text-foreground/60 mb-4">No business selected.</p>
           <Button onClick={() => navigate("/dashboard")} variant="outline">
             Go to Dashboard
           </Button>
@@ -235,11 +235,11 @@ export default function CmsConnect() {
 
   if (step === "platform") {
     return (
-      <div className="min-h-screen bg-[#0a0f1e] text-white px-4 py-10">
+      <div className="max-w-2xl mx-auto px-4 py-6">
         <div className="max-w-2xl mx-auto">
           <button
             onClick={() => navigate("/dashboard")}
-            className="flex items-center gap-2 text-white/50 hover:text-white/80 text-sm mb-8 transition-colors"
+            className="flex items-center gap-2 text-foreground/50 hover:text-foreground/80 text-sm mb-8 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Dashboard
@@ -248,7 +248,7 @@ export default function CmsConnect() {
           <StepIndicator step="platform" />
 
           <h1 className="text-3xl font-bold mb-2">Connect Your CMS</h1>
-          <p className="text-white/60 mb-8">
+          <p className="text-foreground/60 mb-8">
             Select your content management platform to import your blog posts.
           </p>
 
@@ -262,12 +262,12 @@ export default function CmsConnect() {
                 }}
                 className="relative flex flex-col items-start gap-3 p-6 rounded-xl border border-white/20 hover:border-blue-400/60 hover:bg-white/5 cursor-pointer text-left transition-all"
               >
-                <div className="text-white/70">{platform.icon}</div>
+                <div className="text-foreground/70">{platform.icon}</div>
                 <div>
-                  <div className="font-semibold text-white">{platform.name}</div>
-                  <div className="text-sm text-white/50 mt-0.5">{platform.description}</div>
+                  <div className="font-semibold text-foreground">{platform.name}</div>
+                  <div className="text-sm text-foreground/50 mt-0.5">{platform.description}</div>
                 </div>
-                <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/30" />
               </button>
             ))}
           </div>
@@ -304,35 +304,35 @@ export default function CmsConnect() {
       };
 
       return (
-        <div className="min-h-screen bg-[#0a0f1e] text-white px-4 py-10">
+        <div className="max-w-2xl mx-auto px-4 py-6">
           <div className="max-w-lg mx-auto">
-            <button onClick={goBack} className="flex items-center gap-2 text-white/50 hover:text-white/80 text-sm mb-8 transition-colors">
+            <button onClick={goBack} className="flex items-center gap-2 text-foreground/50 hover:text-foreground/80 text-sm mb-8 transition-colors">
               <ArrowLeft className="w-4 h-4" />Back
             </button>
             <StepIndicator step="connect" />
             <h1 className="text-3xl font-bold mb-2">Connect WordPress</h1>
-            <p className="text-white/60 mb-6">Enter your WordPress site details. Your credentials are encrypted and never stored in plain text.</p>
+            <p className="text-foreground/60 mb-6">Enter your WordPress site details. Your credentials are encrypted and never stored in plain text.</p>
             {error && <ErrorBanner error={error} onDismiss={() => setError(null)} />}
             <div className="space-y-5 mt-6">
               <div>
-                <Label className="text-white/80 mb-1.5 flex items-center">WordPress Site URL <HelpTooltip text="The full web address of your WordPress website, for example https://yourwebsite.com.au. Do not include a page path — just the root domain." /></Label>
-                <Input type="url" placeholder="https://yoursite.com" value={wpUrl} onChange={(e) => setWpUrl(e.target.value)} className="bg-white/5 border-white/20 text-white placeholder:text-white/30 focus:border-blue-400" />
-                <p className="text-xs text-white/40 mt-1">Enter the root URL of your WordPress site.</p>
+                <Label className="text-foreground/80 mb-1.5 flex items-center">WordPress Site URL <HelpTooltip text="The full web address of your WordPress website, for example https://yourwebsite.com.au. Do not include a page path — just the root domain." /></Label>
+                <Input type="url" placeholder="https://yoursite.com" value={wpUrl} onChange={(e) => setWpUrl(e.target.value)} className="bg-white/5 border-white/20 text-foreground placeholder:text-foreground/30 focus:border-blue-400" />
+                <p className="text-xs text-foreground/40 mt-1">Enter the root URL of your WordPress site.</p>
               </div>
               <div>
-                <Label className="text-white/80 mb-1.5 flex items-center">WordPress Username <HelpTooltip text="Your WordPress login username — the one you use to log in to your WordPress admin area. This is usually your email address or a short username you chose when you set up WordPress." /></Label>
-                <Input type="text" placeholder="admin" value={wpUsername} onChange={(e) => setWpUsername(e.target.value)} className="bg-white/5 border-white/20 text-white placeholder:text-white/30 focus:border-blue-400" />
+                <Label className="text-foreground/80 mb-1.5 flex items-center">WordPress Username <HelpTooltip text="Your WordPress login username — the one you use to log in to your WordPress admin area. This is usually your email address or a short username you chose when you set up WordPress." /></Label>
+                <Input type="text" placeholder="admin" value={wpUsername} onChange={(e) => setWpUsername(e.target.value)} className="bg-white/5 border-white/20 text-foreground placeholder:text-foreground/30 focus:border-blue-400" />
               </div>
               <div>
-                <Label className="text-white/80 mb-1.5 flex items-center">Application Password <HelpTooltip text="An Application Password is a special password just for iAudit — it is not your normal WordPress login password. Create one in WordPress Admin → Users → Your Profile → scroll down to Application Passwords → type 'iAudit' → click Add New." /></Label>
-                <Input type="password" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx" value={wpAppPassword} onChange={(e) => setWpAppPassword(e.target.value)} className="bg-white/5 border-white/20 text-white placeholder:text-white/30 focus:border-blue-400" />
-                <p className="text-xs text-white/40 mt-1">Generate this in WordPress Admin → Users → Your Profile → Application Passwords.</p>
+                <Label className="text-foreground/80 mb-1.5 flex items-center">Application Password <HelpTooltip text="An Application Password is a special password just for iAudit — it is not your normal WordPress login password. Create one in WordPress Admin → Users → Your Profile → scroll down to Application Passwords → type 'iAudit' → click Add New." /></Label>
+                <Input type="password" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx" value={wpAppPassword} onChange={(e) => setWpAppPassword(e.target.value)} className="bg-white/5 border-white/20 text-foreground placeholder:text-foreground/30 focus:border-blue-400" />
+                <p className="text-xs text-foreground/40 mt-1">Generate this in WordPress Admin → Users → Your Profile → Application Passwords.</p>
               </div>
               <div className="flex items-center gap-2 p-3 rounded-lg bg-white/5 border border-white/10">
                 <Lock className="w-4 h-4 text-emerald-400 shrink-0" />
-                <p className="text-xs text-white/50">Your credentials are encrypted with AES-256-GCM before being stored.</p>
+                <p className="text-xs text-foreground/50">Your credentials are encrypted with AES-256-GCM before being stored.</p>
               </div>
-              <Button onClick={handleConnect} disabled={!wpUrl || !wpUsername || !wpAppPassword || connectMutation.isPending} className="w-full bg-blue-600 hover:bg-blue-500 text-white">
+              <Button onClick={handleConnect} disabled={!wpUrl || !wpUsername || !wpAppPassword || connectMutation.isPending} className="w-full bg-blue-600 hover:bg-blue-500 text-foreground">
                 {connectMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Connecting…</> : "Connect WordPress"}
               </Button>
             </div>
@@ -363,31 +363,31 @@ export default function CmsConnect() {
       };
 
       return (
-        <div className="min-h-screen bg-[#0a0f1e] text-white px-4 py-10">
+        <div className="max-w-2xl mx-auto px-4 py-6">
           <div className="max-w-lg mx-auto">
-            <button onClick={goBack} className="flex items-center gap-2 text-white/50 hover:text-white/80 text-sm mb-8 transition-colors">
+            <button onClick={goBack} className="flex items-center gap-2 text-foreground/50 hover:text-foreground/80 text-sm mb-8 transition-colors">
               <ArrowLeft className="w-4 h-4" />Back
             </button>
             <StepIndicator step="connect" />
             <h1 className="text-3xl font-bold mb-2">Connect Wix</h1>
-            <p className="text-white/60 mb-6">Connect your Wix site using the Wix Headless API. Your credentials are encrypted at rest.</p>
+            <p className="text-foreground/60 mb-6">Connect your Wix site using the Wix Headless API. Your credentials are encrypted at rest.</p>
             {error && <ErrorBanner error={error} onDismiss={() => setError(null)} />}
             <div className="space-y-5 mt-6">
               <div>
-                <Label className="text-white/80 mb-1.5 flex items-center">Wix Site ID <HelpTooltip text="Your Wix Site ID is a unique code that identifies your website. Find it by logging in to manage.wix.com, opening your site's dashboard, and looking at the URL — it is the long string of letters and numbers between /dashboard/ and /home." /></Label>
-                <Input type="text" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" value={wixSiteId} onChange={(e) => setWixSiteId(e.target.value)} className="bg-white/5 border-white/20 text-white placeholder:text-white/30 focus:border-blue-400" />
-                <p className="text-xs text-white/40 mt-1">Find this in Wix Dashboard → Settings → General Info → Site ID.</p>
+                <Label className="text-foreground/80 mb-1.5 flex items-center">Wix Site ID <HelpTooltip text="Your Wix Site ID is a unique code that identifies your website. Find it by logging in to manage.wix.com, opening your site's dashboard, and looking at the URL — it is the long string of letters and numbers between /dashboard/ and /home." /></Label>
+                <Input type="text" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" value={wixSiteId} onChange={(e) => setWixSiteId(e.target.value)} className="bg-white/5 border-white/20 text-foreground placeholder:text-foreground/30 focus:border-blue-400" />
+                <p className="text-xs text-foreground/40 mt-1">Find this in Wix Dashboard → Settings → General Info → Site ID.</p>
               </div>
               <div>
-                <Label className="text-white/80 mb-1.5 flex items-center">API Key <HelpTooltip text="A Wix API Key lets iAudit read and update your blog posts. Create one in your Wix Dashboard → Settings → API Keys. Give it a name like 'iAudit' and make sure you tick the Wix Blog permission. Save the key somewhere safe — Wix only shows it once." /></Label>
-                <Input type="password" placeholder="Your Wix API key" value={wixApiKey} onChange={(e) => setWixApiKey(e.target.value)} className="bg-white/5 border-white/20 text-white placeholder:text-white/30 focus:border-blue-400" />
-                <p className="text-xs text-white/40 mt-1">Create an API key in Wix Dashboard → Settings → API Keys. Requires Blog read/write permissions.</p>
+                <Label className="text-foreground/80 mb-1.5 flex items-center">API Key <HelpTooltip text="A Wix API Key lets iAudit read and update your blog posts. Create one in your Wix Dashboard → Settings → API Keys. Give it a name like 'iAudit' and make sure you tick the Wix Blog permission. Save the key somewhere safe — Wix only shows it once." /></Label>
+                <Input type="password" placeholder="Your Wix API key" value={wixApiKey} onChange={(e) => setWixApiKey(e.target.value)} className="bg-white/5 border-white/20 text-foreground placeholder:text-foreground/30 focus:border-blue-400" />
+                <p className="text-xs text-foreground/40 mt-1">Create an API key in Wix Dashboard → Settings → API Keys. Requires Blog read/write permissions.</p>
               </div>
               <div className="flex items-center gap-2 p-3 rounded-lg bg-white/5 border border-white/10">
                 <Lock className="w-4 h-4 text-emerald-400 shrink-0" />
-                <p className="text-xs text-white/50">Your credentials are encrypted with AES-256-GCM before being stored.</p>
+                <p className="text-xs text-foreground/50">Your credentials are encrypted with AES-256-GCM before being stored.</p>
               </div>
-              <Button onClick={handleConnect} disabled={!wixSiteId || !wixApiKey || connectWixMutation.isPending} className="w-full bg-blue-600 hover:bg-blue-500 text-white">
+              <Button onClick={handleConnect} disabled={!wixSiteId || !wixApiKey || connectWixMutation.isPending} className="w-full bg-blue-600 hover:bg-blue-500 text-foreground">
                 {connectWixMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Connecting…</> : "Connect Wix"}
               </Button>
             </div>
@@ -418,31 +418,31 @@ export default function CmsConnect() {
       };
 
       return (
-        <div className="min-h-screen bg-[#0a0f1e] text-white px-4 py-10">
+        <div className="max-w-2xl mx-auto px-4 py-6">
           <div className="max-w-lg mx-auto">
-            <button onClick={goBack} className="flex items-center gap-2 text-white/50 hover:text-white/80 text-sm mb-8 transition-colors">
+            <button onClick={goBack} className="flex items-center gap-2 text-foreground/50 hover:text-foreground/80 text-sm mb-8 transition-colors">
               <ArrowLeft className="w-4 h-4" />Back
             </button>
             <StepIndicator step="connect" />
             <h1 className="text-3xl font-bold mb-2">Connect Shopify</h1>
-            <p className="text-white/60 mb-6">Connect your Shopify store using a Custom App access token. Your credentials are encrypted at rest.</p>
+            <p className="text-foreground/60 mb-6">Connect your Shopify store using a Custom App access token. Your credentials are encrypted at rest.</p>
             {error && <ErrorBanner error={error} onDismiss={() => setError(null)} />}
             <div className="space-y-5 mt-6">
               <div>
-                <Label className="text-white/80 mb-1.5 flex items-center">Shopify Store Domain <HelpTooltip text="Your Shopify store domain ends in .myshopify.com. For example, if your store is at yourstore.myshopify.com, enter that exactly. Do not include https:// — just the domain name." /></Label>
-                <Input type="text" placeholder="your-store.myshopify.com" value={shopifyShop} onChange={(e) => setShopifyShop(e.target.value)} className="bg-white/5 border-white/20 text-white placeholder:text-white/30 focus:border-blue-400" />
-                <p className="text-xs text-white/40 mt-1">Enter your store's .myshopify.com domain (without https://).</p>
+                <Label className="text-foreground/80 mb-1.5 flex items-center">Shopify Store Domain <HelpTooltip text="Your Shopify store domain ends in .myshopify.com. For example, if your store is at yourstore.myshopify.com, enter that exactly. Do not include https:// — just the domain name." /></Label>
+                <Input type="text" placeholder="your-store.myshopify.com" value={shopifyShop} onChange={(e) => setShopifyShop(e.target.value)} className="bg-white/5 border-white/20 text-foreground placeholder:text-foreground/30 focus:border-blue-400" />
+                <p className="text-xs text-foreground/40 mt-1">Enter your store's .myshopify.com domain (without https://).</p>
               </div>
               <div>
-                <Label className="text-white/80 mb-1.5 flex items-center">Admin API Access Token <HelpTooltip text="This token lets iAudit read and update your Shopify blog posts. Create a Custom App in Shopify Admin → Settings → Apps and sales channels → Develop apps. Give it read_content and write_content permissions. The token starts with shpat_ — copy it immediately as Shopify only shows it once." /></Label>
-                <Input type="password" placeholder="shpat_xxxxxxxxxxxxxxxxxxxx" value={shopifyAccessToken} onChange={(e) => setShopifyAccessToken(e.target.value)} className="bg-white/5 border-white/20 text-white placeholder:text-white/30 focus:border-blue-400" />
-                <p className="text-xs text-white/40 mt-1">Create a Custom App in Shopify Admin → Apps → Develop Apps. Requires read_content and write_content scopes.</p>
+                <Label className="text-foreground/80 mb-1.5 flex items-center">Admin API Access Token <HelpTooltip text="This token lets iAudit read and update your Shopify blog posts. Create a Custom App in Shopify Admin → Settings → Apps and sales channels → Develop apps. Give it read_content and write_content permissions. The token starts with shpat_ — copy it immediately as Shopify only shows it once." /></Label>
+                <Input type="password" placeholder="shpat_xxxxxxxxxxxxxxxxxxxx" value={shopifyAccessToken} onChange={(e) => setShopifyAccessToken(e.target.value)} className="bg-white/5 border-white/20 text-foreground placeholder:text-foreground/30 focus:border-blue-400" />
+                <p className="text-xs text-foreground/40 mt-1">Create a Custom App in Shopify Admin → Apps → Develop Apps. Requires read_content and write_content scopes.</p>
               </div>
               <div className="flex items-center gap-2 p-3 rounded-lg bg-white/5 border border-white/10">
                 <Lock className="w-4 h-4 text-emerald-400 shrink-0" />
-                <p className="text-xs text-white/50">Your credentials are encrypted with AES-256-GCM before being stored.</p>
+                <p className="text-xs text-foreground/50">Your credentials are encrypted with AES-256-GCM before being stored.</p>
               </div>
-              <Button onClick={handleConnect} disabled={!shopifyShop || !shopifyAccessToken || connectShopifyMutation.isPending} className="w-full bg-blue-600 hover:bg-blue-500 text-white">
+              <Button onClick={handleConnect} disabled={!shopifyShop || !shopifyAccessToken || connectShopifyMutation.isPending} className="w-full bg-blue-600 hover:bg-blue-500 text-foreground">
                 {connectShopifyMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Connecting…</> : "Connect Shopify"}
               </Button>
             </div>
@@ -475,21 +475,21 @@ export default function CmsConnect() {
       };
 
       return (
-        <div className="min-h-screen bg-[#0a0f1e] text-white px-4 py-10">
+        <div className="max-w-2xl mx-auto px-4 py-6">
           <div className="max-w-lg mx-auto">
-            <button onClick={goBack} className="flex items-center gap-2 text-white/50 hover:text-white/80 text-sm mb-8 transition-colors">
+            <button onClick={goBack} className="flex items-center gap-2 text-foreground/50 hover:text-foreground/80 text-sm mb-8 transition-colors">
               <ArrowLeft className="w-4 h-4" />Back
             </button>
             <StepIndicator step="connect" />
             <h1 className="text-3xl font-bold mb-2">Connect via Zapier</h1>
-            <p className="text-white/60 mb-6">
+            <p className="text-foreground/60 mb-6">
               Use Zapier to connect any CMS platform. iAudit provides an inbound webhook URL for Zapier to send posts to, and an optional outbound webhook URL to receive rewrites back.
             </p>
             {error && <ErrorBanner error={error} onDismiss={() => setError(null)} />}
             <div className="space-y-5 mt-6">
               <div>
-                <Label className="text-white/80 mb-1.5 block">Inbound Webhook URL</Label>
-                <p className="text-xs text-white/50 mb-2">
+                <Label className="text-foreground/80 mb-1.5 block">Inbound Webhook URL</Label>
+                <p className="text-xs text-foreground/50 mb-2">
                   Copy this URL into your Zapier zap as the webhook destination. Zapier will send your blog posts here.
                 </p>
                 {zapierInboundUrl ? (
@@ -497,7 +497,7 @@ export default function CmsConnect() {
                     <Input
                       readOnly
                       value={zapierInboundUrl}
-                      className="bg-white/5 border-white/20 text-white/70 text-xs font-mono"
+                      className="bg-white/5 border-white/20 text-foreground/70 text-xs font-mono"
                     />
                     <Button
                       variant="outline"
@@ -512,15 +512,15 @@ export default function CmsConnect() {
                     </Button>
                   </div>
                 ) : (
-                  <p className="text-xs text-white/40">
+                  <p className="text-xs text-foreground/40">
                     Click "Save Zapier Connection" to generate your unique webhook URL.
                   </p>
                 )}
               </div>
 
               <div>
-                <Label className="text-white/80 mb-1.5 flex items-center">
-                  Outbound Webhook URL <span className="text-white/40 font-normal ml-1">(optional)</span>
+                <Label className="text-foreground/80 mb-1.5 flex items-center">
+                  Outbound Webhook URL <span className="text-foreground/40 font-normal ml-1">(optional)</span>
                   <HelpTooltip text="When a rewrite is approved in iAudit, it will send the rewritten post to this Zapier webhook URL so Zapier can push it back to your CMS automatically. Leave this blank if you just want to copy and paste the content manually." />
                 </Label>
                 <Input
@@ -528,9 +528,9 @@ export default function CmsConnect() {
                   placeholder="https://hooks.zapier.com/hooks/catch/..."
                   value={zapierOutboundUrl}
                   onChange={(e) => setZapierOutboundUrl(e.target.value)}
-                  className="bg-white/5 border-white/20 text-white placeholder:text-white/30 focus:border-blue-400"
+                  className="bg-white/5 border-white/20 text-foreground placeholder:text-foreground/30 focus:border-blue-400"
                 />
-                <p className="text-xs text-white/40 mt-1">
+                <p className="text-xs text-foreground/40 mt-1">
                   When a rewrite is approved, iAudit will POST the result to this URL so Zapier can push it back to your CMS.
                 </p>
               </div>
@@ -548,7 +548,7 @@ export default function CmsConnect() {
               <Button
                 onClick={handleConnect}
                 disabled={connectZapierMutation.isPending}
-                className="w-full bg-blue-600 hover:bg-blue-500 text-white"
+                className="w-full bg-blue-600 hover:bg-blue-500 text-foreground"
               >
                 {connectZapierMutation.isPending ? (
                   <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</>
@@ -570,13 +570,13 @@ export default function CmsConnect() {
       { value: "all", label: "All Posts", description: "Import published, scheduled, and draft posts", icon: <FileText className="w-5 h-5" /> },
       { value: "published", label: "Published Only", description: "Only posts that are live on your site", icon: <CheckCircle2 className="w-5 h-5 text-emerald-400" /> },
       { value: "scheduled", label: "Scheduled Only", description: "Posts queued for future publication", icon: <Clock className="w-5 h-5 text-yellow-400" /> },
-      { value: "draft", label: "Drafts Only", description: "Unpublished draft posts", icon: <FileText className="w-5 h-5 text-white/40" /> },
+      { value: "draft", label: "Drafts Only", description: "Unpublished draft posts", icon: <FileText className="w-5 h-5 text-foreground/40" /> },
     ];
 
     // Zapier doesn't support import — posts arrive via webhook
     if (selectedPlatform === "zapier") {
       return (
-        <div className="min-h-screen bg-[#0a0f1e] text-white px-4 py-10">
+        <div className="max-w-2xl mx-auto px-4 py-6">
           <div className="max-w-lg mx-auto">
             <StepIndicator step="results" />
             <div className="text-center mb-8">
@@ -584,14 +584,14 @@ export default function CmsConnect() {
                 <CheckCircle2 className="w-8 h-8 text-emerald-400" />
               </div>
               <h1 className="text-3xl font-bold mb-2">Zapier Connected</h1>
-              <p className="text-white/60 mb-6">
+              <p className="text-foreground/60 mb-6">
                 Your Zapier webhook is ready. Posts will appear in iAudit automatically when your Zapier zap triggers.
               </p>
               <div className="flex gap-3 justify-center">
-                <Button onClick={() => navigate("/posts")} className="bg-blue-600 hover:bg-blue-500 text-white">
+                <Button onClick={() => navigate("/posts")} className="bg-blue-600 hover:bg-blue-500 text-foreground">
                   View Posts
                 </Button>
-                <Button onClick={() => navigate("/dashboard")} variant="outline" className="border-white/20 text-white hover:bg-white/5">
+                <Button onClick={() => navigate("/dashboard")} variant="outline" className="border-white/20 text-foreground hover:bg-white/5">
                   Dashboard
                 </Button>
               </div>
@@ -618,14 +618,14 @@ export default function CmsConnect() {
     };
 
     return (
-      <div className="min-h-screen bg-[#0a0f1e] text-white px-4 py-10">
+      <div className="max-w-2xl mx-auto px-4 py-6">
         <div className="max-w-lg mx-auto">
-          <button onClick={() => { setStep("connect"); setError(null); }} className="flex items-center gap-2 text-white/50 hover:text-white/80 text-sm mb-8 transition-colors">
+          <button onClick={() => { setStep("connect"); setError(null); }} className="flex items-center gap-2 text-foreground/50 hover:text-foreground/80 text-sm mb-8 transition-colors">
             <ArrowLeft className="w-4 h-4" />Back
           </button>
           <StepIndicator step="import-options" />
           <h1 className="text-3xl font-bold mb-2">Import Posts</h1>
-          <p className="text-white/60 mb-2">Select which post types to import. Trash posts are never imported.</p>
+          <p className="text-foreground/60 mb-2">Select which post types to import. Trash posts are never imported.</p>
           {error && <ErrorBanner error={error} onDismiss={() => setError(null)} />}
           <div className="space-y-3 mt-6">
             {STATUS_OPTIONS.map((opt) => (
@@ -638,16 +638,16 @@ export default function CmsConnect() {
                     : "border-white/15 hover:border-white/30 hover:bg-white/5"
                 }`}
               >
-                <div className="text-white/70">{opt.icon}</div>
+                <div className="text-foreground/70">{opt.icon}</div>
                 <div className="flex-1">
-                  <div className="font-medium text-white">{opt.label}</div>
-                  <div className="text-sm text-white/50">{opt.description}</div>
+                  <div className="font-medium text-foreground">{opt.label}</div>
+                  <div className="text-sm text-foreground/50">{opt.description}</div>
                 </div>
                 <div className={`w-4 h-4 rounded-full border-2 transition-colors ${statusFilter === opt.value ? "border-blue-400 bg-blue-400" : "border-white/30"}`} />
               </button>
             ))}
           </div>
-          <Button onClick={handleImport} className="w-full mt-6 bg-blue-600 hover:bg-blue-500 text-white">
+          <Button onClick={handleImport} className="w-full mt-6 bg-blue-600 hover:bg-blue-500 text-foreground">
             Import Posts
           </Button>
         </div>
@@ -660,7 +660,7 @@ export default function CmsConnect() {
   if (step === "importing") {
     const platformName = selectedPlatform === "wix" ? "Wix" : selectedPlatform === "shopify" ? "Shopify" : "WordPress";
     return (
-      <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center text-white">
+      <div className="min-h-screen bg-background flex items-center justify-center text-foreground">
         <div className="text-center max-w-sm">
           <div className="relative w-20 h-20 mx-auto mb-6">
             <div className="absolute inset-0 rounded-full border-4 border-blue-500/20" />
@@ -668,7 +668,7 @@ export default function CmsConnect() {
             <RefreshCw className="absolute inset-0 m-auto w-8 h-8 text-blue-400" />
           </div>
           <h2 className="text-xl font-semibold mb-2">Importing Your Posts</h2>
-          <p className="text-white/50 text-sm">
+          <p className="text-foreground/50 text-sm">
             Connecting to {platformName} and fetching your posts. This may take a moment for large sites.
           </p>
         </div>
@@ -680,7 +680,7 @@ export default function CmsConnect() {
 
   if (step === "results" && importResults) {
     return (
-      <div className="min-h-screen bg-[#0a0f1e] text-white px-4 py-10">
+      <div className="max-w-2xl mx-auto px-4 py-6">
         <div className="max-w-lg mx-auto">
           <StepIndicator step="results" />
           <div className="text-center mb-8">
@@ -688,7 +688,7 @@ export default function CmsConnect() {
               <CheckCircle2 className="w-8 h-8 text-emerald-400" />
             </div>
             <h1 className="text-3xl font-bold mb-2">Import Complete</h1>
-            <p className="text-white/60">
+            <p className="text-foreground/60">
               {importResults.totalImported} post{importResults.totalImported !== 1 ? "s" : ""} imported successfully.
             </p>
           </div>
@@ -697,11 +697,11 @@ export default function CmsConnect() {
             {[
               { label: "Published", count: importResults.counts.published, color: "text-emerald-400" },
               { label: "Scheduled", count: importResults.counts.scheduled, color: "text-yellow-400" },
-              { label: "Drafts", count: importResults.counts.draft, color: "text-white/60" },
+              { label: "Drafts", count: importResults.counts.draft, color: "text-foreground/60" },
             ].map((item) => (
               <div key={item.label} className="text-center p-4 rounded-xl bg-white/5 border border-white/10">
                 <div className={`text-2xl font-bold ${item.color}`}>{item.count}</div>
-                <div className="text-xs text-white/50 mt-1">{item.label}</div>
+                <div className="text-xs text-foreground/50 mt-1">{item.label}</div>
               </div>
             ))}
           </div>
@@ -719,10 +719,10 @@ export default function CmsConnect() {
           )}
 
           <div className="flex gap-3">
-            <Button onClick={() => navigate("/posts")} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white">
+            <Button onClick={() => navigate("/posts")} className="flex-1 bg-blue-600 hover:bg-blue-500 text-foreground">
               View Posts
             </Button>
-            <Button onClick={() => navigate("/dashboard")} variant="outline" className="flex-1 border-white/20 text-white hover:bg-white/5">
+            <Button onClick={() => navigate("/dashboard")} variant="outline" className="flex-1 border-white/20 text-foreground hover:bg-white/5">
               Dashboard
             </Button>
           </div>

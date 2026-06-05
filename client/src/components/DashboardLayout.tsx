@@ -52,6 +52,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: FileText, label: "Posts", path: "/posts" },
+  { icon: Settings, label: "Business Setup", path: "/business/setup" },
   { icon: Plug, label: "CMS Connect", path: "/cms/connect" },
   { icon: CreditCard, label: "Credits", path: "/credits" },
   { icon: Globe, label: "Free Audit", path: "/audit" },

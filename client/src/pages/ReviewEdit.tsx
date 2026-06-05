@@ -375,7 +375,7 @@ function PostBackConfirmation({
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
+    <div className="flex items-center justify-center p-6">
       <div className="max-w-lg w-full space-y-6">
         {/* Success header */}
         <div className="text-center space-y-3">
@@ -900,7 +900,7 @@ ${editor.getHTML()}
   // ----- Loading / auth guard -----
   if (!iauditUserId) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="flex items-center justify-center py-16">
         <p className="text-muted-foreground">
           Please log in to review posts.
         </p>
@@ -910,7 +910,7 @@ ${editor.getHTML()}
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="flex items-center justify-center py-16">
         <Loader2 className="animate-spin text-primary" size={32} />
       </div>
     );
@@ -918,7 +918,7 @@ ${editor.getHTML()}
 
   if (!post) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="flex items-center justify-center py-16">
         <p className="text-muted-foreground">Post not found.</p>
       </div>
     );
@@ -927,7 +927,7 @@ ${editor.getHTML()}
   const hasRewrite = !!post.bodyRewritten;
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="">
       {/* Partial failure overlay */}
       {partialFailure && (
         <PartialFailureAlert

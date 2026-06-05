@@ -1096,7 +1096,7 @@ export default function PostList() {
 
   if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="flex items-center justify-center py-16">
         <Loader2 className="animate-spin text-primary" size={32} />
       </div>
     );
@@ -1107,7 +1107,7 @@ export default function PostList() {
   const postsWithKeyword = posts.filter((p) => p.focusKeyword);
 
   return (
-    <div className="min-h-screen bg-background p-8">
+    <div className="p-4">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">

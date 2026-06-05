@@ -56,10 +56,11 @@ const REFRESH_COOKIE = "iaudit_refresh";
 
 function setRefreshCookie(res: any, rawToken: string, expiresAt: Date) {
   // Use root path so the cookie is sent with all /api/trpc/* requests
+  // sameSite: "none" required for cross-origin preview environments (Manus sandbox)
   res.cookie(REFRESH_COOKIE, rawToken, {
     httpOnly: true,
     secure: true,
-    sameSite: "strict",
+    sameSite: "none",
     expires: expiresAt,
     path: "/",
   });
@@ -69,7 +70,7 @@ function clearRefreshCookie(res: any) {
   res.clearCookie(REFRESH_COOKIE, {
     httpOnly: true,
     secure: true,
-    sameSite: "strict",
+    sameSite: "none",
     path: "/",
   });
 }
