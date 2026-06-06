@@ -82,14 +82,6 @@ export const auditRouter = router({
         input.iauditUserId
       );
 
-      if (!post.focusKeyword) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message:
-            "A focus keyword must be confirmed before the audit can run.",
-        });
-      }
-
       // Mark as running
       await setAuditStatus(post.id, "running");
 
@@ -153,12 +145,11 @@ export const auditRouter = router({
       );
 
       const allPosts = await listPostsForDashboard(input.businessId);
-      const postsWithKeyword = allPosts.filter((p) => p.focusKeyword);
 
-      if (postsWithKeyword.length === 0) {
+      if (allPosts.length === 0) {
         return {
           audited: 0,
-          skipped: allPosts.length,
+          skipped: 0,
           results: [],
         };
       }
@@ -176,11 +167,11 @@ export const auditRouter = router({
         status: "complete" | "failed";
       }> = [];
 
-      for (const p of postsWithKeyword) {
+      for (const p of allPosts) {
         await setAuditStatus(p.id, "running");
         try {
           const fullPost = await getPostForAudit(p.id);
-          if (!fullPost || !fullPost.focusKeyword) continue;
+          if (!fullPost) continue;
 
           const result = await runFullAudit({
             title: fullPost.title,
@@ -219,7 +210,7 @@ export const auditRouter = router({
 
       return {
         audited: results.filter((r) => r.status === "complete").length,
-        skipped: allPosts.length - postsWithKeyword.length,
+        skipped: 0,
         results,
       };
     }),

@@ -1204,7 +1204,7 @@ export default function PostList() {
                     disabled={
                       auditingAll ||
                       auditAllMutation.isPending ||
-                      postsWithKeyword.length === 0
+                      posts.length === 0
                     }
                     className="gap-2"
                   >
@@ -1217,9 +1217,9 @@ export default function PostList() {
                   </Button>
                 </span>
               </TooltipTrigger>
-              {postsWithKeyword.length === 0 && (
+              {posts.length === 0 && (
                 <TooltipContent>
-                  All posts need a focus keyword before auditing. Click “Suggest Keywords” to auto-assign them.
+                  No posts imported yet. Connect your CMS and import posts first.
                 </TooltipContent>
               )}
             </Tooltip>
@@ -1244,8 +1244,8 @@ export default function PostList() {
           <div className="mb-4">
             <Progress value={auditProgress} className="h-1.5" />
             <p className="text-xs text-muted-foreground mt-1.5">
-              Auditing {postsWithKeyword.length} post
-              {postsWithKeyword.length !== 1 ? "s" : ""}… this may take a
+              Auditing {posts.length} post
+              {posts.length !== 1 ? "s" : ""}… this may take a
               moment.
             </p>
           </div>
@@ -1371,7 +1371,7 @@ export default function PostList() {
                       )}
 
                       {/* Audit button */}
-                      {post.focusKeyword && !post.cannibalizationFlag && (
+                      {!post.cannibalizationFlag && (
                         <Button
                           size="sm"
                           variant="outline"

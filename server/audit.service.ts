@@ -50,7 +50,7 @@ export interface PostAuditInput {
   title: string;
   bodyHtml: string; // Original HTML body
   url: string; // Full permalink
-  focusKeyword: string;
+  focusKeyword: string | null; // Null = no keyword set; keyword checks auto-fail
   metaTitle: string | null;
   metaDescription: string | null;
   // Business profile fields for P11
@@ -145,6 +145,40 @@ export function scoreToGrade(
 
 export function runMechanicalChecks(input: PostAuditInput): AuditPoint[] {
   const { title, bodyHtml, url, focusKeyword, metaTitle, metaDescription } = input;
+
+  // When no keyword is set, auto-fail all keyword-dependent checks (P1–P7)
+  if (!focusKeyword) {
+    const noKwNote = "No focus keyword set. Add a keyword to score this point.";
+    const bodyText = stripHtml(bodyHtml);
+    const wc = wordCount(bodyText);
+    const md = metaDescription?.trim() ?? "";
+    const p8Present = md.length > 0;
+    const p8Length = md.length >= 140 && md.length <= 160;
+    const p8Pass = p8Present && p8Length;
+    const hasSchema =
+      /<script[^>]+type=["']application\/ld\+json["'][^>]*>/i.test(bodyHtml) ||
+      /"@type"\s*:\s*"Article"/i.test(bodyHtml) ||
+      /"@type"\s*:\s*"BlogPosting"/i.test(bodyHtml);
+    const articleType = inferArticleType(wc);
+    const target = ARTICLE_TYPE_TARGETS[articleType];
+    const p16Pass = wc >= target.min && wc <= target.max;
+    return [
+      { point: "P1", name: "Keyword Density", status: "fail", note: noKwNote },
+      { point: "P2", name: "Keyword in H1", status: "fail", note: noKwNote },
+      { point: "P3", name: "Keyword in H2", status: "fail", note: noKwNote },
+      { point: "P4", name: "Keyword in H3", status: "na", note: "No focus keyword set — not applicable." },
+      { point: "P5", name: "Keyword in First 100 Words", status: "fail", note: noKwNote },
+      { point: "P6", name: "Keyword in URL", status: "fail", note: noKwNote },
+      { point: "P7", name: "Meta Title", status: "fail", note: noKwNote },
+      {
+        point: "P8", name: "Meta Description", status: p8Pass ? "pass" : "fail",
+        note: !p8Present ? "Meta description is missing." : !p8Length ? `Meta description is ${md.length} characters — target is 140–160 characters.` : `Meta description is ${md.length} characters — within the 140–160 character target.`,
+      },
+      { point: "P13", name: "Schema Markup", status: hasSchema ? "pass" : "fail", note: hasSchema ? "JSON-LD Article schema found." : "No Article schema markup found." },
+      { point: "P16", name: "Article Type Structure", status: p16Pass ? "pass" : "fail", note: p16Pass ? `Word count is ${wc} words — within the ${articleType} article target.` : wc < target.min ? `Word count is ${wc} words — below the ${articleType} article minimum of ${target.min} words.` : `Word count is ${wc} words — above the ${articleType} article maximum of ${target.max} words.` },
+    ];
+  }
+
   const kw = normalise(focusKeyword);
   const bodyText = stripHtml(bodyHtml);
   const wc = wordCount(bodyText);
@@ -324,7 +358,7 @@ export function runMechanicalChecks(input: PostAuditInput): AuditPoint[] {
 interface AiAuditInput {
   title: string;
   bodyHtml: string;
-  focusKeyword: string;
+  focusKeyword: string | null;
   primaryCtaUrl?: string | null;
   secondaryCtaUrls?: string[];
   siteUrl?: string; // For P12 internal blog link check
@@ -350,7 +384,7 @@ Be strict but fair. Each point must have a "status" of "pass" or "fail" and a co
 
   const userPrompt = `Analyse this blog post and score it on the following 6 points. Return JSON only.
 
-FOCUS KEYWORD: "${focusKeyword}"
+FOCUS KEYWORD: "${focusKeyword ?? "(not set — ignore keyword references)"}"
 POST TITLE: "${title}"
 CTA URLS (for P11): ${ctaUrls || "none provided"}
 SITE URL (for P12): ${siteUrl || "unknown"}
