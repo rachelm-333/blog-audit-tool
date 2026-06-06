@@ -20,7 +20,8 @@ import type { AuditResult, PostAuditInput } from "./audit.service";
 // Constants
 // ---------------------------------------------------------------------------
 
-const SCRAPE_TIMEOUT_MS = 30_000;
+const SCRAPE_TIMEOUT_MS = 15_000;
+const PUPPETEER_TIMEOUT_MS = 20_000;
 const USER_AGENT =
   "Mozilla/5.0 (compatible; iAuditBot/1.0; +https://iaudit.app/bot)";
 
@@ -126,18 +127,20 @@ async function fetchHtmlWithPuppeteer(url: string): Promise<string | null> {
   try {
     const executablePath = await chromium.executablePath();
     browser = await puppeteerCore.launch({
-      args: chromium.args,
+      args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
       defaultViewport: { width: 1280, height: 800 },
       executablePath,
       headless: true,
     });
     const page = await browser.newPage();
     await page.setUserAgent(USER_AGENT);
+    // Use domcontentloaded instead of networkidle2 — much faster for most pages
     await page.goto(url, {
-      waitUntil: "networkidle2",
-      timeout: SCRAPE_TIMEOUT_MS,
+      waitUntil: "domcontentloaded",
+      timeout: PUPPETEER_TIMEOUT_MS,
     });
-    // Return full page HTML (needed for meta extraction and schema check)
+    // Give JS a brief moment to render content
+    await new Promise((r) => setTimeout(r, 2000));
     return await page.content();
   } catch {
     return null;
@@ -172,10 +175,12 @@ export async function scrapePublicPost(url: string): Promise<PublicScrapeResult>
   // Try plain HTTP first (fast path)
   let html = await fetchHtml(url);
 
-  // If blank or very short, try Puppeteer (JS-rendered)
-  if (!html || htmlToText(html).length < 200) {
+  // If blank or very short (< 500 chars of text), try Puppeteer as fallback
+  // But only if the plain fetch didn't return a meaningful page
+  const plainTextLength = html ? htmlToText(html).length : 0;
+  if (!html || plainTextLength < 500) {
     const puppeteerHtml = await fetchHtmlWithPuppeteer(url);
-    if (puppeteerHtml && htmlToText(puppeteerHtml).length > (html ? htmlToText(html).length : 0)) {
+    if (puppeteerHtml && htmlToText(puppeteerHtml).length > plainTextLength) {
       html = puppeteerHtml;
     }
   }

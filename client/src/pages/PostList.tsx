@@ -946,6 +946,8 @@ export default function PostList() {
     { enabled: !!businessId && !!iauditUserId }
   );
   const scanMutation = trpc.keyword.runCannibalisationScan.useMutation();
+  const bulkSuggestMutation = trpc.keyword.bulkSuggest.useMutation();
+  const [bulkSuggestRunning, setBulkSuggestRunning] = useState(false);
   const auditAllMutation = trpc.audit.runAuditAll.useMutation();
   const auditOneMutation = trpc.audit.runAudit.useMutation();
   const getPaaMutation = trpc.rewrite.getPaaQuestion.useMutation();
@@ -956,6 +958,31 @@ export default function PostList() {
       navigate("/login");
     }
   }, [authLoading, isAuthenticated, navigate]);
+
+  const postsWithoutKeyword = (data?.posts ?? []).filter((p) => !p.focusKeyword);
+
+  const handleBulkSuggest = () => {
+    if (!businessId || !iauditUserId) return;
+    setBulkSuggestRunning(true);
+    bulkSuggestMutation.mutate(
+      { businessId, iauditUserId },
+      {
+        onSuccess: (result) => {
+          setBulkSuggestRunning(false);
+          refetch();
+          toast.success(
+            `AI suggested keywords for ${result.processed} post${result.processed !== 1 ? "s" : ""}.${
+              result.failed > 0 ? ` ${result.failed} could not be processed.` : ""
+            } You can now run Audit All.`
+          );
+        },
+        onError: () => {
+          setBulkSuggestRunning(false);
+          toast.error("Bulk keyword suggestion failed. Please try again.");
+        },
+      }
+    );
+  };
 
   const handleRunScan = () => {
     if (!businessId || !iauditUserId) return;
@@ -1142,25 +1169,75 @@ export default function PostList() {
               )}
               Cannibalisation Scan
             </Button>
-            <Button
-              size="sm"
-              onClick={handleAuditAll}
-              disabled={
-                auditingAll ||
-                auditAllMutation.isPending ||
-                postsWithKeyword.length === 0
-              }
-              className="gap-2"
-            >
-              {auditingAll ? (
-                <Loader2 className="animate-spin" size={14} />
-              ) : (
-                <BarChart3 size={14} />
+            {postsWithoutKeyword.length > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleBulkSuggest}
+                    disabled={bulkSuggestRunning || bulkSuggestMutation.isPending}
+                    className="gap-2 border-amber-500/50 text-amber-500 hover:bg-amber-500/10"
+                  >
+                    {bulkSuggestRunning ? (
+                      <Loader2 className="animate-spin" size={14} />
+                    ) : (
+                      <Sparkles size={14} />
+                    )}
+                    {bulkSuggestRunning
+                      ? `Suggesting keywords…`
+                      : `Suggest Keywords (${postsWithoutKeyword.length})`}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  AI will suggest a focus keyword for each of the {postsWithoutKeyword.length} posts
+                  that don’t have one yet. Required before Audit All.
+                </TooltipContent>
+              </Tooltip>
+            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button
+                    size="sm"
+                    onClick={handleAuditAll}
+                    disabled={
+                      auditingAll ||
+                      auditAllMutation.isPending ||
+                      postsWithKeyword.length === 0
+                    }
+                    className="gap-2"
+                  >
+                    {auditingAll ? (
+                      <Loader2 className="animate-spin" size={14} />
+                    ) : (
+                      <BarChart3 size={14} />
+                    )}
+                    Audit All
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {postsWithKeyword.length === 0 && (
+                <TooltipContent>
+                  All posts need a focus keyword before auditing. Click “Suggest Keywords” to auto-assign them.
+                </TooltipContent>
               )}
-              Audit All
-            </Button>
+            </Tooltip>
           </div>
         </div>
+
+        {/* Bulk suggest progress banner */}
+        {bulkSuggestRunning && (
+          <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Loader2 className="animate-spin text-amber-500" size={14} />
+              <p className="text-xs text-amber-400">
+                AI is suggesting keywords for {postsWithoutKeyword.length} post{postsWithoutKeyword.length !== 1 ? "s" : ""}…
+                This may take a few minutes. Please keep this page open.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Audit progress bar */}
         {auditingAll && (

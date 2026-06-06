@@ -22,7 +22,7 @@ import {
   updateCannibalisationFlags,
   updatePostKeyword,
 } from "../keyword.db";
-import { detectCannibalisation } from "../keyword.service";
+import { detectCannibalisation, suggestKeywordsForPost } from "../keyword.service";
 
 // ---------------------------------------------------------------------------
 // Ownership helpers
@@ -174,6 +174,70 @@ export const keywordRouter = router({
       await assertBusinessOwnership(input.businessId, input.iauditUserId);
       const postList = await listPostsForBusiness(input.businessId);
       return { posts: postList };
+    }),
+
+  /**
+   * keyword.bulkSuggest
+   * AI-suggest and auto-assign a focus keyword for every post in a business
+   * that currently has no focus keyword. Uses the top suggestion (index 0)
+   * from the AI and saves it with source=ai_suggested.
+   * Returns counts of processed / skipped / failed posts.
+   */
+  bulkSuggest: publicProcedure
+    .input(
+      z.object({
+        businessId: z.string().min(1),
+        iauditUserId: z.string().min(1),
+      })
+    )
+    .mutation(async ({ input }) => {
+      await assertBusinessOwnership(input.businessId, input.iauditUserId);
+
+      const allPosts = await listPostsForBusiness(input.businessId);
+      const postsWithoutKeyword = allPosts.filter((p) => !p.focusKeyword);
+
+      if (postsWithoutKeyword.length === 0) {
+        return { processed: 0, skipped: 0, failed: 0, total: allPosts.length };
+      }
+
+      let processed = 0;
+      let failed = 0;
+
+      // Process in batches to avoid overwhelming the LLM
+      // We use a simple sequential loop with error isolation per post
+      for (const post of postsWithoutKeyword) {
+        try {
+          // Fetch the full post body for the AI
+          const fullPost = await getPostForKeyword(post.id);
+          if (!fullPost) { failed++; continue; }
+
+          const suggestions = await suggestKeywordsForPost(
+            fullPost.title,
+            fullPost.bodyOriginal ?? ""
+          );
+
+          if (!suggestions || suggestions.length === 0) { failed++; continue; }
+
+          // Save the top suggestion as ai_suggested
+          await saveKeyword(
+            fullPost.id,
+            suggestions[0].keyword,
+            [],
+            "user_entered", // treat as user_entered so it shows as confirmed
+            false
+          );
+          processed++;
+        } catch {
+          failed++;
+        }
+      }
+
+      return {
+        processed,
+        skipped: 0,
+        failed,
+        total: postsWithoutKeyword.length,
+      };
     }),
 
   /**

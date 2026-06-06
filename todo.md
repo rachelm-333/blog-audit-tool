@@ -475,3 +475,9 @@
 - [x] Write Layer 17 vitest tests (onboarding_complete flag, completeOnboarding procedure, Blog Batcher upsell placement)
 - [x] Run full test suite — all tests pass, zero TypeScript errors
 - [x] Pre-launch checklist review: RESEND_FROM_EMAIL, Stripe live keys, Blog Batcher URL, env vars documented
+
+## Bug Fixes (June 2026)
+
+- [x] Fix Free Audit page (/audit) — stuck on "Auditing..." for Wix/JS-rendered pages due to Puppeteer timeout; replace with fast HTTP fetch + better error messaging
+- [x] Fix Audit All button disabled — add keyword.bulkSuggest tRPC procedure to AI-suggest keywords for all posts without one; add "Suggest Keywords for All" button to PostList UI
+- [x] Add tooltip/explanation to Audit All button explaining why it requires keywords
