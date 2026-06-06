@@ -73,17 +73,18 @@ export default function DashboardLayout({
     const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
-  const { loading, user } = useAuth();
+  // Use iAudit auth (30-day refresh cookie) — NOT Manus OAuth which expires quickly
+  const { isAuthenticated, isLoading } = useIauditAuth();
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
   }, [sidebarWidth]);
 
-  if (loading) {
+  if (isLoading) {
     return <DashboardLayoutSkeleton />;
   }
 
-  if (!user) {
+  if (!isAuthenticated) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="flex flex-col items-center gap-8 p-8 max-w-sm w-full">
@@ -101,7 +102,7 @@ export default function DashboardLayout({
             </p>
           </div>
           <Button
-            onClick={() => { window.location.href = getLoginUrl(); }}
+            onClick={() => { window.location.href = "/login"; }}
             size="lg"
             className="w-full btn-primary-glow"
           >
@@ -129,8 +130,7 @@ type DashboardLayoutContentProps = {
 };
 
 function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutContentProps) {
-  const { user, logout } = useAuth();
-  const { user: iauditUser } = useIauditAuth();
+  const { user: iauditUser, logout } = useIauditAuth();
   const iauditUserId = getIauditUserId();
   const { selectedBusinessId, setSelectedBusinessId } = useBusinessContext();
   const [location, setLocation] = useLocation();
@@ -185,8 +185,8 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
     setLocation("/dashboard");
   }
 
-  const initials = user?.name
-    ? user.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
+  const initials = iauditUser?.name
+    ? iauditUser.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
     : "?";
 
   return (
@@ -354,18 +354,18 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                   </Avatar>
                   <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
                     <p className="text-sm font-semibold truncate leading-none text-foreground">
-                      {user?.name || "—"}
+                      {iauditUser?.name || "—"}
                     </p>
                     <p className="text-xs text-muted-foreground truncate mt-1">
-                      {user?.email || "—"}
+                      {iauditUser?.email || "—"}
                     </p>
                   </div>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52 shadow-lg">
                 <div className="px-3 py-2 border-b border-border/60">
-                  <p className="text-sm font-semibold text-foreground truncate">{user?.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                  <p className="text-sm font-semibold text-foreground truncate">{iauditUser?.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{iauditUser?.email}</p>
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem

@@ -1,6 +1,5 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { getLoginUrl } from "@/const";
+import { useIauditAuth } from "@/hooks/useIauditAuth";
 import {
   Zap,
   BarChart3,
@@ -12,6 +11,7 @@ import {
   Plug,
   Shield,
 } from "lucide-react";
+import { useEffect } from "react";
 import { useLocation } from "wouter";
 
 const features = [
@@ -61,14 +61,21 @@ const stats = [
 ];
 
 export default function Home() {
-  const { user, loading, isAuthenticated } = useAuth();
+  const { isAuthenticated: iauditAuthenticated, isLoading: iauditLoading } = useIauditAuth();
   const [, setLocation] = useLocation();
 
+  // Auto-redirect logged-in users to dashboard
+  useEffect(() => {
+    if (!iauditLoading && iauditAuthenticated) {
+      setLocation("/dashboard");
+    }
+  }, [iauditAuthenticated, iauditLoading, setLocation]);
+
   function handleCTA() {
-    if (isAuthenticated) {
+    if (iauditAuthenticated) {
       setLocation("/dashboard");
     } else {
-      window.location.href = getLoginUrl();
+      setLocation("/login");
     }
   }
 
@@ -89,8 +96,8 @@ export default function Home() {
             <a href="/audit" className="hover:text-foreground transition-colors">Free Audit</a>
           </nav>
           <div className="flex items-center gap-3">
-            {!loading && (
-              isAuthenticated ? (
+            {!iauditLoading && (
+              iauditAuthenticated ? (
                 <Button onClick={() => setLocation("/dashboard")} size="sm" className="btn-primary-glow">
                   Go to Dashboard <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                 </Button>
@@ -136,7 +143,7 @@ export default function Home() {
               onClick={handleCTA}
               className="btn-primary-glow h-12 px-8 text-base font-semibold"
             >
-              {isAuthenticated ? "Go to Dashboard" : "Start for free"}
+              {iauditAuthenticated ? "Go to Dashboard" : "Start for free"}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
             <Button
@@ -242,7 +249,7 @@ export default function Home() {
                 onClick={handleCTA}
                 className="h-12 px-8 text-base font-semibold bg-white text-primary hover:bg-white/90"
               >
-                {isAuthenticated ? "Go to Dashboard" : "Create free account"}
+                {iauditAuthenticated ? "Go to Dashboard" : "Create free account"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
               <Button
