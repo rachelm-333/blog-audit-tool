@@ -10,6 +10,7 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { handleStripeWebhook } from "../stripe.webhook";
 import { handleZapierInbound } from "../zapier.webhook";
+import { parse as parseCookies } from "cookie";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -41,6 +42,13 @@ async function startServer() {
     express.raw({ type: "application/json" }),
     handleStripeWebhook
   );
+
+  // Parse cookies so req.cookies is available in all routes (needed for iAudit refresh token)
+  app.use((req, _res, next) => {
+    const raw = req.headers.cookie ?? "";
+    (req as any).cookies = raw ? parseCookies(raw) : {};
+    next();
+  });
 
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
