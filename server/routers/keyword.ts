@@ -265,9 +265,12 @@ export const keywordRouter = router({
 
       let processed = 0;
       for (const post of postsWithoutKeyword) {
-        const keyword = extractKeywordFromTitle(post.title);
-        if (!keyword) continue;
         try {
+          // Fetch full post body so we can check headings + first 100 words
+          const fullPost = await getPostForKeyword(post.id);
+          const bodyHtml = fullPost?.bodyOriginal ?? "";
+          const keyword = extractKeywordFromTitle(post.title, bodyHtml);
+          if (!keyword) continue;
           await saveKeyword(post.id, keyword, [], "user_entered", false);
           processed++;
         } catch {

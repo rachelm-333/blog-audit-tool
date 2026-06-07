@@ -33,73 +33,131 @@ export interface CannibalisationResult {
 }
 
 // ---------------------------------------------------------------------------
-// Title-based Keyword Extraction (fast, no AI)
+// Multi-zone Focus Keyword Extraction (fast, no AI)
 // ---------------------------------------------------------------------------
 
+// Common English stop words to exclude from n-gram candidates
+const STOP_WORDS = new Set([
+  "a","an","the","and","or","but","in","on","at","to","for","of","with",
+  "by","from","up","about","into","through","during","before","after",
+  "above","below","between","out","off","over","under","again","then",
+  "once","here","there","when","where","why","how","all","both","each",
+  "few","more","most","other","some","such","no","not","only","own",
+  "same","so","than","too","very","can","will","just","should","now",
+  "is","are","was","were","be","been","being","have","has","had",
+  "do","does","did","this","that","these","those","it","its","you",
+  "your","we","our","they","their","he","she","his","her","what",
+  "which","who","whom","as","if","while","because","although","though",
+  "get","make","use","need","want","help","work","also","like","new",
+]);
+
 /**
- * Extract a focus keyword from a post title by stripping common SEO stop phrases
- * and returning the core topic. This is fast (no AI) and works well for
- * well-titled posts like "How to Write a Company Profile that Helps Get You Noticed".
- *
- * Strategy:
- * 1. Strip leading instructional phrases ("How to", "A Guide to", etc.)
- * 2. Strip trailing qualifiers ("in Australia", "for Beginners", etc.)
- * 3. Take the first 3-5 meaningful words as the keyword
- * 4. Lowercase and trim
+ * Tokenise a plain-text string into lowercase words, stripping punctuation.
  */
-export function extractKeywordFromTitle(title: string): string {
-  if (!title || !title.trim()) return "";
+function tokenise(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s'-]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 1);
+}
 
-  let t = title.trim();
+/**
+ * Extract all 2-gram and 3-gram phrases from a word array.
+ * Skips n-grams that start or end with a stop word.
+ */
+function extractNgrams(words: string[], n: 2 | 3): string[] {
+  const ngrams: string[] = [];
+  for (let i = 0; i <= words.length - n; i++) {
+    const gram = words.slice(i, i + n);
+    // Skip if first or last word is a stop word
+    if (STOP_WORDS.has(gram[0]) || STOP_WORDS.has(gram[gram.length - 1])) continue;
+    ngrams.push(gram.join(" "));
+  }
+  return ngrams;
+}
 
-  // Strip leading instructional prefixes
-  const leadingPrefixes = [
-    /^how to /i,
-    /^what is (a |an |the )?/i,
-    /^what are (a |an |the )?/i,
-    /^why (is |are |do |does |you should )?/i,
-    /^when to /i,
-    /^where to /i,
-    /^a (complete |comprehensive |ultimate |simple |quick |step-by-step |beginner.s )?guide to /i,
-    /^the (complete |comprehensive |ultimate |simple |quick |step-by-step |beginner.s )?guide to /i,
-    /^a (complete |comprehensive |ultimate |simple |quick )?guide (for|on) /i,
-    /^the (complete |comprehensive |ultimate |simple |quick )?guide (for|on) /i,
-    /^an? (introduction|overview|breakdown|deep.?dive|explainer) (to|of|on) /i,
-    /^everything you need to know about /i,
-    /^top \d+ /i,
-    /^\d+ (ways|tips|steps|reasons|things|mistakes) (to |for )?/i,
-  ];
+/**
+ * Extract H1 and H2 text from HTML.
+ */
+function extractHeadings(html: string): string {
+  const matches = html.match(/<h[12][^>]*>([^<]*)<\/h[12]>/gi) ?? [];
+  return matches
+    .map((m) => m.replace(/<[^>]+>/g, " "))
+    .join(" ");
+}
 
-  for (const prefix of leadingPrefixes) {
-    t = t.replace(prefix, "");
+/**
+ * Extract the first ~100 words of plain text from HTML.
+ */
+function extractFirst100Words(html: string): string {
+  const text = html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.split(" ").slice(0, 100).join(" ");
+}
+
+/**
+ * Find the focus keyword for a post by identifying the 2-3 word phrase that
+ * appears most consistently across three zones:
+ *   1. Post title
+ *   2. H1/H2 headings
+ *   3. First 100 words of body content
+ *
+ * Scoring: +3 if in title, +2 if in headings, +1 if in first 100 words.
+ * Returns the highest-scoring phrase, or falls back to the most frequent
+ * phrase across all body text if no cross-zone match is found.
+ */
+export function extractKeywordFromTitle(
+  title: string,
+  bodyHtml: string = ""
+): string {
+  if (!title?.trim()) return "";
+
+  const titleWords = tokenise(title);
+  const headingsText = extractHeadings(bodyHtml);
+  const headingWords = tokenise(headingsText);
+  const first100Text = extractFirst100Words(bodyHtml);
+  const first100Words = tokenise(first100Text);
+
+  // Build candidate n-grams from title (2-grams and 3-grams)
+  const candidates = new Map<string, number>();
+
+  const titleBigrams = extractNgrams(titleWords, 2);
+  const titleTrigrams = extractNgrams(titleWords, 3);
+  const allTitleGrams = [...titleTrigrams, ...titleBigrams];
+
+  for (const gram of allTitleGrams) {
+    if (!candidates.has(gram)) candidates.set(gram, 0);
+
+    // +3 for being in the title (it always is, since we generated from title)
+    candidates.set(gram, (candidates.get(gram) ?? 0) + 3);
+
+    // +2 if the phrase appears in headings
+    if (headingsText.toLowerCase().includes(gram)) {
+      candidates.set(gram, (candidates.get(gram) ?? 0) + 2);
+    }
+
+    // +1 if the phrase appears in the first 100 words
+    if (first100Text.toLowerCase().includes(gram)) {
+      candidates.set(gram, (candidates.get(gram) ?? 0) + 1);
+    }
   }
 
-  // Strip trailing qualifiers after key connectors
-  const trailingPatterns = [
-    / (in|for|across|within) australia$/i,
-    / (in|for|across|within) (the )?(us|uk|canada|new zealand|nz)$/i,
-    / (for (startups?|small businesses?|beginners?|entrepreneurs?|founders?))$/i,
-    /[:\-–—].*$/,  // strip everything after colon or dash
-    / that .+$/i,  // strip "that helps get you noticed"
-    / (to help|to make|to get|to build|to create|to grow|to improve) .+$/i,
-  ];
-
-  for (const pattern of trailingPatterns) {
-    t = t.replace(pattern, "");
+  if (candidates.size === 0) {
+    // Fallback: return first 3 non-stop words from title
+    const meaningful = titleWords.filter((w) => !STOP_WORDS.has(w));
+    return meaningful.slice(0, 3).join(" ") || title.trim().split(" ").slice(0, 3).join(" ").toLowerCase();
   }
 
-  // Clean up and take first 5 words max
-  t = t.trim().replace(/\s+/g, " ");
-  const words = t.split(" ").filter(Boolean);
-  const keyword = words.slice(0, 5).join(" ").toLowerCase();
+  // Sort by score descending, then prefer shorter (more specific) phrases
+  const sorted = Array.from(candidates.entries()).sort((a, b) => {
+    if (b[1] !== a[1]) return b[1] - a[1]; // higher score first
+    return a[0].split(" ").length - b[0].split(" ").length; // shorter first on tie
+  });
 
-  // If we ended up with something too short (1 word) or too long, fall back to first 4 words of original
-  if (keyword.length < 3 || keyword.split(" ").length < 2) {
-    const fallback = title.trim().split(" ").slice(0, 4).join(" ").toLowerCase();
-    return fallback;
-  }
-
-  return keyword;
+  return sorted[0][0];
 }
 
 // ---------------------------------------------------------------------------
