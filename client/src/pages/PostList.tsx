@@ -938,7 +938,7 @@ function PostContentPanel({
 
   return (
     <Sheet open={!!post} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <SheetContent side="right" className="w-full sm:max-w-2xl p-0 flex flex-col">
+      <SheetContent side="right" className="w-full sm:max-w-2xl p-0 flex flex-col h-full overflow-hidden">
         <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
           <SheetTitle className="text-base leading-snug pr-8">
             {post?.title}
@@ -967,7 +967,7 @@ function PostContentPanel({
             )}
           </div>
         </SheetHeader>
-        <ScrollArea className="flex-1 px-6 py-4">
+        <ScrollArea className="flex-1 min-h-0 px-6 py-4">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="animate-spin text-muted-foreground" size={24} />
