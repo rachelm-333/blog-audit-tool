@@ -99,29 +99,38 @@ function extractFirst100Words(html: string): string {
 }
 
 /**
- * Find the focus keyword for a post by identifying the 2-3 word phrase that
- * appears most consistently across three zones:
- *   1. Post title
- *   2. H1/H2 headings
- *   3. First 100 words of body content
+ * Find the focus keyword for a post using a 5-zone scoring system:
  *
- * Scoring: +3 if in title, +2 if in headings, +1 if in first 100 words.
- * Returns the highest-scoring phrase, or falls back to the most frequent
- * phrase across all body text if no cross-zone match is found.
+ *   PRIMARY SIGNALS (strongest — you wrote these to target the keyword):
+ *   1. Meta title  — +5 if a phrase from the H1 title also appears here
+ *   2. Meta description — +4 if a phrase from the H1 title also appears here
+ *
+ *   SECONDARY SIGNALS (cross-zone confirmation):
+ *   3. H1 post title — +3 (all candidates come from here)
+ *   4. H1/H2 headings — +2 if phrase also appears in body headings
+ *   5. First 100 words — +1 if phrase also appears in opening paragraph
+ *
+ * The phrase with the highest total score wins. This means a phrase that
+ * appears in the meta title AND meta description AND headings scores 5+4+3+2 = 14
+ * and will always beat a title-only phrase scoring 3.
+ *
+ * Falls back to first 3 meaningful words from title if nothing scores.
  */
 export function extractKeywordFromTitle(
   title: string,
-  bodyHtml: string = ""
+  bodyHtml: string = "",
+  metaTitle: string = "",
+  metaDescription: string = ""
 ): string {
   if (!title?.trim()) return "";
 
   const titleWords = tokenise(title);
   const headingsText = extractHeadings(bodyHtml);
-  const headingWords = tokenise(headingsText);
   const first100Text = extractFirst100Words(bodyHtml);
-  const first100Words = tokenise(first100Text);
+  const metaTitleLower = metaTitle.toLowerCase();
+  const metaDescLower = metaDescription.toLowerCase();
 
-  // Build candidate n-grams from title (2-grams and 3-grams)
+  // Build candidate n-grams from the H1 title (2-grams and 3-grams)
   const candidates = new Map<string, number>();
 
   const titleBigrams = extractNgrams(titleWords, 2);
@@ -131,10 +140,20 @@ export function extractKeywordFromTitle(
   for (const gram of allTitleGrams) {
     if (!candidates.has(gram)) candidates.set(gram, 0);
 
-    // +3 for being in the title (it always is, since we generated from title)
+    // +3 for being in the H1 title (always true — candidates come from title)
     candidates.set(gram, (candidates.get(gram) ?? 0) + 3);
 
-    // +2 if the phrase appears in headings
+    // +5 if the phrase also appears in the meta title (strongest SEO signal)
+    if (metaTitleLower && metaTitleLower.includes(gram)) {
+      candidates.set(gram, (candidates.get(gram) ?? 0) + 5);
+    }
+
+    // +4 if the phrase also appears in the meta description
+    if (metaDescLower && metaDescLower.includes(gram)) {
+      candidates.set(gram, (candidates.get(gram) ?? 0) + 4);
+    }
+
+    // +2 if the phrase appears in H2 headings
     if (headingsText.toLowerCase().includes(gram)) {
       candidates.set(gram, (candidates.get(gram) ?? 0) + 2);
     }
@@ -151,10 +170,11 @@ export function extractKeywordFromTitle(
     return meaningful.slice(0, 3).join(" ") || title.trim().split(" ").slice(0, 3).join(" ").toLowerCase();
   }
 
-  // Sort by score descending, then prefer shorter (more specific) phrases
+  // Sort by score descending, then prefer 3-grams over 2-grams on a tie
+  // (longer phrase = more specific keyword)
   const sorted = Array.from(candidates.entries()).sort((a, b) => {
     if (b[1] !== a[1]) return b[1] - a[1]; // higher score first
-    return a[0].split(" ").length - b[0].split(" ").length; // shorter first on tie
+    return b[0].split(" ").length - a[0].split(" ").length; // longer phrase on tie
   });
 
   return sorted[0][0];

@@ -266,10 +266,12 @@ export const keywordRouter = router({
       let processed = 0;
       for (const post of postsWithoutKeyword) {
         try {
-          // Fetch full post body so we can check headings + first 100 words
+          // Fetch full post body + meta fields for the strongest keyword signal
           const fullPost = await getPostForKeyword(post.id);
           const bodyHtml = fullPost?.bodyOriginal ?? "";
-          const keyword = extractKeywordFromTitle(post.title, bodyHtml);
+          const metaTitle = fullPost?.metaTitleOriginal ?? "";
+          const metaDesc = fullPost?.metaDescriptionOriginal ?? "";
+          const keyword = extractKeywordFromTitle(post.title, bodyHtml, metaTitle, metaDesc);
           if (!keyword) continue;
           await saveKeyword(post.id, keyword, [], "user_entered", false);
           processed++;

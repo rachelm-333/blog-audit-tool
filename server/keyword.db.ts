@@ -166,6 +166,8 @@ export async function getPostForKeyword(postId: string): Promise<{
   keywordSource: string | null;
   businessId: string;
   auditScore: number | null;
+  metaTitleOriginal: string | null;
+  metaDescriptionOriginal: string | null;
 } | null> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -179,6 +181,8 @@ export async function getPostForKeyword(postId: string): Promise<{
       keywordSource: posts.keywordSource,
       businessId: posts.businessId,
       auditScore: posts.auditScore,
+      metaTitleOriginal: posts.metaTitleOriginal,
+      metaDescriptionOriginal: posts.metaDescriptionOriginal,
     })
     .from(posts)
     .where(eq(posts.id, postId))
