@@ -33,6 +33,76 @@ export interface CannibalisationResult {
 }
 
 // ---------------------------------------------------------------------------
+// Title-based Keyword Extraction (fast, no AI)
+// ---------------------------------------------------------------------------
+
+/**
+ * Extract a focus keyword from a post title by stripping common SEO stop phrases
+ * and returning the core topic. This is fast (no AI) and works well for
+ * well-titled posts like "How to Write a Company Profile that Helps Get You Noticed".
+ *
+ * Strategy:
+ * 1. Strip leading instructional phrases ("How to", "A Guide to", etc.)
+ * 2. Strip trailing qualifiers ("in Australia", "for Beginners", etc.)
+ * 3. Take the first 3-5 meaningful words as the keyword
+ * 4. Lowercase and trim
+ */
+export function extractKeywordFromTitle(title: string): string {
+  if (!title || !title.trim()) return "";
+
+  let t = title.trim();
+
+  // Strip leading instructional prefixes
+  const leadingPrefixes = [
+    /^how to /i,
+    /^what is (a |an |the )?/i,
+    /^what are (a |an |the )?/i,
+    /^why (is |are |do |does |you should )?/i,
+    /^when to /i,
+    /^where to /i,
+    /^a (complete |comprehensive |ultimate |simple |quick |step-by-step |beginner.s )?guide to /i,
+    /^the (complete |comprehensive |ultimate |simple |quick |step-by-step |beginner.s )?guide to /i,
+    /^a (complete |comprehensive |ultimate |simple |quick )?guide (for|on) /i,
+    /^the (complete |comprehensive |ultimate |simple |quick )?guide (for|on) /i,
+    /^an? (introduction|overview|breakdown|deep.?dive|explainer) (to|of|on) /i,
+    /^everything you need to know about /i,
+    /^top \d+ /i,
+    /^\d+ (ways|tips|steps|reasons|things|mistakes) (to |for )?/i,
+  ];
+
+  for (const prefix of leadingPrefixes) {
+    t = t.replace(prefix, "");
+  }
+
+  // Strip trailing qualifiers after key connectors
+  const trailingPatterns = [
+    / (in|for|across|within) australia$/i,
+    / (in|for|across|within) (the )?(us|uk|canada|new zealand|nz)$/i,
+    / (for (startups?|small businesses?|beginners?|entrepreneurs?|founders?))$/i,
+    /[:\-–—].*$/,  // strip everything after colon or dash
+    / that .+$/i,  // strip "that helps get you noticed"
+    / (to help|to make|to get|to build|to create|to grow|to improve) .+$/i,
+  ];
+
+  for (const pattern of trailingPatterns) {
+    t = t.replace(pattern, "");
+  }
+
+  // Clean up and take first 5 words max
+  t = t.trim().replace(/\s+/g, " ");
+  const words = t.split(" ").filter(Boolean);
+  const keyword = words.slice(0, 5).join(" ").toLowerCase();
+
+  // If we ended up with something too short (1 word) or too long, fall back to first 4 words of original
+  if (keyword.length < 3 || keyword.split(" ").length < 2) {
+    const fallback = title.trim().split(" ").slice(0, 4).join(" ").toLowerCase();
+    return fallback;
+  }
+
+  return keyword;
+}
+
+// ---------------------------------------------------------------------------
 // AI Keyword Suggestion
 // ---------------------------------------------------------------------------
 

@@ -22,7 +22,7 @@ import {
   updateCannibalisationFlags,
   updatePostKeyword,
 } from "../keyword.db";
-import { detectCannibalisation, suggestKeywordsForPost } from "../keyword.service";
+import { detectCannibalisation, extractKeywordFromTitle, suggestKeywordsForPost } from "../keyword.service";
 
 // ---------------------------------------------------------------------------
 // Ownership helpers
@@ -238,6 +238,44 @@ export const keywordRouter = router({
         failed,
         total: postsWithoutKeyword.length,
       };
+    }),
+
+  /**
+   * keyword.backfillFromTitles
+   * Fast (no AI) backfill of focus keywords for all posts that have none.
+   * Extracts the keyword from the post title using rule-based stripping.
+   * Runs in milliseconds for any number of posts.
+   */
+  backfillFromTitles: publicProcedure
+    .input(
+      z.object({
+        businessId: z.string().min(1),
+        iauditUserId: z.string().min(1),
+      })
+    )
+    .mutation(async ({ input }) => {
+      await assertBusinessOwnership(input.businessId, input.iauditUserId);
+
+      const allPosts = await listPostsForBusiness(input.businessId);
+      const postsWithoutKeyword = allPosts.filter((p) => !p.focusKeyword);
+
+      if (postsWithoutKeyword.length === 0) {
+        return { processed: 0, total: allPosts.length };
+      }
+
+      let processed = 0;
+      for (const post of postsWithoutKeyword) {
+        const keyword = extractKeywordFromTitle(post.title);
+        if (!keyword) continue;
+        try {
+          await saveKeyword(post.id, keyword, [], "user_entered", false);
+          processed++;
+        } catch {
+          // skip failed posts silently
+        }
+      }
+
+      return { processed, total: postsWithoutKeyword.length };
     }),
 
   /**

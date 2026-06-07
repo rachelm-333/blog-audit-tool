@@ -947,6 +947,7 @@ export default function PostList() {
   );
   const scanMutation = trpc.keyword.runCannibalisationScan.useMutation();
   const bulkSuggestMutation = trpc.keyword.bulkSuggest.useMutation();
+  const backfillMutation = trpc.keyword.backfillFromTitles.useMutation();
   const [bulkSuggestRunning, setBulkSuggestRunning] = useState(false);
   const auditAllMutation = trpc.audit.runAuditAll.useMutation();
   const auditOneMutation = trpc.audit.runAudit.useMutation();
@@ -960,6 +961,24 @@ export default function PostList() {
   }, [authLoading, isAuthenticated, navigate]);
 
   const postsWithoutKeyword = (data?.posts ?? []).filter((p) => !p.focusKeyword);
+
+  const handleBackfillFromTitles = () => {
+    if (!businessId || !iauditUserId) return;
+    backfillMutation.mutate(
+      { businessId, iauditUserId },
+      {
+        onSuccess: (result) => {
+          refetch();
+          toast.success(
+            `Set keywords for ${result.processed} post${result.processed !== 1 ? "s" : ""} from their titles. You can now run Audit All.`
+          );
+        },
+        onError: () => {
+          toast.error("Failed to set keywords from titles. Please try again.");
+        },
+      }
+    );
+  };
 
   const handleBulkSuggest = () => {
     if (!businessId || !iauditUserId) return;
@@ -1170,30 +1189,56 @@ export default function PostList() {
               Cannibalisation Scan
             </Button>
             {postsWithoutKeyword.length > 0 && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleBulkSuggest}
-                    disabled={bulkSuggestRunning || bulkSuggestMutation.isPending}
-                    className="gap-2 border-amber-500/50 text-amber-500 hover:bg-amber-500/10"
-                  >
-                    {bulkSuggestRunning ? (
-                      <Loader2 className="animate-spin" size={14} />
-                    ) : (
-                      <Sparkles size={14} />
-                    )}
-                    {bulkSuggestRunning
-                      ? `Suggesting keywords…`
-                      : `Suggest Keywords (${postsWithoutKeyword.length})`}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  AI will suggest a focus keyword for each of the {postsWithoutKeyword.length} posts
-                  that don’t have one yet. Required before Audit All.
-                </TooltipContent>
-              </Tooltip>
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleBackfillFromTitles}
+                      disabled={backfillMutation.isPending}
+                      className="gap-2 border-blue-500/50 text-blue-500 hover:bg-blue-500/10"
+                    >
+                      {backfillMutation.isPending ? (
+                        <Loader2 className="animate-spin" size={14} />
+                      ) : (
+                        <Tag size={14} />
+                      )}
+                      {backfillMutation.isPending
+                        ? `Setting keywords…`
+                        : `Set Keywords from Titles (${postsWithoutKeyword.length})`}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Instantly extract a focus keyword from each post title — no AI needed, runs in seconds.
+                    Best for posts with descriptive titles like "How to Write a Company Profile".
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleBulkSuggest}
+                      disabled={bulkSuggestRunning || bulkSuggestMutation.isPending}
+                      className="gap-2 border-amber-500/50 text-amber-500 hover:bg-amber-500/10"
+                    >
+                      {bulkSuggestRunning ? (
+                        <Loader2 className="animate-spin" size={14} />
+                      ) : (
+                        <Sparkles size={14} />
+                      )}
+                      {bulkSuggestRunning
+                        ? `Suggesting keywords…`
+                        : `AI Suggest Keywords (${postsWithoutKeyword.length})`}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    AI reads each post and suggests the best focus keyword. Slower but more accurate
+                    for posts with vague or unusual titles.
+                  </TooltipContent>
+                </Tooltip>
+              </>
             )}
             <Tooltip>
               <TooltipTrigger asChild>
