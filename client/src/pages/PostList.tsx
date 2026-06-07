@@ -1038,6 +1038,21 @@ export default function PostList() {
     }
   }, [authLoading, isAuthenticated, navigate]);
 
+  // Auto-open Fix modal when navigated here with ?fix=postId from Dashboard
+  useEffect(() => {
+    if (!data?.posts || isLoading) return;
+    const params = new URLSearchParams(window.location.search);
+    const fixPostId = params.get("fix");
+    if (!fixPostId) return;
+    const post = data.posts.find((p) => p.id === fixPostId);
+    if (post) {
+      // Clear the query param so refreshing doesn't re-open the modal
+      window.history.replaceState({}, "", "/posts");
+      handleFix(post);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.posts, isLoading]);
+
   const postsWithoutKeyword = (data?.posts ?? []).filter((p) => !p.focusKeyword);
 
   const handleBackfillFromTitles = () => {

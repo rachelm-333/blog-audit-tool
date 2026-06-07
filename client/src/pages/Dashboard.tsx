@@ -954,7 +954,7 @@ export default function Dashboard() {
                             <Button
                               size="sm"
                               className="text-xs h-7"
-                              onClick={() => navigate("/posts")}
+                              onClick={() => navigate(`/posts?fix=${row.id}`)}
                             >
                               <ArrowUpRight className="h-3 w-3 mr-1" />
                               Fix — 1 Credit
