@@ -27,6 +27,13 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -912,6 +919,74 @@ function CannibalisationBanner({
 }
 
 // ---------------------------------------------------------------------------
+// PostContentPanel — slide-out panel to preview a post's full body content
+// ---------------------------------------------------------------------------
+
+function PostContentPanel({
+  post,
+  iauditUserId,
+  onClose,
+}: {
+  post: Post | null;
+  iauditUserId: string;
+  onClose: () => void;
+}) {
+  const { data, isLoading } = trpc.keyword.getPostContent.useQuery(
+    { postId: post?.id ?? "", iauditUserId },
+    { enabled: !!post?.id && !!iauditUserId }
+  );
+
+  return (
+    <Sheet open={!!post} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <SheetContent side="right" className="w-full sm:max-w-2xl p-0 flex flex-col">
+        <SheetHeader className="px-6 pt-6 pb-4 border-b shrink-0">
+          <SheetTitle className="text-base leading-snug pr-8">
+            {post?.title}
+          </SheetTitle>
+          <div className="flex items-center gap-3 mt-2 flex-wrap">
+            {post?.focusKeyword && (
+              <span className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 px-2 py-0.5 rounded-full font-medium">
+                {post.focusKeyword}
+              </span>
+            )}
+            {post?.auditScore !== null && post?.auditScore !== undefined && (
+              <span className="text-xs font-semibold text-foreground">
+                {post.auditScore}/16
+              </span>
+            )}
+            {post?.url && (
+              <a
+                href={post.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 ml-auto"
+              >
+                <ExternalLink size={12} />
+                View on Wix
+              </a>
+            )}
+          </div>
+        </SheetHeader>
+        <ScrollArea className="flex-1 px-6 py-4">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="animate-spin text-muted-foreground" size={24} />
+            </div>
+          ) : data?.bodyOriginal ? (
+            <div
+              className="prose prose-sm dark:prose-invert max-w-none"
+              dangerouslySetInnerHTML={{ __html: data.bodyOriginal }}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground italic">No content available for this post.</p>
+          )}
+        </ScrollArea>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // PostList Page
 // ---------------------------------------------------------------------------
 
@@ -933,6 +1008,9 @@ export default function PostList() {
   );
     const [auditingAll, setAuditingAll] = useState(false);
   const [auditProgress, setAuditProgress] = useState(0);
+  // Post content preview panel
+  const [previewPost, setPreviewPost] = useState<Post | null>(null);
+
   // Layer 7 rewrite state
   const [rewritePost, setRewritePost] = useState<Post | null>(null);
   const [rewriteStep, setRewriteStep] = useState<"paa" | "running" | "result" | "view_result">("paa");
@@ -1369,14 +1447,12 @@ export default function PostList() {
 
                     {/* Title + URL */}
                     <div className="flex-1 min-w-0">
-                      <a
-                        href={post.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm font-medium text-foreground hover:text-primary truncate block"
+                      <button
+                        onClick={() => setPreviewPost(post)}
+                        className="text-sm font-medium text-foreground hover:text-primary truncate block text-left w-full"
                       >
                         {post.title}
-                      </a>
+                      </button>
                       <p className="text-xs text-muted-foreground truncate mt-0.5">
                         {post.url}
                       </p>
@@ -1576,6 +1652,13 @@ export default function PostList() {
               }
             : null
         }
+      />
+
+      {/* Blog Content Preview Panel */}
+      <PostContentPanel
+        post={previewPost}
+        iauditUserId={iauditUserId ?? ""}
+        onClose={() => setPreviewPost(null)}
       />
     </div>
   );

@@ -282,6 +282,22 @@ export const keywordRouter = router({
     }),
 
   /**
+   * keyword.getPostContent
+   * Fetch the full body HTML of a single post for the preview panel.
+   */
+  getPostContent: publicProcedure
+    .input(
+      z.object({
+        postId: z.string().min(1),
+        iauditUserId: z.string().min(1),
+      })
+    )
+    .query(async ({ input }) => {
+      const post = await assertPostOwnership(input.postId, input.iauditUserId);
+      return { bodyOriginal: post.bodyOriginal ?? "" };
+    }),
+
+  /**
    * keyword.exportCsv
    * Export the keyword registry for a business as a CSV string.
    * Columns: Post Title, Primary Keyword, Secondary Keywords, URL, Status, Audit Grade
