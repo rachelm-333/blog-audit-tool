@@ -18,6 +18,7 @@ import {
   setPostBackStatus,
 } from "../review.db";
 import { runFullAudit, scoreToGrade } from "../audit.service";
+import { invokeLLM } from "../_core/llm";
 
 // ---------------------------------------------------------------------------
 // Ownership helpers
@@ -187,6 +188,61 @@ export const reviewRouter = router({
         points: auditResult.points,
         warnings,
       };
+    }),
+
+  /**
+   * review.applyAiEdit
+   * Apply a targeted AI edit to the article body.
+   * The user types a plain-English instruction (e.g. "restore the original FAQ section").
+   * The AI modifies only the relevant part of the body and returns the updated HTML.
+   * The edit is NOT auto-saved — the frontend receives the new HTML and the user
+   * can review it before clicking Save.
+   */
+  applyAiEdit: publicProcedure
+    .input(
+      z.object({
+        postId: z.string().min(1),
+        iauditUserId: z.string().min(1),
+        currentBody: z.string().min(1),
+        instruction: z.string().min(1).max(1000),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const { post } = await assertPostOwnership(
+        input.postId,
+        input.iauditUserId
+      );
+
+      const systemPrompt = `You are an expert blog editor. You will receive an HTML blog article and a targeted editing instruction from the user. Apply ONLY the change described in the instruction — do not change anything else. Preserve all HTML tags, headings, links, images, schema scripts, and SEO structure. Return ONLY the updated HTML with no commentary, no markdown fences, and no explanations. Write in Australian English (use 's' not 'z' in words like optimise, recognise, etc.).`;
+
+      const userPrompt = `INSTRUCTION: ${input.instruction}
+
+CURRENT ARTICLE HTML:
+${input.currentBody}`;
+
+      const response = await invokeLLM({
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+      });
+
+      const rawContent = (response.choices?.[0]?.message?.content ?? "") as string;
+      // Strip any accidental markdown code fences the model may add
+      const updatedBody = rawContent
+        .replace(/^```html\s*/i, "")
+        .replace(/^```\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
+
+      if (!updatedBody) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "AI did not return updated content. Please try again.",
+        });
+      }
+
+      return { updatedBody, postId: post.id };
     }),
 
   /**

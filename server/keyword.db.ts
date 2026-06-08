@@ -95,6 +95,7 @@ export async function listPostsForBusiness(businessId: string): Promise<
     rewriteStatus: string | null;
     rewriteScore: number | null;
     rewriteGrade: string | null;
+    postBackStatus: string | null;
   }>
 > {
   const db = await getDb();
@@ -114,6 +115,7 @@ export async function listPostsForBusiness(businessId: string): Promise<
       rewriteStatus: posts.rewriteStatus,
       rewriteScore: posts.rewriteScore,
       rewriteGrade: posts.rewriteGrade,
+      postBackStatus: posts.postBackStatus,
     })
     .from(posts)
     .where(eq(posts.businessId, businessId));

@@ -833,6 +833,10 @@ export default function ReviewEdit() {
   } | null>(null);
   const [rerunning, setRerunning] = useState(false);
 
+  // ----- AI edit window state -----
+  const [aiInstruction, setAiInstruction] = useState("");
+  const [aiEditing, setAiEditing] = useState(false);
+
   // ----- TipTap editor -----
   const editor = useEditor({
     extensions: [
@@ -946,6 +950,33 @@ export default function ReviewEdit() {
       postId,
       iauditUserId,
       paaQuestion: post.paaQuestion,
+    });
+  };
+
+  // ----- Apply AI Edit mutation -----
+  const applyAiEditMutation = trpc.review.applyAiEdit.useMutation({
+    onSuccess: (data) => {
+      setAiEditing(false);
+      if (editor) {
+        editor.commands.setContent(data.updatedBody);
+      }
+      setAiInstruction("");
+      toast.success("AI edit applied. Review the changes and click Save when happy.");
+    },
+    onError: (err) => {
+      setAiEditing(false);
+      toast.error(err.message ?? "AI edit failed. Please try again.");
+    },
+  });
+
+  const handleApplyAiEdit = () => {
+    if (!postId || !iauditUserId || !editor || !aiInstruction.trim()) return;
+    setAiEditing(true);
+    applyAiEditMutation.mutate({
+      postId,
+      iauditUserId,
+      currentBody: editor.getHTML(),
+      instruction: aiInstruction.trim(),
     });
   };
 
@@ -1309,6 +1340,58 @@ ${editor.getHTML()}
             <div className="border border-border rounded-lg overflow-hidden bg-card">
               <EditorToolbar editor={editor} />
               <EditorContent editor={editor} />
+            </div>
+          </div>
+
+          {/* AI Edit Window */}
+          <div className="bg-card border border-border rounded-lg overflow-hidden">
+            <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+              <ChevronRight size={14} className="text-primary" />
+              <span className="text-sm font-semibold text-foreground">AI Edit</span>
+              <span className="text-xs text-muted-foreground ml-1">— type an instruction and AI will apply it to the article</span>
+            </div>
+            <div className="p-4 space-y-3">
+              <Textarea
+                value={aiInstruction}
+                onChange={(e) => setAiInstruction(e.target.value)}
+                placeholder='e.g. "Restore the original FAQ section" or "Make the intro paragraph more conversational" or "Add a transition sentence between the second and third sections"'
+                className="bg-card border-border text-foreground text-sm min-h-[80px] resize-none"
+                disabled={aiEditing}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault();
+                    handleApplyAiEdit();
+                  }
+                }}
+              />
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {aiInstruction.length}/1000 · Ctrl+Enter to apply
+                </span>
+                <Button
+                  size="sm"
+                  className="gap-1 text-xs bg-violet-600 hover:bg-violet-500 text-white"
+                  onClick={handleApplyAiEdit}
+                  disabled={aiEditing || !aiInstruction.trim() || aiInstruction.length > 1000}
+                >
+                  {aiEditing ? (
+                    <>
+                      <Loader2 size={12} className="animate-spin" />
+                      Applying…
+                    </>
+                  ) : (
+                    <>
+                      <Send size={12} />
+                      Apply Edit
+                    </>
+                  )}
+                </Button>
+              </div>
+              {aiEditing && (
+                <p className="text-xs text-muted-foreground">
+                  AI is editing the article… this may take 15–30 seconds.
+                </p>
+              )}
             </div>
           </div>
 

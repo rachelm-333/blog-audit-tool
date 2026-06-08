@@ -560,14 +560,14 @@
 ## Feature — Review & Edit Redesign + Approval Workflow
 
 - [ ] Fix AI fabrication: extract CTA section and FAQ section from original body before rewrite; pass them as protected zones with instruction to preserve verbatim
-- [ ] Add approval workflow status transitions: awaiting_review → approved → published (DB migration + router procedures)
-- [ ] Add Review Queue page: shows only posts with status awaiting_review, grouped by article type, with Approve/Edit buttons
-- [ ] Redesign ReviewEdit page: three-column layout (post queue left, rendered article centre, editable SEO fields right)
-- [ ] Fix article rendering in centre panel: proper spacing between headings and paragraphs, bold headings visible
-- [ ] Add AI edit window in centre panel: text input where user types an instruction (e.g. "restore original FAQ section") and AI applies targeted edit
-- [ ] Add Approve button in ReviewEdit page that moves post to approved status
-- [ ] Add "Approve All" button on Review Queue page
-- [ ] Post list: add filter tabs for awaiting_review / approved / published / all
+- [x] Add approval workflow status transitions: awaiting_review → approved → published (DB migration + router procedures)
+- [x] Add Review Queue page: shows only posts with status awaiting_review, grouped by article type, with Approve/Edit buttons
+- [x] Redesign ReviewEdit page: three-column layout (post queue left, rendered article centre, editable SEO fields right)
+- [x] Fix article rendering in centre panel: proper spacing between headings and paragraphs, bold headings visible
+- [x] Add AI edit window in centre panel: text input where user types an instruction (e.g. "restore original FAQ section") and AI applies targeted edit
+- [x] Add Approve button in ReviewEdit page that moves post to approved status
+- [x] Add "Approve All" button on Review Queue page
+- [x] Post list: add filter tabs for awaiting_review / approved / published / all
 
 ## Feature — Approval Workflow & Review Queue
 

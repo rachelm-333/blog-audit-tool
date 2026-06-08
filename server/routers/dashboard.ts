@@ -113,7 +113,7 @@ export const dashboardRouter = router({
           .enum(["all", "optimised", "strong", "needs_work", "poor", "critical"])
           .default("all"),
         statusFilter: z
-          .enum(["all", "published", "scheduled", "draft"])
+          .enum(["all", "published", "scheduled", "draft", "awaiting_review", "approved"])
           .default("all"),
         sortField: z.enum(["score", "grade", "title"]).default("score"),
         sortDir: z.enum(["asc", "desc"]).default("asc"),

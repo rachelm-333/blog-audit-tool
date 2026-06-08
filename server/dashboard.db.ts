@@ -78,7 +78,13 @@ export type GradeFilter =
   | "poor"
   | "critical";
 
-export type StatusFilter = "all" | "published" | "scheduled" | "draft";
+export type StatusFilter =
+  | "all"
+  | "published"
+  | "scheduled"
+  | "draft"
+  | "awaiting_review"
+  | "approved";
 export type SortField = "score" | "grade" | "title";
 export type SortDir = "asc" | "desc";
 
@@ -286,8 +292,13 @@ export async function getPostTableRows(
 
   // Build where conditions
   const conditions = [eq(posts.businessId, businessId)];
-  if (statusFilter !== "all") {
-    conditions.push(eq(posts.status, statusFilter));
+  // Workflow-status filters map to rewriteStatus column
+  const workflowStatuses = ["awaiting_review", "approved"] as const;
+  if (workflowStatuses.includes(statusFilter as (typeof workflowStatuses)[number])) {
+    conditions.push(eq(posts.rewriteStatus, statusFilter as "awaiting_review" | "approved"));
+  } else if (statusFilter !== "all") {
+    // CMS publish status filter
+    conditions.push(eq(posts.status, statusFilter as "published" | "scheduled" | "draft"));
   }
   if (gradeFilter !== "all") {
     conditions.push(eq(posts.auditGrade, gradeFilter));

@@ -76,6 +76,7 @@ interface Post {
   rewriteStatus?: string | null;
   rewriteScore?: number | null;
   rewriteGrade?: string | null;
+  postBackStatus?: string | null;
 }
 
 interface AuditPoint {
@@ -1019,6 +1020,8 @@ export default function PostList() {
   const [paaSuggested, setPaaSuggested] = useState("");
   const [expandedRewritePostId, setExpandedRewritePostId] = useState<string | null>(null);
   const [rewriteMode, setRewriteMode] = useState<"full_rewrite" | "smart_patch">("full_rewrite");
+  // Review-status filter tabs
+  const [reviewFilter, setReviewFilter] = useState<"all" | "awaiting_review" | "approved" | "published">("all");
   const { data, isLoading, refetch } = trpc.keyword.listPosts.useQuery(
     { businessId, iauditUserId: iauditUserId ?? "" },
     { enabled: !!businessId && !!iauditUserId }
@@ -1241,9 +1244,22 @@ export default function PostList() {
     );
   }
 
-  const posts: Post[] = data?.posts ?? [];
+  const allPosts: Post[] = data?.posts ?? [];
+  // Apply review-status filter client-side (data already includes rewriteStatus + postBackStatus)
+  const posts: Post[] = allPosts.filter((p) => {
+    if (reviewFilter === "all") return true;
+    if (reviewFilter === "awaiting_review") return p.rewriteStatus === "awaiting_review";
+    if (reviewFilter === "approved") return p.rewriteStatus === "approved";
+    if (reviewFilter === "published") return p.postBackStatus === "complete";
+    return true;
+  });
   const postMap = new Map(posts.map((p) => [p.id, p]));
   const postsWithKeyword = posts.filter((p) => p.focusKeyword);
+
+  // Counts for filter tabs
+  const awaitingReviewCount = allPosts.filter((p) => p.rewriteStatus === "awaiting_review").length;
+  const approvedCount = allPosts.filter((p) => p.rewriteStatus === "approved").length;
+  const publishedCount = allPosts.filter((p) => p.postBackStatus === "complete").length;
 
   return (
     <div className="p-4">
@@ -1362,6 +1378,35 @@ export default function PostList() {
               )}
             </Tooltip>
           </div>
+        </div>
+
+        {/* Review-status filter tabs */}
+        <div className="flex gap-1 mb-4 flex-wrap">
+          {([
+            { key: "all", label: "All", count: allPosts.length },
+            { key: "awaiting_review", label: "Awaiting Review", count: awaitingReviewCount },
+            { key: "approved", label: "Approved", count: approvedCount },
+            { key: "published", label: "Published", count: publishedCount },
+          ] as const).map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setReviewFilter(tab.key)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                reviewFilter === tab.key
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted/60"
+              }`}
+            >
+              {tab.label}
+              <span className={`inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold min-w-[18px] ${
+                reviewFilter === tab.key
+                  ? "bg-primary-foreground/20 text-primary-foreground"
+                  : "bg-muted text-muted-foreground"
+              }`}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
         </div>
 
         {/* Bulk suggest progress banner */}
