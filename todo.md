@@ -490,3 +490,12 @@
 - [x] Update AuditResults UI to show auto-detected keyword as a green confirmed badge (not a scary warning)
 - [x] Add "Change" button to let user override the auto-detected keyword
 - [x] Clean up TypeScript errors from scraper refactor
+
+## Bug Fixes — Audit Check Accuracy (False Negatives)
+
+- [x] Fix P9 (Opening Answer Block): pass plain text opening 500 words to AI, explicitly instruct AI to look in body not title
+- [x] Fix P10 (External Authority Link): mechanically pre-extract all external links from HTML and pass as a clean list to AI
+- [x] Fix P15 (Human Authenticity): pass plain text body (not raw HTML with CSS/JS noise) to AI
+- [x] Fix P16 (Article Type Structure): raise cornerstone ceiling from 3,200 to 5,000 words (13-min reads are valid cornerstone articles)
+- [x] Add Re-audit button (re-runs audit on same URL without clearing results)
+- [x] Add "Audit a different post" / Clear button (clears results and URL, scrolls back to top)

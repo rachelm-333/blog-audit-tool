@@ -690,6 +690,18 @@ export default function AuditPage() {
     runAudit.mutate({ url: url.trim() });
   };
 
+  const handleReaudit = () => {
+    if (!url.trim()) return;
+    setAuditResult(null);
+    runAudit.mutate({ url: url.trim() });
+  };
+
+  const handleClear = () => {
+    setAuditResult(null);
+    setUrl("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   return (
     <div className="min-h-screen bg-[#0F0F1A] text-[#E8EAF0]">
       {/* Minimal top nav */}
@@ -768,20 +780,42 @@ export default function AuditPage() {
         {/* Audit results */}
         <div ref={resultsRef}>
           {auditResult && (
-            <AuditResults
-              url={auditResult.url}
-              title={auditResult.title}
-              score={auditResult.score}
-              grade={auditResult.grade}
-              potentialScore={auditResult.potentialScore}
-              points={auditResult.points}
-              focusKeyword={auditResult.focusKeyword}
-              metaTitle={auditResult.metaTitle}
-              metaDescription={auditResult.metaDescription}
-              scrapedBodyHtml={auditResult.scrapedBodyHtml}
-              scrapedMetaTitle={auditResult.metaTitle}
-              scrapedMetaDescription={auditResult.metaDescription}
-            />
+            <>
+              <AuditResults
+                url={auditResult.url}
+                title={auditResult.title}
+                score={auditResult.score}
+                grade={auditResult.grade}
+                potentialScore={auditResult.potentialScore}
+                points={auditResult.points}
+                focusKeyword={auditResult.focusKeyword}
+                metaTitle={auditResult.metaTitle}
+                metaDescription={auditResult.metaDescription}
+                scrapedBodyHtml={auditResult.scrapedBodyHtml}
+                scrapedMetaTitle={auditResult.metaTitle}
+                scrapedMetaDescription={auditResult.metaDescription}
+              />
+              {/* Re-audit / Clear actions */}
+              <div className="max-w-2xl mx-auto mt-4 flex items-center justify-center gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleReaudit}
+                  disabled={runAudit.isPending}
+                  className="border-[#2A3560] text-[#8892A4] hover:text-white hover:border-[#4A90D9] text-xs"
+                >
+                  {runAudit.isPending ? "Re-auditing…" : "↻ Re-audit this post"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClear}
+                  className="border-[#2A3560] text-[#8892A4] hover:text-white hover:border-[#4A90D9] text-xs"
+                >
+                  ✕ Audit a different post
+                </Button>
+              </div>
+            </>
           )}
         </div>
       </main>

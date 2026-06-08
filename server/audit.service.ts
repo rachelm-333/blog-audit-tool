@@ -121,11 +121,32 @@ function inferArticleType(wc: number): "cornerstone" | "pillar" | "cluster" {
   return "cluster";
 }
 
+/** Extract all external links from HTML as a plain list */
+function extractExternalLinks(html: string, siteUrl?: string): string[] {
+  const links: string[] = [];
+  const re = /<a[^>]+href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) {
+    const href = m[1].trim();
+    if (!href.startsWith('http')) continue; // skip relative links
+    if (siteUrl) {
+      try {
+        const linkDomain = new URL(href).hostname;
+        const siteDomain = new URL(siteUrl).hostname;
+        if (linkDomain === siteDomain || linkDomain.endsWith('.' + siteDomain)) continue; // skip internal
+      } catch { /* ignore malformed URLs */ }
+    }
+    const anchor = m[2].replace(/<[^>]+>/g, '').trim();
+    links.push(`${anchor} → ${href}`);
+  }
+  return links;
+}
+
 /** Word count targets per article type */
 const ARTICLE_TYPE_TARGETS: Record<string, { min: number; max: number }> = {
-  cornerstone: { min: 2500, max: 3200 },
-  pillar: { min: 1500, max: 1800 },
-  cluster: { min: 1000, max: 1200 },
+  cornerstone: { min: 2500, max: 5000 }, // Long-form cornerstone posts (10–20 min reads) are valid up to 5,000 words
+  pillar: { min: 1500, max: 2499 },
+  cluster: { min: 800, max: 1499 },
 };
 
 /** Compute grade from score */
@@ -378,6 +399,21 @@ export async function runAiChecks(input: AiAuditInput): Promise<AuditPoint[]> {
 
   const ctaUrls = [primaryCtaUrl, ...secondaryCtaUrls].filter(Boolean).join(", ");
 
+  // Strip HTML to plain text for AI analysis — avoids feeding CSS/JS noise to the AI
+  const bodyText = stripHtml(bodyHtml);
+
+  // First 500 words of plain text for P9 opening answer block check
+  const opening500Words = bodyText.split(/\s+/).slice(0, 500).join(" ");
+
+  // Pre-extract external links mechanically for P10 — more reliable than asking AI to find them in raw HTML
+  const externalLinks = extractExternalLinks(bodyHtml, siteUrl);
+  const externalLinksText = externalLinks.length > 0
+    ? `External links found in article:\n${externalLinks.slice(0, 20).join('\n')}`
+    : "No external links detected in the article HTML.";
+
+  // Use plain text body (truncated to ~6000 words) for the main AI analysis
+  const bodyForAi = bodyText.slice(0, 30000); // ~6000 words of plain text
+
   const systemPrompt = `You are an expert SEO auditor. You will analyse a blog post and score it on 6 specific criteria. 
 Return ONLY valid JSON matching the exact schema provided. Do not fabricate links, statistics, or credentials.
 Be strict but fair. Each point must have a "status" of "pass" or "fail" and a concise plain-English "note" (1–2 sentences max).`;
@@ -389,12 +425,17 @@ POST TITLE: "${title}"
 CTA URLS (for P11): ${ctaUrls || "none provided"}
 SITE URL (for P12): ${siteUrl || "unknown"}
 
-POST CONTENT (HTML):
-${bodyHtml.slice(0, 8000)}
+OPENING 500 WORDS (plain text — use this for P9):
+${opening500Words}
+
+${externalLinksText}
+
+FULL ARTICLE (plain text — use this for P14, P15):
+${bodyForAi}
 
 Score these 6 points:
 
-P9 - Opening Answer Block: Does the article open with a direct answer block? This means: (1) a question appears near the top of the article (either as a heading, bold text, or standalone line), AND (2) the very next paragraph directly answers that question in 40–80 words. The question is typically a "People Also Ask" style question (e.g. "What is...", "How do...", "Why is..."). The answer paragraph must start with a direct statement that answers the question — not a vague intro. Look in the FIRST 300 words of the article. If a question + direct answer paragraph exists anywhere in the opening section, this PASSES. Be generous: if the article clearly opens with a question followed by a direct answer paragraph, mark it as pass even if the word count is slightly outside 40–80 words.
+P9 - Opening Answer Block: Does the article open with a direct answer block? Look ONLY at the OPENING 500 WORDS provided above. This means: (1) a bold question or standalone question line appears near the top (NOT the article title — look for a question WITHIN the body text), AND (2) the very next paragraph directly answers that question in 40–80 words. The question is typically a "People Also Ask" style question (e.g. "What is...", "How do...", "Why is...", "What's the most..."). IMPORTANT: The article title is NOT the question — look for a question that appears AFTER the title in the body text. If a bold question followed by a direct answer paragraph exists in the opening section, this PASSES. Be generous — if the pattern is clearly there, mark it pass.
 
 P10 - External Authority Link: Is there at least one link to a real external authority source (government, university, industry body, major publication) with relevant anchor text? Do NOT count internal links or generic commercial sites.
 
