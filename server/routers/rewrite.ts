@@ -327,6 +327,127 @@ export const rewriteRouter = router({
     }),
 
   /**
+   * rewrite.rerunRewrite
+   * Re-run the full rewrite pipeline on a post that already has a paaQuestion stored.
+   * Uses the stored paaQuestion — no modal needed.
+   * Deducts a credit (same as runRewrite).
+   */
+  rerunRewrite: publicProcedure
+    .input(
+      z.object({
+        postId: z.string().min(1),
+        iauditUserId: z.string().min(1),
+        paaQuestion: z.string().min(1),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const { post, business } = await assertPostOwnership(
+        input.postId,
+        input.iauditUserId
+      );
+
+      if (!post.focusKeyword) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This post has no focus keyword. Set a keyword before running the rewrite.",
+        });
+      }
+
+      // --- Check credits ---
+      const credits = await getCreditsRemaining(input.iauditUserId);
+      if (credits <= 0) {
+        throw new TRPCError({
+          code: "PAYMENT_REQUIRED",
+          message: "You have no credits remaining. Buy more to continue rewriting posts.",
+        });
+      }
+
+      // --- Deduct 1 credit ---
+      await deductCredit(input.iauditUserId, post.id);
+      await setRewriteStatus(post.id, "running");
+
+      const businessContext: BusinessContext = {
+        businessName: business.businessName,
+        websiteUrl: business.websiteUrl,
+        brandVoice: business.brandVoice,
+        tone: business.tone,
+        targetAudience: business.targetAudience,
+        uvp: business.uvp,
+        services: (business.services as Array<{ name: string; description?: string }>) ?? [],
+        primaryCtaUrl: business.primaryCtaUrl,
+        primaryCtaLabel: business.primaryCtaLabel,
+        secondaryCtas: (business.secondaryCtas as Array<{ url: string; label: string }>) ?? [],
+        awardsCredentials: business.awardsCredentials,
+      };
+
+      const allPosts = await listPostsForBusiness(post.businessId);
+      const internalLinks = buildInternalLinkMap(allPosts, post.id, post.publishDate);
+
+      const failingPoints: string[] = [];
+      if (post.auditResults) {
+        const auditResults = post.auditResults as { points?: Array<{ point: string; name: string; status: string }> };
+        for (const p of auditResults.points ?? []) {
+          if (p.status === "fail") failingPoints.push(`${p.point} — ${p.name}`);
+        }
+      }
+
+      const secondaryKeywords = Array.isArray(post.secondaryKeywords)
+        ? (post.secondaryKeywords as string[])
+        : typeof post.secondaryKeywords === "string" && post.secondaryKeywords
+          ? (post.secondaryKeywords as string).split(",").map((s: string) => s.trim()).filter(Boolean)
+          : [];
+
+      let rewriteResult;
+      try {
+        rewriteResult = await runFullRewrite({
+          post: {
+            id: post.id,
+            title: post.title,
+            bodyOriginal: post.bodyRewritten ?? post.bodyOriginal, // Use latest rewrite as base
+            url: post.url,
+            focusKeyword: post.focusKeyword,
+            metaTitleOriginal: post.metaTitleRewritten ?? post.metaTitleOriginal,
+            metaDescriptionOriginal: post.metaDescriptionRewritten ?? post.metaDescriptionOriginal,
+            publishDate: post.publishDate,
+            scheduledDate: post.scheduledDate,
+            status: post.status,
+          },
+          businessContext,
+          internalLinks,
+          failingPoints,
+          paaQuestion: input.paaQuestion,
+          secondaryKeywords,
+          rewriteMode: "full_rewrite",
+        });
+      } catch (err) {
+        await setRewriteStatus(post.id, "failed");
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Re-run rewrite failed. Your credit has not been refunded.",
+        });
+      }
+
+      await saveRewriteResult(post.id, rewriteResult);
+      const needsManualReview = rewriteResult.rewriteScore < 14;
+      if (needsManualReview) {
+        await refundCredit(input.iauditUserId, post.id);
+        await setRewriteStatus(post.id, "needs_manual_review");
+      } else {
+        await setRewriteStatus(post.id, "complete");
+      }
+
+      return {
+        success: true,
+        rewriteScore: rewriteResult.rewriteScore,
+        rewriteGrade: rewriteResult.rewriteGrade,
+        needsManualReview,
+        message: needsManualReview
+          ? `The rewrite scored ${rewriteResult.rewriteScore}/16. Your credit has been refunded. Please review the highlighted points before publishing.`
+          : undefined,
+      };
+    }),
+
+  /**
    * rewrite.getRewriteResult
    * Get the stored rewrite result for a post.
    */

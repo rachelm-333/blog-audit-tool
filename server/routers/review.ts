@@ -92,6 +92,10 @@ export const reviewRouter = router({
         });
       }
 
+      // Load business context for accurate CTA link scoring
+      const business = await getBusinessById(post.businessId);
+      const primaryCtaUrl = business?.primaryCtaUrl ?? null;
+
       // Run re-score against the saved content
       const auditResult = await runFullAudit({
         title: post.title,
@@ -100,11 +104,13 @@ export const reviewRouter = router({
         url: post.url,
         metaTitle: input.metaTitleRewritten,
         metaDescription: input.metaDescriptionRewritten,
-        primaryCtaUrl: null,
+        primaryCtaUrl,
       });
 
-      const newScore = auditResult.points.filter((p) => p.status === "pass")
-        .length;
+      // Count pass + na (na = not applicable, treated as passing)
+      const newScore = auditResult.points.filter(
+        (p) => p.status === "pass" || p.status === "na"
+      ).length;
       const newGrade = scoreToGrade(newScore);
 
       // Detect regressions — points that previously passed but now fail

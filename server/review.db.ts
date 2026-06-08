@@ -62,6 +62,8 @@ export async function getPostForReview(postId: string) {
       bodyImageAlts: posts.bodyImageAlts,
       postBackStatus: posts.postBackStatus,
       cannibalizationFlag: posts.cannibalizationFlag,
+      paaQuestion: posts.paaQuestion,
+      articleType: posts.articleType,
     })
     .from(posts)
     .where(eq(posts.id, postId))

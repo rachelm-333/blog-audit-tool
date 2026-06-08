@@ -524,3 +524,16 @@
 - [x] Fix inferArticleType thresholds to match (>=2500 cornerstone, >=1500 pillar)
 - [x] Run mechanical enforcement twice: once after Pass 1, once after Pass 2 fingerprint scrub (to catch regressions)
 - [x] Raise rewrite target threshold from 13 to 14 in the router
+
+## Bug Fixes — Word Count Targets & Editor UX
+
+- [x] Fix word count targets: Cornerstone 2500-3200 (±50), Pillar 1500-1800 (±50), Cluster 1000-1200 (±50) — updated both audit.service.ts and rewrite.service.ts
+- [x] Fix rewrite engine to target the midpoint of the word count range (not just minimum)
+- [x] Add "Re-run Rewrite" button to the post editor page (amber button in header, uses stored paaQuestion, deducts 1 credit)
+- [x] Add rewrite.rerunRewrite tRPC procedure to the rewrite router
+- [x] Fix invisible header buttons in post editor (now slate-800 bg with slate-200 text — clearly visible on dark navy)
+- [x] Fix HTML output spacing: added instruction to place blank line between every heading and paragraph
+- [x] Preserve original images in rewrite: added PRESERVE ALL IMAGES instruction to Pass 1 prompt
+- [x] Fix saveEdits re-scoring: now passes business primaryCtaUrl so P11 scores correctly
+- [x] Fix saveEdits score counting: now counts pass + na (not just pass) to match audit service semantics
+- [x] Add paaQuestion and articleType to getPostForReview query so review page can access them

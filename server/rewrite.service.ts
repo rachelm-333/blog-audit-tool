@@ -84,9 +84,9 @@ export const ARTICLE_TYPE_TARGETS: Record<
   "cornerstone" | "pillar" | "cluster",
   { min: number; max: number }
 > = {
-  cornerstone: { min: 2500, max: 5000 }, // Matches audit service P16 thresholds
-  pillar: { min: 1500, max: 2499 },
-  cluster: { min: 800, max: 1499 },
+  cornerstone: { min: 2450, max: 3250 }, // ~2500–3200 ±50
+  pillar: { min: 1450, max: 1850 },       // ~1500–1800 ±50
+  cluster: { min: 950, max: 1250 },       // ~1000–1200 ±50
 };
 
 // ---------------------------------------------------------------------------
@@ -172,9 +172,9 @@ export function inferArticleType(
   bodyHtml: string
 ): "cornerstone" | "pillar" | "cluster" {
   const wc = wordCount(stripHtml(bodyHtml));
-  if (wc >= 2500) return "cornerstone"; // Matches audit service P16 thresholds
-  if (wc >= 1500) return "pillar";
-  return "cluster";
+  if (wc >= 2450) return "cornerstone"; // ~2500 ±50
+  if (wc >= 1450) return "pillar";       // ~1500 ±50
+  return "cluster";                      // ~1000–1200 ±50
 }
 
 // ---------------------------------------------------------------------------
@@ -269,7 +269,7 @@ ${ctaSection}
 ${internalBlogSection}
 
 ARTICLE TYPE: ${input.articleType.toUpperCase()}
-WORD COUNT TARGET: ${input.wordCountTarget.min}–${input.wordCountTarget.max} words (MANDATORY — count carefully)
+WORD COUNT TARGET: ${input.wordCountTarget.min}–${input.wordCountTarget.max} words (MANDATORY — aim for the midpoint ~${Math.round((input.wordCountTarget.min + input.wordCountTarget.max) / 2)} words. Count carefully. Do NOT write more than ${input.wordCountTarget.max} words or fewer than ${input.wordCountTarget.min} words.)
 FOCUS KEYWORD: "${input.focusKeyword}"
 ${secondaryKeywordsText ? secondaryKeywordsText + "\n" : ""}PAA QUESTION: "${input.paaQuestion}"
 
@@ -338,6 +338,8 @@ Vary sentence length. Mix short punchy sentences with longer explanatory ones.
 - Do NOT fabricate statistics, quotes, or external URLs. If unsure, omit the link.
 - Do NOT change the URL, author, publish date, or post status.
 - Write in Australian English: 'optimise' not 'optimize', 'recognise' not 'recognize', 'organisation' not 'organization'.
+- PRESERVE ALL IMAGES: If the original post contains <img> tags, you MUST include them in the rewritten body at a natural position (e.g. after the first H2 or relevant section). Do NOT remove or alter any <img> tags.
+- ADD SPACING: Place a blank line (empty <p></p> or line break) between every heading and every paragraph for clean visual spacing when pasted into a CMS.
 - Return ONLY a JSON object — no prose, no markdown fences outside the JSON.`;
 }
 

@@ -52,6 +52,7 @@ import {
   Copy,
   PartyPopper,
   XCircle,
+  RefreshCw,
 } from "lucide-react";
 import { HelpTooltip } from "@/components/HelpTooltip";
 
@@ -659,6 +660,7 @@ export default function ReviewEdit() {
     metaTitle: string;
     metaDescription: string;
   } | null>(null);
+  const [rerunning, setRerunning] = useState(false);
 
   // ----- TipTap editor -----
   const editor = useEditor({
@@ -738,6 +740,39 @@ export default function ReviewEdit() {
       toast.error(err.message ?? "Failed to save keyword.");
     },
   });
+
+  // ----- Re-run Rewrite mutation -----
+  const rerunRewriteMutation = trpc.rewrite.rerunRewrite.useMutation({
+    onSuccess: (data: { rewriteScore: number; rewriteGrade: string; needsManualReview: boolean; message?: string }) => {
+      setRerunning(false);
+      setCurrentScore(data.rewriteScore);
+      setCurrentGrade(data.rewriteGrade);
+      if (data.needsManualReview && data.message) {
+        toast.warning(data.message, { duration: 8000 });
+      } else {
+        toast.success(`Rewrite complete — scored ${data.rewriteScore}/16!`);
+      }
+      // Reload the page to get the new rewritten content
+      window.location.reload();
+    },
+    onError: (err: { message?: string }) => {
+      setRerunning(false);
+      toast.error(err.message ?? "Re-run rewrite failed. Please try again.");
+    },
+  });
+
+  const handleRerunRewrite = async () => {
+    if (!postId || !iauditUserId || !post?.paaQuestion) {
+      toast.error("Cannot re-run rewrite: missing PAA question. Please go back to Posts and start a new rewrite.");
+      return;
+    }
+    setRerunning(true);
+    rerunRewriteMutation.mutate({
+      postId,
+      iauditUserId,
+      paaQuestion: post.paaQuestion,
+    });
+  };
 
   const runPostBackMutation = trpc.postback.runPostBack.useMutation({
     onSuccess: (data) => {
@@ -982,7 +1017,7 @@ ${editor.getHTML()}
           <Button
             variant="outline"
             size="sm"
-            className="gap-1 text-xs"
+            className="gap-1 text-xs text-slate-200 border-slate-600 hover:bg-slate-700 hover:text-white bg-slate-800"
             onClick={handleExportPlainText}
             title="Export as plain text"
           >
@@ -992,7 +1027,7 @@ ${editor.getHTML()}
           <Button
             variant="outline"
             size="sm"
-            className="gap-1 text-xs"
+            className="gap-1 text-xs text-slate-200 border-slate-600 hover:bg-slate-700 hover:text-white bg-slate-800"
             onClick={handleExportHtml}
             title="Export as HTML"
           >
@@ -1002,7 +1037,7 @@ ${editor.getHTML()}
           <Button
             variant="outline"
             size="sm"
-            className="gap-1 text-xs"
+            className="gap-1 text-xs text-slate-200 border-slate-600 hover:bg-slate-700 hover:text-white bg-slate-800"
             onClick={handleExportMarkdown}
             title="Export as Markdown"
           >
@@ -1014,13 +1049,32 @@ ${editor.getHTML()}
           <Button
             variant="outline"
             size="sm"
-            className="gap-1 text-xs"
+            className="gap-1 text-xs text-slate-200 border-slate-600 hover:bg-slate-700 hover:text-white bg-slate-800"
             onClick={handleSave}
             disabled={saveStatus === "saving"}
           >
             <Save size={12} />
             Save
           </Button>
+
+          {/* Re-run Rewrite */}
+          {hasRewrite && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1 text-xs text-amber-300 border-amber-600/50 hover:bg-amber-900/30 hover:text-amber-200 bg-amber-900/20"
+              onClick={handleRerunRewrite}
+              disabled={rerunning || approving}
+              title="Re-run the rewrite with the latest improvements"
+            >
+              {rerunning ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <RefreshCw size={12} />
+              )}
+              {rerunning ? "Rewriting…" : "Re-run Rewrite"}
+            </Button>
+          )}
 
           {/* Approve and Post Back */}
           <Button

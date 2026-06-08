@@ -116,9 +116,9 @@ function keywordInSlug(url: string, keyword: string): boolean {
 
 /** Infer article type from word count */
 function inferArticleType(wc: number): "cornerstone" | "pillar" | "cluster" {
-  if (wc >= 2500) return "cornerstone";
-  if (wc >= 1500) return "pillar";
-  return "cluster";
+  if (wc >= 2450) return "cornerstone"; // ~2500 ±50
+  if (wc >= 1450) return "pillar";       // ~1500 ±50
+  return "cluster";                      // ~1000–1200 ±50
 }
 
 /** Extract all external links from HTML as a plain list */
@@ -175,11 +175,11 @@ function extractInternalLinks(html: string, siteUrl: string, currentUrl?: string
   return links;
 }
 
-/** Word count targets per article type */
+/** Word count targets per article type (±50 words tolerance built into ranges) */
 const ARTICLE_TYPE_TARGETS: Record<string, { min: number; max: number }> = {
-  cornerstone: { min: 2500, max: 5000 }, // Long-form cornerstone posts (10–20 min reads) are valid up to 5,000 words
-  pillar: { min: 1500, max: 2499 },
-  cluster: { min: 800, max: 1499 },
+  cornerstone: { min: 2450, max: 3250 }, // ~2500–3200 ±50
+  pillar: { min: 1450, max: 1850 },       // ~1500–1800 ±50
+  cluster: { min: 950, max: 1250 },       // ~1000–1200 ±50
 };
 
 /** Compute grade from score */
