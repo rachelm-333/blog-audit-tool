@@ -114,6 +114,11 @@ export async function saveRewriteResult(
       paaQuestion: result.paaQuestion,
       articleType: result.articleType,
       rewriteMode: result.rewriteMode,
+      // CRITICAL: Save the rewrite audit results so retries and the editor
+      // use the latest audit breakdown (not the original pre-rewrite audit)
+      auditResults: result.auditResult as unknown as Record<string, unknown>,
+      auditScore: result.rewriteScore,
+      auditGrade: result.rewriteGrade,
     })
     .where(eq(posts.id, postId));
 }

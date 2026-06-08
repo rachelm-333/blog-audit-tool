@@ -448,7 +448,8 @@ export async function runAiChecks(input: AiAuditInput): Promise<AuditPoint[]> {
   // Pre-extract internal links mechanically for P11 and P12
   const internalLinks = siteUrl ? extractInternalLinks(bodyHtml, siteUrl, input.currentUrl) : [];
   // Categorise: blog links (path contains /blog/, /post/, /article/, /news/) vs other internal (CTA/shop/service)
-  const blogLinkPatterns = /\/blog\/|\/post\/|\/posts\/|\/article\/|\/articles\/|\/news\/|\/insights\//i;
+  // Match blog paths including Wix-style /post/slug (no trailing slash required)
+  const blogLinkPatterns = /\/blog\/|\/post\/|\/posts\/|\/article\/|\/articles\/|\/news\/|\/insights\/|\/post\b/i;
   const ctaLinkPatterns = /\/shop\/|\/store\/|\/product\/|\/product-page\/|\/services\/|\/service\/|\/contact\/|\/contact$|\/book\/|\/booking\/|\/buy\/|\/cart\/|\/checkout\/|\/order\//i;
   const internalBlogLinks = internalLinks.filter(l => blogLinkPatterns.test(l.path));
   const internalCtaLinks = internalLinks.filter(l => ctaLinkPatterns.test(l.path));

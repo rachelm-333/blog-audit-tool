@@ -236,6 +236,17 @@ export const rewriteRouter = router({
       // --- Auto-retry if score < 14 ---
       if (rewriteResult.rewriteScore < 14) {
         try {
+          // CRITICAL: Use the failing points from the FIRST REWRITE result, not the original audit.
+          // The original audit may have different failures than the rewrite output.
+          const retryFailingPoints: string[] = [];
+          if (rewriteResult.auditResult?.points) {
+            for (const p of rewriteResult.auditResult.points) {
+              if (p.status === "fail") {
+                retryFailingPoints.push(`${p.point} — ${p.name}`);
+              }
+            }
+          }
+
           const retryResult = await runFullRewrite({
             post: {
               id: post.id,
@@ -252,7 +263,7 @@ export const rewriteRouter = router({
             },
             businessContext,
             internalLinks,
-            failingPoints,
+            failingPoints: retryFailingPoints.length > 0 ? retryFailingPoints : failingPoints,
             paaQuestion: input.paaQuestion,
             secondaryKeywords,
             rewriteMode: input.rewriteMode,
@@ -425,6 +436,44 @@ export const rewriteRouter = router({
           code: "INTERNAL_SERVER_ERROR",
           message: "Re-run rewrite failed. Your credit has not been refunded.",
         });
+      }
+
+      // Auto-retry once if score < 14, using the failing points from the first attempt
+      if (rewriteResult.rewriteScore < 14) {
+        try {
+          const retryFailingPoints: string[] = [];
+          if (rewriteResult.auditResult?.points) {
+            for (const p of rewriteResult.auditResult.points) {
+              if (p.status === "fail") retryFailingPoints.push(`${p.point} — ${p.name}`);
+            }
+          }
+          const retryResult = await runFullRewrite({
+            post: {
+              id: post.id,
+              title: post.title,
+              bodyOriginal: rewriteResult.bodyRewritten,
+              url: post.url,
+              focusKeyword: post.focusKeyword,
+              metaTitleOriginal: rewriteResult.metaTitleRewritten,
+              metaDescriptionOriginal: rewriteResult.metaDescriptionRewritten,
+              publishDate: post.publishDate,
+              scheduledDate: post.scheduledDate,
+              status: post.status,
+            },
+            businessContext,
+            internalLinks,
+            failingPoints: retryFailingPoints.length > 0 ? retryFailingPoints : failingPoints,
+            paaQuestion: input.paaQuestion,
+            secondaryKeywords,
+            rewriteMode: "full_rewrite",
+          });
+          // Pick the best result
+          if (retryResult.rewriteScore > rewriteResult.rewriteScore) {
+            rewriteResult = retryResult;
+          }
+        } catch {
+          // Retry failed — continue with first result
+        }
       }
 
       await saveRewriteResult(post.id, rewriteResult);

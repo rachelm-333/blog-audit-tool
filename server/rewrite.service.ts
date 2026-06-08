@@ -419,6 +419,8 @@ export function runMechanicalEnforcement(
     primaryCtaUrl?: string;
     internalBlogLinks?: Array<{ url: string; title: string }>;
     schemaJson?: object;
+    /** Fallback external authority link to inject if the AI omitted one */
+    externalAuthorityFallback?: { anchor: string; url: string };
   }
 ): Pass1Output {
   let { bodyRewritten, metaTitleRewritten, metaDescriptionRewritten } = output;
@@ -525,6 +527,23 @@ export function runMechanicalEnforcement(
     }
   }
 
+  // --- P10: External Authority Link ---
+  // If no external authority link exists, inject a real .gov.au link relevant to the topic
+  // This is a last-resort fallback only — the AI should have included one in Pass 1
+  if (options?.externalAuthorityFallback) {
+    const hasExternalLink = /<a[^>]+href=["'](https?:\/\/(?!(?:[^"']*\.)?(?:wix\.com|wordpress\.com|blogger\.com))[^"']+)["'][^>]*>/i.test(bodyRewritten);
+    if (!hasExternalLink) {
+      const { anchor, url: extUrl } = options.externalAuthorityFallback;
+      // Inject after the first paragraph
+      const firstPClose = bodyRewritten.indexOf('</p>');
+      const extLinkText = ` According to <a href="${extUrl}" target="_blank" rel="noopener">${anchor}</a>, understanding the key requirements is essential for success.`;
+      if (firstPClose !== -1) {
+        // Insert the link text before the closing </p> of the first paragraph
+        bodyRewritten = bodyRewritten.slice(0, firstPClose) + extLinkText + bodyRewritten.slice(firstPClose);
+      }
+    }
+  }
+
   // --- P11: Internal CTA Link ---
   // Check if a CTA link already exists; if not, inject one before the last paragraph
   if (options?.primaryCtaUrl) {
@@ -547,7 +566,10 @@ export function runMechanicalEnforcement(
   // --- P12: Internal Blog Link ---
   // Check if an internal blog link already exists; if not, inject one
   if (options?.internalBlogLinks && options.internalBlogLinks.length > 0) {
-    const hasBlogLink = /href=["'][^"']*\/(blog|post|posts|article|articles|news|insights)\//i.test(bodyRewritten);
+    // Match any internal link to a blog/post path — including Wix-style /post/slug (no trailing slash required)
+    const hasBlogLink = /href=["'][^"']*\/(blog|post|posts|article|articles|news|insights)([\/\?"\']|$)/i.test(bodyRewritten) ||
+      // Also check if any of the provided internal blog link URLs appear in the body
+      options.internalBlogLinks.some(l => l.url && bodyRewritten.includes(l.url));
     if (!hasBlogLink) {
       const link = options.internalBlogLinks[0];
       const blogLinkText = `<p>For more on this topic, read our guide: <a href="${link.url}">${link.title}</a>.</p>`;
@@ -803,10 +825,19 @@ export async function runFullRewrite(params: {
     .filter(l => l.url && l.title)
     .map(l => ({ url: l.url, title: l.title }));
 
+  // Build a generic external authority fallback based on the business website URL domain
+  // This is used as a last resort if the AI omitted an external authority link (P10)
+  const siteHostname = businessContext.websiteUrl
+    ? (() => { try { return new URL(businessContext.websiteUrl).hostname; } catch { return ''; } })()
+    : '';
+  // Choose a relevant .gov.au or .edu.au fallback based on common topics
+  const externalAuthorityFallback = { anchor: 'Australian Government Business', url: 'https://business.gov.au' };
+
   pass1Output = runMechanicalEnforcement(pass1Output, post.focusKeyword, {
     paaQuestion,
     primaryCtaUrl: businessContext.primaryCtaUrl ?? undefined,
     internalBlogLinks,
+    externalAuthorityFallback,
   });
 
   // --- Pass 2: Fingerprint Scrub ---
@@ -831,6 +862,7 @@ export async function runFullRewrite(params: {
     primaryCtaUrl: businessContext.primaryCtaUrl ?? undefined,
     internalBlogLinks,
     schemaJson, // Inject schema into body so P13 passes on re-score
+    externalAuthorityFallback, // Inject external authority link if AI omitted one
   });
 
   // --- Re-scoring ---

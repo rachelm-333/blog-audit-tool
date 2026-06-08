@@ -547,3 +547,12 @@
 - [x] currentAuditPoints state initialised from post.auditResults on load, updated on every save
 - [x] saveEdits onSuccess now updates currentAuditPoints from the re-score response
 - [x] Fix saveEdits: now passes business primaryCtaUrl and counts na as passing (already done in previous batch)
+
+## Bug Fixes — Concrete Code Fixes (Rewrite Engine)
+
+- [x] Fix saveRewriteResult to also save auditResults/auditScore/auditGrade so retries and editor use the latest audit breakdown (not the original pre-rewrite audit)
+- [x] Fix retry logic: retry now uses failing points from the FIRST REWRITE result, not the original audit (which has different failures)
+- [x] Fix rerunRewrite procedure: now also auto-retries once if score < 14, using failing points from first attempt
+- [x] Add P10 mechanical enforcement fallback: if AI omitted an external authority link, inject a business.gov.au link as last resort
+- [x] Fix P12 blog link detection: now matches Wix-style /post/slug paths (no trailing slash required) in both audit service and rewrite enforcement
+- [x] Wire externalAuthorityFallback into both enforcement passes (Pass 1 and Pass 2) in runFullRewrite
