@@ -502,3 +502,13 @@
 - [x] Fix P11 (Internal CTA Link): mechanically pre-extract all internal links and pass as a list; broaden CTA detection to include product-page, store, and any non-blog internal link with CTA anchor text
 - [x] Fix P12 (Internal Blog Link): use mechanically pre-extracted internal links list; AI now has the full list to check against
 - [x] Add extractInternalLinks() helper that identifies internal links by domain match or relative path, excludes self-links to current post URL
+
+## Bug Fixes — Rewrite Engine
+
+- [x] Fix critical bug: rewrite engine was returning success:false and showing "credits refunded" without ever displaying the rewritten article
+- [x] Fix: always save and deliver the best rewrite result regardless of score; needsManualReview flag shown as a notice, not a blocker
+- [x] Fix: when retry scores higher than first attempt, pick the best result (not just the retry)
+- [x] Fix: retry catch block now saves first attempt result before refunding
+- [x] Improve Pass 1 prompt: explicit mandatory structure for P9 (opening answer block with exact HTML example), P10 (external authority link with acceptable sources), P11 (CTA link with exact URLs), P12 (internal blog link), P14 (E-E-A-T with 2+ required signals), P15 (banned phrases list)
+- [x] Improve Pass 1 prompt: word count is now marked MANDATORY with instruction to count carefully
+- [x] Improve Pass 1 prompt: Australian English spelling rules explicitly stated

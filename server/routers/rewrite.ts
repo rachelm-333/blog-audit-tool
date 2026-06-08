@@ -258,54 +258,59 @@ export const rewriteRouter = router({
             rewriteMode: input.rewriteMode,
           });
 
-          if (retryResult.rewriteScore >= 13) {
+          // Pick the best result between first attempt and retry
+          const bestResult = retryResult.rewriteScore >= rewriteResult.rewriteScore
+            ? retryResult
+            : rewriteResult;
+
+          if (bestResult.rewriteScore >= 13) {
             // Retry succeeded — save and return
-            await saveRewriteResult(post.id, retryResult);
+            await saveRewriteResult(post.id, bestResult);
+            await setRewriteStatus(post.id, "complete");
             return {
               success: true,
-              rewriteScore: retryResult.rewriteScore,
-              rewriteGrade: retryResult.rewriteGrade,
+              rewriteScore: bestResult.rewriteScore,
+              rewriteGrade: bestResult.rewriteGrade,
               needsManualReview: false,
               retried: true,
             };
           } else {
-            // Both attempts failed — refund credit, set needs_manual_review
+            // Both attempts scored below 13 — still deliver the best version
+            // Refund credit since we didn't hit target, but ALWAYS show the article
             await refundCredit(input.iauditUserId, post.id);
+            await saveRewriteResult(post.id, bestResult);
             await setRewriteStatus(post.id, "needs_manual_review");
-            // Save the best result we have (the retry)
-            await saveRewriteResult(post.id, retryResult);
-            // Status already set to needs_manual_review above
-            // Notify user
             await notifyOwner({
-              title: "iAudit — Rewrite Needs Manual Review",
-              content: `The rewrite for "${post.title}" scored ${retryResult.rewriteScore}/16 after two attempts. Your credit has been refunded. Please review the rewrite manually.`,
+              title: "iAudit — Rewrite Needs Review",
+              content: `The rewrite for "${post.title}" scored ${bestResult.rewriteScore}/16 after two attempts. Credit refunded. The best version has been saved for manual review.`,
             });
             return {
-              success: false,
-              rewriteScore: retryResult.rewriteScore,
-              rewriteGrade: retryResult.rewriteGrade,
+              success: true, // Still true — article IS delivered
+              rewriteScore: bestResult.rewriteScore,
+              rewriteGrade: bestResult.rewriteGrade,
               needsManualReview: true,
               retried: true,
               message:
-                "The rewrite scored below 13/16 after two attempts. Your credit has been refunded. Please review the rewrite manually.",
+                `The rewrite scored ${bestResult.rewriteScore}/16 after two attempts. Your credit has been refunded. The best version is shown below — please review and adjust the highlighted points before publishing.`,
             };
           }
         } catch {
-          // Retry itself threw — refund and set needs_manual_review
+          // Retry itself threw — save the first attempt result and still deliver it
           await refundCredit(input.iauditUserId, post.id);
+          await saveRewriteResult(post.id, rewriteResult);
           await setRewriteStatus(post.id, "needs_manual_review");
           await notifyOwner({
-            title: "iAudit — Rewrite Auto-Retry Failed",
-            content: `The auto-retry for "${post.title}" failed with an error. Credit refunded.`,
+            title: "iAudit — Rewrite Needs Review",
+            content: `The auto-retry for "${post.title}" encountered an error. The first attempt (${rewriteResult.rewriteScore}/16) has been saved. Credit refunded.`,
           });
           return {
-            success: false,
+            success: true, // Article IS delivered — first attempt result
             rewriteScore: rewriteResult.rewriteScore,
             rewriteGrade: rewriteResult.rewriteGrade,
             needsManualReview: true,
             retried: true,
             message:
-              "The rewrite auto-retry failed. Your credit has been refunded. Please try again later.",
+              `The rewrite scored ${rewriteResult.rewriteScore}/16. Your credit has been refunded. The best version is shown below — please review the highlighted points before publishing.`,
           };
         }
       }

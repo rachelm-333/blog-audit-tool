@@ -244,7 +244,15 @@ function buildPass1SystemPrompt(input: Pass1Input): string {
     ? `REWRITE MODE: SMART PATCH\nDo NOT rewrite this post. Keep all existing sentences, paragraphs, and the author's voice intact. Make ONLY the minimum changes required to fix the failing points listed below. Weave the primary keyword and secondary keywords into existing sentences naturally where they are absent. Do NOT add new sections unless a failing point specifically requires one.`
     : `REWRITE MODE: FULL REWRITE\nRewrite the entire post from scratch to pass all 16 points. Preserve the URL, author, publish date, and post status.`;
 
-  return `You are an expert SEO content writer. Your task is to rewrite a blog post to pass the 16-Point Authority Standard.
+  const ctaSection = ctaUrls
+    ? `CTA LINKS TO USE (P11 — you MUST include at least one of these as a hyperlink in the body):\n${ctaUrls.split(', ').map(u => `  - ${u}`).join('\n')}`
+    : 'No CTA URLs provided — link to the homepage or services page.';
+
+  const internalBlogSection = input.internalLinks.length > 0
+    ? `INTERNAL BLOG LINKS (P12 — you MUST include at least one of these as a hyperlink in the body):\n${internalLinksText}`
+    : 'No internal blog posts available yet — skip P12.';
+
+  return `You are an expert SEO content writer producing a fully optimised blog post for an Australian business. Your output MUST pass all 16 points of the Authority Standard below.
 
 BUSINESS CONTEXT:
 - Business: ${input.businessContext.businessName}
@@ -254,44 +262,82 @@ BUSINESS CONTEXT:
 - Target Audience: ${input.businessContext.targetAudience}
 - UVP: ${input.businessContext.uvp}
 - Services: ${input.businessContext.services.map((s) => s.name).join(", ")}
-- CTA URLs: ${ctaUrls}
-${input.businessContext.awardsCredentials ? `- Credentials: ${input.businessContext.awardsCredentials}` : ""}
+${input.businessContext.awardsCredentials ? `- Credentials / Awards: ${input.businessContext.awardsCredentials}` : ""}
 
-INTERNAL LINK MAP (use these for internal blog links and CTA links):
-${internalLinksText}
+${ctaSection}
+
+${internalBlogSection}
 
 ARTICLE TYPE: ${input.articleType.toUpperCase()}
-WORD COUNT TARGET: ${input.wordCountTarget.min}–${input.wordCountTarget.max} words
+WORD COUNT TARGET: ${input.wordCountTarget.min}–${input.wordCountTarget.max} words (MANDATORY — count carefully)
 FOCUS KEYWORD: "${input.focusKeyword}"
-${secondaryKeywordsText ? secondaryKeywordsText + "\n" : ""}PAA QUESTION (use this to structure the opening answer block): "${input.paaQuestion}"
+${secondaryKeywordsText ? secondaryKeywordsText + "\n" : ""}PAA QUESTION: "${input.paaQuestion}"
 
 ${modeInstruction}
 
-16-POINT AUTHORITY STANDARD — ALL MUST PASS:
-P1 — Keyword Density: Focus keyword appears 4+ times. Density between 0.5% and 2.5%.
-P2 — Keyword in H1: Focus keyword or close variant in the H1 heading.
-P3 — Keyword in H2: Focus keyword or close variant in at least one H2 heading.
-P4 — Keyword in H3: Focus keyword or close variant in at least one H3 (if H3s present).
-P5 — Keyword in First 150 Words: Focus keyword appears within the first 150 words.
-P6 — Keyword in URL: (Preserved — do not change the URL.)
-P7 — Meta Title: Present, contains focus keyword, maximum 60 characters.
-P8 — Meta Description: Present, 140–160 characters.
-P9 — Opening Answer Block: Article opens with a 40–60 word direct answer to the PAA question above.
-P10 — External Authority Link: At least one link to a real, credible external source with relevant anchor text.
-P11 — Internal CTA Link: At least one link to a commercial page (use the CTA URLs above).
-P12 — Internal Blog Link: At least one link to another blog post from the internal link map above.
-P13 — Schema Markup: (Generated programmatically — do not add schema in the body.)
-P14 — E-E-A-T Signals: Include specific credentials, data points, years of experience, or case details.
-P15 — Human Authenticity: Write naturally. Avoid hollow phrases like "it's important to note", "in today's world", "dive into", "leverage". Vary sentence rhythm.
-P16 — Article Type Structure: Word count within the target range above. Title must be territory-owning and specific (not generic).
-
 ${failingPointsText}
 
-CRITICAL RULES:
-- Do NOT fabricate statistics, quotes, or external links. If you cannot find a real external source, omit the link entirely.
+═══ MANDATORY STRUCTURE — FOLLOW EXACTLY ═══
+
+[OPENING ANSWER BLOCK — P9 MANDATORY]
+The article body MUST begin with:
+  1. The PAA question above as a <strong> bold paragraph (not the article title)
+  2. Immediately followed by a 40–60 word direct answer paragraph
+Example:
+  <p><strong>${input.paaQuestion}</strong></p>
+  <p>Direct 40-60 word answer here that clearly and concisely answers the question above...</p>
+
+[KEYWORD PLACEMENT — P1, P2, P3, P4, P5 MANDATORY]
+- H1: MUST contain "${input.focusKeyword}" or a close variant
+- At least one H2: MUST contain "${input.focusKeyword}" or a close variant
+- At least one H3: MUST contain "${input.focusKeyword}" or a close variant
+- First 150 words: MUST contain "${input.focusKeyword}"
+- Total occurrences: 4–10 times throughout (0.5%–2.5% density)
+
+[EXTERNAL AUTHORITY LINK — P10 MANDATORY]
+You MUST include at least one hyperlink to a real, credible external source relevant to the topic.
+Acceptable sources: Australian government (.gov.au), universities (.edu.au), industry bodies (e.g. ATO, ASIC, ACCC, Safe Work Australia), or major publications.
+Format: <a href="https://real-url.gov.au" target="_blank" rel="noopener">descriptive anchor text</a>
+Do NOT fabricate URLs. Only use real, publicly accessible sources you are confident exist.
+
+[INTERNAL CTA LINK — P11 MANDATORY]
+You MUST include at least one hyperlink to a CTA/commercial page from the CTA LINKS list above.
+Place it naturally in the body, e.g. at the end of a section or in a closing paragraph.
+Format: <a href="[CTA URL]">descriptive anchor text like 'view our services' or 'get in touch'</a>
+
+[INTERNAL BLOG LINK — P12]
+If internal blog posts are listed above, you MUST include at least one hyperlink to one of them.
+Use descriptive anchor text (not 'click here' or 'read more').
+
+[E-E-A-T SIGNALS — P14 MANDATORY]
+Include at least 2 of these:
+- Specific statistics with source (e.g. "According to the ATO, 60% of small businesses...")
+- Named credentials or years of experience (e.g. "With over 10 years helping Australian founders...")
+- Real-world process steps or case examples (not generic advice)
+- Industry-specific data points
+
+[HUMAN AUTHENTICITY — P15 MANDATORY]
+Write in a natural, direct Australian voice. BANNED PHRASES (never use these):
+"it's important to note", "in today's world", "in today's digital landscape", "dive into",
+"leverage", "game-changer", "seamlessly", "delve", "robust", "comprehensive guide",
+"look no further", "without further ado", "in conclusion", "to summarise",
+"it goes without saying", "at the end of the day", "moving forward".
+Vary sentence length. Mix short punchy sentences with longer explanatory ones.
+
+[META TITLE — P7 MANDATORY]
+- Must contain "${input.focusKeyword}" or a close variant
+- Maximum 60 characters (count carefully)
+- Must be specific and territory-owning (not generic)
+
+[META DESCRIPTION — P8 MANDATORY]
+- Must be between 140 and 160 characters (count carefully)
+- Must include the focus keyword
+- Must be a compelling summary that encourages clicks
+
+═══ CRITICAL RULES ═══
+- Do NOT fabricate statistics, quotes, or external URLs. If unsure, omit the link.
 - Do NOT change the URL, author, publish date, or post status.
-- Preserve all passing points — do not break what is already working.
-- Write in Australian English (use 's' not 'z' for words like 'optimise', 'recognise').
+- Write in Australian English: 'optimise' not 'optimize', 'recognise' not 'recognize', 'organisation' not 'organization'.
 - Return ONLY a JSON object — no prose, no markdown fences outside the JSON.`;
 }
 
