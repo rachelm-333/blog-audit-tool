@@ -502,7 +502,9 @@ function AuditResults({
   const [showRewriteForm, setShowRewriteForm] = useState(false);
   const [rewriteResult, setRewriteResult] = useState<RewriteDelivery | null>(null);
   const [keyword, setKeyword] = useState(focusKeyword ?? "");
+  // Auto-detected keywords are pre-confirmed; only show prompt if truly no keyword at all
   const [keywordConfirmed, setKeywordConfirmed] = useState(!!focusKeyword);
+  const [editingKeyword, setEditingKeyword] = useState(false);
 
   const failingPoints = points.filter((p) => p.status === "fail");
   const passingPoints = points.filter((p) => p.status === "pass");
@@ -529,25 +531,39 @@ function AuditResults({
         </div>
       </div>
 
-      {/* Keyword confirmation (if not found in meta) */}
-      {!keywordConfirmed && (
-        <div className="rounded-xl border border-[#B8860B] bg-[#2A2000] p-4">
-          <div className="text-sm font-semibold text-[#F0A800] mb-2">
-            Focus keyword not found in page meta tags
+      {/* Keyword display — show auto-detected keyword or prompt to enter one */}
+      {keywordConfirmed && !editingKeyword ? (
+        <div className="rounded-xl border border-[#1A4A2A] bg-[#0D2E1E] p-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-xs text-[#22A064] font-semibold uppercase tracking-wide flex-shrink-0">Focus Keyword</span>
+            <span className="text-sm text-white font-medium truncate">{keyword}</span>
+          </div>
+          <button
+            onClick={() => setEditingKeyword(true)}
+            className="text-xs text-[#4A90D9] hover:text-white flex-shrink-0 underline"
+          >
+            Change
+          </button>
+        </div>
+      ) : !keywordConfirmed || editingKeyword ? (
+        <div className="rounded-xl border border-[#2E6DA4] bg-[#0D1B3E] p-4">
+          <div className="text-sm font-semibold text-[#4A90D9] mb-1">
+            {editingKeyword ? "Change focus keyword" : "Set focus keyword for accurate P1–P7 scores"}
           </div>
           <p className="text-xs text-[#8892A4] mb-3">
-            Enter the focus keyword for this post to get accurate scores for P1–P6 (keyword density, headings, URL, etc.).
+            The focus keyword is used to score keyword density, headings, URL, and meta title. Enter the main phrase this post is targeting.
           </p>
           <div className="flex gap-2">
             <Input
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              placeholder="e.g. pool installation sydney"
+              placeholder="e.g. business start up australia"
               className="bg-[#0F0F1A] border-[#2A3560] text-white placeholder:text-[#4A5568] text-sm"
+              autoFocus
             />
             <Button
               size="sm"
-              onClick={() => setKeywordConfirmed(true)}
+              onClick={() => { setKeywordConfirmed(true); setEditingKeyword(false); }}
               disabled={!keyword.trim()}
               className="bg-[#2E6DA4] hover:bg-[#4A90D9] text-white whitespace-nowrap"
             >
@@ -555,7 +571,7 @@ function AuditResults({
             </Button>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Post title */}
       <div className="rounded-xl border border-[#2A3560] bg-[#16213E] p-4">

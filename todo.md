@@ -481,3 +481,12 @@
 - [x] Fix Free Audit page (/audit) — stuck on "Auditing..." for Wix/JS-rendered pages due to Puppeteer timeout; replace with fast HTTP fetch + better error messaging
 - [x] Fix Audit All button disabled — add keyword.bulkSuggest tRPC procedure to AI-suggest keywords for all posts without one; add "Suggest Keywords for All" button to PostList UI
 - [x] Add tooltip/explanation to Audit All button explaining why it requires keywords
+
+## Bug Fixes — Free Audit Scraper (Wix Pages)
+
+- [x] Fix Puppeteer scraper to use networkidle2 instead of networkidle0 (Wix never reaches networkidle0 due to analytics calls)
+- [x] Add DOM-based content extraction using page.evaluate() with priority selectors ([data-hook="post-description"] for Wix, then article, main)
+- [x] Fix keyword auto-extraction from page title when no meta keyword found
+- [x] Update AuditResults UI to show auto-detected keyword as a green confirmed badge (not a scary warning)
+- [x] Add "Change" button to let user override the auto-detected keyword
+- [x] Clean up TypeScript errors from scraper refactor

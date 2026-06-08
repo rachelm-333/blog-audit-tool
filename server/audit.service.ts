@@ -394,7 +394,7 @@ ${bodyHtml.slice(0, 8000)}
 
 Score these 6 points:
 
-P9 - Opening Answer Block: Does the article open with a 40–60 word direct answer to a People Also Ask question? Look for a clear Q&A or direct answer block in the first 2–3 paragraphs.
+P9 - Opening Answer Block: Does the article open with a direct answer block? This means: (1) a question appears near the top of the article (either as a heading, bold text, or standalone line), AND (2) the very next paragraph directly answers that question in 40–80 words. The question is typically a "People Also Ask" style question (e.g. "What is...", "How do...", "Why is..."). The answer paragraph must start with a direct statement that answers the question — not a vague intro. Look in the FIRST 300 words of the article. If a question + direct answer paragraph exists anywhere in the opening section, this PASSES. Be generous: if the article clearly opens with a question followed by a direct answer paragraph, mark it as pass even if the word count is slightly outside 40–80 words.
 
 P10 - External Authority Link: Is there at least one link to a real external authority source (government, university, industry body, major publication) with relevant anchor text? Do NOT count internal links or generic commercial sites.
 
