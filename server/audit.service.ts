@@ -137,7 +137,40 @@ function extractExternalLinks(html: string, siteUrl?: string): string[] {
       } catch { /* ignore malformed URLs */ }
     }
     const anchor = m[2].replace(/<[^>]+>/g, '').trim();
-    links.push(`${anchor} → ${href}`);
+    links.push(`${anchor} \u2192 ${href}`);
+  }
+  return links;
+}
+
+/** Extract all internal links from HTML (same domain as siteUrl, or relative paths) */
+function extractInternalLinks(html: string, siteUrl: string, currentUrl?: string): { anchor: string; href: string; path: string }[] {
+  const links: { anchor: string; href: string; path: string }[] = [];
+  const re = /<a[^>]+href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gi;
+  let siteDomain = '';
+  let currentPath = '';
+  try { siteDomain = new URL(siteUrl).hostname; } catch { /* ignore */ }
+  try { currentPath = new URL(currentUrl ?? '').pathname; } catch { /* ignore */ }
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) {
+    const href = m[1].trim();
+    const anchor = m[2].replace(/<[^>]+>/g, '').trim();
+    if (!anchor) continue;
+    let path = '';
+    if (href.startsWith('/')) {
+      // Relative link — always internal
+      path = href;
+    } else if (href.startsWith('http')) {
+      try {
+        const u = new URL(href);
+        if (u.hostname !== siteDomain && !u.hostname.endsWith('.' + siteDomain)) continue; // external
+        path = u.pathname;
+      } catch { continue; }
+    } else {
+      continue; // skip mailto:, javascript:, etc.
+    }
+    // Skip if it points to the current page
+    if (currentPath && path === currentPath) continue;
+    links.push({ anchor, href, path });
   }
   return links;
 }
@@ -382,7 +415,8 @@ interface AiAuditInput {
   focusKeyword: string | null;
   primaryCtaUrl?: string | null;
   secondaryCtaUrls?: string[];
-  siteUrl?: string; // For P12 internal blog link check
+  siteUrl?: string; // For P11/P12 internal link checks
+  currentUrl?: string; // Full URL of the current post (to exclude self-links)
 }
 
 interface AiAuditOutput {
@@ -411,6 +445,21 @@ export async function runAiChecks(input: AiAuditInput): Promise<AuditPoint[]> {
     ? `External links found in article:\n${externalLinks.slice(0, 20).join('\n')}`
     : "No external links detected in the article HTML.";
 
+  // Pre-extract internal links mechanically for P11 and P12
+  const internalLinks = siteUrl ? extractInternalLinks(bodyHtml, siteUrl, input.currentUrl) : [];
+  // Categorise: blog links (path contains /blog/, /post/, /article/, /news/) vs other internal (CTA/shop/service)
+  const blogLinkPatterns = /\/blog\/|\/post\/|\/posts\/|\/article\/|\/articles\/|\/news\/|\/insights\//i;
+  const ctaLinkPatterns = /\/shop\/|\/store\/|\/product\/|\/product-page\/|\/services\/|\/service\/|\/contact\/|\/contact$|\/book\/|\/booking\/|\/buy\/|\/cart\/|\/checkout\/|\/order\//i;
+  const internalBlogLinks = internalLinks.filter(l => blogLinkPatterns.test(l.path));
+  const internalCtaLinks = internalLinks.filter(l => ctaLinkPatterns.test(l.path));
+  // Any internal link that isn't a blog link is a potential CTA/navigation link
+  const internalNonBlogLinks = internalLinks.filter(l => !blogLinkPatterns.test(l.path));
+
+  const internalLinksText = internalLinks.length > 0
+    ? `Internal links found in article (${internalLinks.length} total):\n` +
+      internalLinks.slice(0, 30).map(l => `  "${l.anchor}" → ${l.href}`).join('\n')
+    : "No internal links detected in the article HTML.";
+
   // Use plain text body (truncated to ~6000 words) for the main AI analysis
   const bodyForAi = bodyText.slice(0, 30000); // ~6000 words of plain text
 
@@ -430,6 +479,8 @@ ${opening500Words}
 
 ${externalLinksText}
 
+${internalLinksText}
+
 FULL ARTICLE (plain text — use this for P14, P15):
 ${bodyForAi}
 
@@ -439,9 +490,9 @@ P9 - Opening Answer Block: Does the article open with a direct answer block? Loo
 
 P10 - External Authority Link: Is there at least one link to a real external authority source (government, university, industry body, major publication) with relevant anchor text? Do NOT count internal links or generic commercial sites.
 
-P11 - Internal CTA Link: Is there at least one link to a commercial page (shop, service, bookings, contact)? ${ctaUrls ? `Known CTA URLs: ${ctaUrls}` : "Look for links to /contact, /services, /book, /shop, or similar commercial pages."}
+P11 - Internal CTA Link: Does the article contain at least one internal link to a commercial/conversion page — such as a shop, product page, service page, contact page, booking page, or any page that drives a business action? ${ctaUrls ? `Known CTA URLs to look for: ${ctaUrls}. ` : ''}The site domain is ${siteUrl || 'unknown'}. IMPORTANT: Use the INTERNAL LINKS list provided above. Any internal link to a non-blog page (e.g. product pages, shop, store, services, contact, booking) counts as a CTA link. If ANY internal link goes to a commercial-sounding page, mark this as PASS. Be generous — if there is a button or link with text like "Get your...", "Buy now", "Shop", "Book", "Contact us", "View product", or any call-to-action wording that links internally, this PASSES.
 
-P12 - Internal Blog Link: Is there at least one link to another blog post on the same site using descriptive anchor text? ${siteUrl ? `The site domain is: ${siteUrl}` : "Look for links to /blog/, /articles/, or similar blog paths on the same domain."}
+P12 - Internal Blog Link: Does the article contain at least one link to another blog post or article on the same site, using descriptive anchor text (not just "click here" or "read more")? The site domain is ${siteUrl || 'unknown'}. Use the INTERNAL LINKS list provided above — look for links to /blog/, /post/, /article/, /news/ paths on the same domain.
 
 P14 - E-E-A-T Signals: Does the article demonstrate experience, expertise, authority, and trust through specific details? Look for: named credentials, specific data points with sources, years of experience, real case studies, or named professionals.
 
@@ -575,6 +626,7 @@ export async function runFullAudit(input: PostAuditInput): Promise<AuditResult> 
     primaryCtaUrl: input.primaryCtaUrl,
     secondaryCtaUrls: input.secondaryCtaUrls,
     siteUrl: input.url ? new URL(input.url).origin : undefined,
+    currentUrl: input.url, // Pass full URL so self-links are excluded from internal link list
   });
 
   // Merge: mechanical order is P1–P8, P13, P16; AI order is P9–P12, P14–P15

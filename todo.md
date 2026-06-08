@@ -499,3 +499,6 @@
 - [x] Fix P16 (Article Type Structure): raise cornerstone ceiling from 3,200 to 5,000 words (13-min reads are valid cornerstone articles)
 - [x] Add Re-audit button (re-runs audit on same URL without clearing results)
 - [x] Add "Audit a different post" / Clear button (clears results and URL, scrolls back to top)
+- [x] Fix P11 (Internal CTA Link): mechanically pre-extract all internal links and pass as a list; broaden CTA detection to include product-page, store, and any non-blog internal link with CTA anchor text
+- [x] Fix P12 (Internal Blog Link): use mechanically pre-extracted internal links list; AI now has the full list to check against
+- [x] Add extractInternalLinks() helper that identifies internal links by domain match or relative path, excludes self-links to current post URL
