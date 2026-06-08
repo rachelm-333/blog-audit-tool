@@ -63,7 +63,7 @@ export interface PostTableRow {
   auditGrade: "optimised" | "strong" | "needs_work" | "poor" | "critical" | null;
   issueCount: number | null;
   cannibalizationFlag: boolean;
-  rewriteStatus: "pending" | "running" | "complete" | "failed" | "needs_manual_review" | null;
+  rewriteStatus: "pending" | "running" | "complete" | "failed" | "needs_manual_review" | "awaiting_review" | "approved" | null;
   publishDate: Date | null;
   scheduledDate: Date | null;
   authorNameCms: string;
@@ -218,6 +218,61 @@ export async function getDashboardStats(
 // ---------------------------------------------------------------------------
 // getPostTableRows
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Review Queue
+// ---------------------------------------------------------------------------
+/** Fetch posts in awaiting_review status for the review queue page */
+export async function getReviewQueuePosts(businessId: string): Promise<Array<{
+  id: string;
+  title: string;
+  url: string;
+  focusKeyword: string | null;
+  status: "published" | "scheduled" | "draft";
+  rewriteStatus: string | null;
+  rewriteScore: number | null;
+  rewriteGrade: string | null;
+  articleType: string | null;
+  rewrittenAt: Date | null;
+  authorNameCms: string;
+}>> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const rows = await db
+    .select({
+      id: posts.id,
+      title: posts.title,
+      url: posts.url,
+      focusKeyword: posts.focusKeyword,
+      status: posts.status,
+      rewriteStatus: posts.rewriteStatus,
+      rewriteScore: posts.rewriteScore,
+      rewriteGrade: posts.rewriteGrade,
+      articleType: posts.articleType,
+      rewrittenAt: posts.rewrittenAt,
+      authorNameCms: posts.authorNameCms,
+    })
+    .from(posts)
+    .where(
+      and(
+        eq(posts.businessId, businessId),
+        eq(posts.rewriteStatus, "awaiting_review")
+      )
+    );
+  return rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    url: r.url,
+    focusKeyword: r.focusKeyword ?? null,
+    status: r.status,
+    rewriteStatus: r.rewriteStatus ?? null,
+    rewriteScore: r.rewriteScore ?? null,
+    rewriteGrade: r.rewriteGrade ?? null,
+    articleType: r.articleType ?? null,
+    rewrittenAt: r.rewrittenAt ?? null,
+    authorNameCms: r.authorNameCms,
+  }));
+}
 
 export async function getPostTableRows(
   businessId: string,

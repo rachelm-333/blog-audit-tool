@@ -41,6 +41,7 @@ import {
   Zap,
   Settings,
   User,
+  ClipboardCheck,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -52,6 +53,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: FileText, label: "Posts", path: "/posts" },
+  { icon: ClipboardCheck, label: "Review Queue", path: "/review-queue" },
   { icon: Settings, label: "Business Setup", path: "/business/setup" },
   { icon: Plug, label: "CMS Connect", path: "/cms/connect" },
   { icon: CreditCard, label: "Credits", path: "/credits" },

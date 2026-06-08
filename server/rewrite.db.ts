@@ -80,7 +80,7 @@ export async function listPostsForBusiness(businessId: string) {
 /** Set rewrite_status */
 export async function setRewriteStatus(
   postId: string,
-  status: "pending" | "running" | "complete" | "failed" | "needs_manual_review"
+  status: "pending" | "running" | "complete" | "failed" | "needs_manual_review" | "awaiting_review" | "approved"
 ) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -109,7 +109,9 @@ export async function saveRewriteResult(
       schemaJson: result.schemaJson as unknown as Record<string, unknown>,
       rewriteScore: result.rewriteScore,
       rewriteGrade: result.rewriteGrade,
-      rewriteStatus: "complete",
+      // If score >= 14, move to awaiting_review queue automatically
+      // If score < 14, keep as complete (needs_manual_review is set by the router if needed)
+      rewriteStatus: result.rewriteScore >= 14 ? "awaiting_review" : "complete",
       rewrittenAt: new Date(),
       paaQuestion: result.paaQuestion,
       articleType: result.articleType,

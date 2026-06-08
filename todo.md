@@ -556,3 +556,30 @@
 - [x] Add P10 mechanical enforcement fallback: if AI omitted an external authority link, inject a business.gov.au link as last resort
 - [x] Fix P12 blog link detection: now matches Wix-style /post/slug paths (no trailing slash required) in both audit service and rewrite enforcement
 - [x] Wire externalAuthorityFallback into both enforcement passes (Pass 1 and Pass 2) in runFullRewrite
+
+## Feature — Review & Edit Redesign + Approval Workflow
+
+- [ ] Fix AI fabrication: extract CTA section and FAQ section from original body before rewrite; pass them as protected zones with instruction to preserve verbatim
+- [ ] Add approval workflow status transitions: awaiting_review → approved → published (DB migration + router procedures)
+- [ ] Add Review Queue page: shows only posts with status awaiting_review, grouped by article type, with Approve/Edit buttons
+- [ ] Redesign ReviewEdit page: three-column layout (post queue left, rendered article centre, editable SEO fields right)
+- [ ] Fix article rendering in centre panel: proper spacing between headings and paragraphs, bold headings visible
+- [ ] Add AI edit window in centre panel: text input where user types an instruction (e.g. "restore original FAQ section") and AI applies targeted edit
+- [ ] Add Approve button in ReviewEdit page that moves post to approved status
+- [ ] Add "Approve All" button on Review Queue page
+- [ ] Post list: add filter tabs for awaiting_review / approved / published / all
+
+## Feature — Approval Workflow & Review Queue
+
+- [x] Fix AI fabrication: add extractProtectedSections() to extract CTA and FAQ sections from original body verbatim
+- [x] Wire protected sections into Pass 1 prompt with PRESERVE VERBATIM instructions
+- [x] Add awaiting_review and approved to rewriteStatus enum in schema.ts
+- [x] Apply migration for new rewrite_status enum values
+- [x] saveRewriteResult now sets rewriteStatus to awaiting_review when score >= 14 (auto-queues for review)
+- [x] Add getReviewQueuePosts() to dashboard.db.ts
+- [x] Add getReviewQueue and approvePost tRPC procedures to dashboard router
+- [x] Create ReviewQueue page (ReviewQueue.tsx): three-column layout with post list left, article info centre, SEO details right
+- [x] Posts grouped by article type (Cornerstone, Pillar, Cluster) in the left panel
+- [x] Approve All button and individual Approve + Edit in Editor buttons
+- [x] Add Review Queue link to sidebar navigation (ClipboardCheck icon)
+- [x] Add /review-queue route to App.tsx

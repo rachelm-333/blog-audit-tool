@@ -1,0 +1,1 @@
+ALTER TABLE `posts` MODIFY COLUMN `rewrite_status` enum('pending','running','complete','failed','needs_manual_review','awaiting_review','approved');

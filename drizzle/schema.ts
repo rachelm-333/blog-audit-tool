@@ -237,6 +237,8 @@ export const posts = mysqlTable(
       "complete",
       "failed",
       "needs_manual_review",
+      "awaiting_review",
+      "approved",
     ]),
     rewrittenAt: timestamp("rewritten_at"),
     rewriteScore: int("rewrite_score"), // Score after rewrite

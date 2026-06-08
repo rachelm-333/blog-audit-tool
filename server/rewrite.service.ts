@@ -56,6 +56,10 @@ export interface Pass1Input {
   metaTitleOriginal: string | null;
   metaDescriptionOriginal: string | null;
   rewriteMode: "full_rewrite" | "smart_patch";
+  /** Extracted CTA section from original post — must be preserved verbatim */
+  originalCtaSection?: string | null;
+  /** Extracted FAQ section from original post — must be preserved verbatim */
+  originalFaqSection?: string | null;
 }
 
 export interface Pass1Output {
@@ -340,6 +344,8 @@ Vary sentence length. Mix short punchy sentences with longer explanatory ones.
 - Write in Australian English: 'optimise' not 'optimize', 'recognise' not 'recognize', 'organisation' not 'organization'.
 - PRESERVE ALL IMAGES: If the original post contains <img> tags, you MUST include them in the rewritten body at a natural position (e.g. after the first H2 or relevant section). Do NOT remove or alter any <img> tags.
 - ADD SPACING: Place a blank line (empty <p></p> or line break) between every heading and every paragraph for clean visual spacing when pasted into a CMS.
+${input.originalCtaSection ? `- PRESERVE CTA SECTION VERBATIM: The original post has a "What you can do next" or call-to-action section. You MUST include this section EXACTLY as written below — do NOT alter product names, service descriptions, links, or pricing. Copy it word-for-word into the rewritten body near the end:\n\n${input.originalCtaSection}\n` : ''}
+${input.originalFaqSection ? `- PRESERVE FAQ SECTION VERBATIM: The original post has a Frequently Asked Questions section. You MUST include this section EXACTLY as written below — do NOT alter any questions, answers, or facts:\n\n${input.originalFaqSection}\n` : ''}
 - Return ONLY a JSON object — no prose, no markdown fences outside the JSON.`;
 }
 
@@ -768,6 +774,80 @@ export function generateSchema(params: {
 }
 
 // ---------------------------------------------------------------------------
+// Protected Section Extraction
+// ---------------------------------------------------------------------------
+/**
+ * Extract sections from the original HTML that must be preserved verbatim:
+ * - CTA / "What you can do next" sections
+ * - FAQ / Frequently Asked Questions sections
+ * Returns null if the section is not found.
+ */
+export function extractProtectedSections(bodyHtml: string): {
+  ctaSection: string | null;
+  faqSection: string | null;
+} {
+  const lower = bodyHtml.toLowerCase();
+
+  // --- CTA section detection ---
+  // Look for headings containing CTA-like phrases
+  const ctaHeadingPatterns = [
+    /what you can do next/i,
+    /call to action/i,
+    /next steps?/i,
+    /ready to (get started|take the next step|begin)/i,
+    /get started/i,
+    /contact us/i,
+    /how (we can help|to get started)/i,
+  ];
+
+  let ctaSection: string | null = null;
+  for (const pattern of ctaHeadingPatterns) {
+    // Find the heading tag that matches
+    const headingMatch = bodyHtml.match(
+      new RegExp(`<h[2-4][^>]*>[^<]*${pattern.source}[^<]*<\/h[2-4]>`, 'i')
+    );
+    if (headingMatch && headingMatch.index !== undefined) {
+      // Extract from the heading to the next heading of same or higher level, or end of body
+      const startIdx = headingMatch.index;
+      const afterHeading = bodyHtml.slice(startIdx + headingMatch[0].length);
+      const nextHeadingMatch = afterHeading.match(/<h[2-4][^>]*>/i);
+      const endIdx = nextHeadingMatch && nextHeadingMatch.index !== undefined
+        ? startIdx + headingMatch[0].length + nextHeadingMatch.index
+        : bodyHtml.length;
+      ctaSection = bodyHtml.slice(startIdx, endIdx).trim();
+      break;
+    }
+  }
+
+  // --- FAQ section detection ---
+  const faqHeadingPatterns = [
+    /frequently asked questions/i,
+    /faqs?/i,
+    /common questions/i,
+    /questions (and answers|people ask)/i,
+  ];
+
+  let faqSection: string | null = null;
+  for (const pattern of faqHeadingPatterns) {
+    const headingMatch = bodyHtml.match(
+      new RegExp(`<h[2-4][^>]*>[^<]*${pattern.source}[^<]*<\/h[2-4]>`, 'i')
+    );
+    if (headingMatch && headingMatch.index !== undefined) {
+      const startIdx = headingMatch.index;
+      const afterHeading = bodyHtml.slice(startIdx + headingMatch[0].length);
+      const nextHeadingMatch = afterHeading.match(/<h[2-4][^>]*>/i);
+      const endIdx = nextHeadingMatch && nextHeadingMatch.index !== undefined
+        ? startIdx + headingMatch[0].length + nextHeadingMatch.index
+        : bodyHtml.length;
+      faqSection = bodyHtml.slice(startIdx, endIdx).trim();
+      break;
+    }
+  }
+
+  return { ctaSection, faqSection };
+}
+
+// ---------------------------------------------------------------------------
 // Full Rewrite Pipeline
 // ---------------------------------------------------------------------------
 /**
@@ -799,6 +879,10 @@ export async function runFullRewrite(params: {
   const articleType = inferArticleType(post.bodyOriginal);
   const wordCountTarget = ARTICLE_TYPE_TARGETS[articleType];
 
+  // --- Extract protected sections (CTA, FAQ) from original body ---
+  // These will be passed to Pass 1 and must be preserved verbatim to prevent AI fabrication
+  const { ctaSection, faqSection } = extractProtectedSections(post.bodyOriginal);
+
   // --- Pass 1: Full rewrite or Smart Patch ---
   const pass1Input: Pass1Input = {
     title: post.title,
@@ -815,6 +899,8 @@ export async function runFullRewrite(params: {
     url: post.url,
     metaTitleOriginal: post.metaTitleOriginal,
     metaDescriptionOriginal: post.metaDescriptionOriginal,
+    originalCtaSection: ctaSection,
+    originalFaqSection: faqSection,
   };
 
   let pass1Output = await runPass1Rewrite(pass1Input);

@@ -14,7 +14,7 @@ import { TRPCError } from "@trpc/server";
 import { publicProcedure, router } from "../_core/trpc";
 import { getBusinessesByUserId, getBusinessById } from "../businesses.db";
 import { getCmsConnectionsByBusinessId } from "../cms.db";
-import { getDashboardStats, getPostTableRows } from "../dashboard.db";
+import { getDashboardStats, getPostTableRows, getReviewQueuePosts } from "../dashboard.db";
 import { getCreditsRemaining } from "../rewrite.db";
 
 // ---------------------------------------------------------------------------
@@ -131,6 +131,40 @@ export const dashboardRouter = router({
       );
 
       return { rows };
+    }),
+
+  /**
+   * getReviewQueue — returns all posts in awaiting_review status for the review queue page.
+   */
+  getReviewQueue: publicProcedure
+    .input(
+      z.object({
+        iauditUserId: z.string().min(1),
+        businessId: z.string().min(1),
+      })
+    )
+    .query(async ({ input }) => {
+      await assertBusinessOwnership(input.businessId, input.iauditUserId);
+      const posts = await getReviewQueuePosts(input.businessId);
+      return { posts };
+    }),
+
+  /**
+   * approvePost — moves a post from awaiting_review to approved status.
+   */
+  approvePost: publicProcedure
+    .input(
+      z.object({
+        iauditUserId: z.string().min(1),
+        businessId: z.string().min(1),
+        postId: z.string().min(1),
+      })
+    )
+    .mutation(async ({ input }) => {
+      await assertBusinessOwnership(input.businessId, input.iauditUserId);
+      const { setRewriteStatus } = await import("../rewrite.db");
+      await setRewriteStatus(input.postId, "approved");
+      return { success: true };
     }),
 
   /**
