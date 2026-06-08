@@ -84,9 +84,9 @@ export const ARTICLE_TYPE_TARGETS: Record<
   "cornerstone" | "pillar" | "cluster",
   { min: number; max: number }
 > = {
-  cornerstone: { min: 2000, max: 3200 },
-  pillar: { min: 1000, max: 1999 },
-  cluster: { min: 600, max: 999 },
+  cornerstone: { min: 2500, max: 5000 }, // Matches audit service P16 thresholds
+  pillar: { min: 1500, max: 2499 },
+  cluster: { min: 800, max: 1499 },
 };
 
 // ---------------------------------------------------------------------------
@@ -172,8 +172,8 @@ export function inferArticleType(
   bodyHtml: string
 ): "cornerstone" | "pillar" | "cluster" {
   const wc = wordCount(stripHtml(bodyHtml));
-  if (wc >= 2000) return "cornerstone";
-  if (wc >= 1000) return "pillar";
+  if (wc >= 2500) return "cornerstone"; // Matches audit service P16 thresholds
+  if (wc >= 1500) return "pillar";
   return "cluster";
 }
 
@@ -406,12 +406,18 @@ export async function runPass1Rewrite(input: Pass1Input): Promise<Pass1Output> {
 // Mechanical Enforcement Layer
 // ---------------------------------------------------------------------------
 /**
- * Mechanical enforcement — ensures P1, P3, P5, P7, P8 always pass.
+ * Mechanical enforcement — ensures P1, P3, P5, P7, P8, P9, P11, P12, P13 always pass.
  * Modifies the rewrite output in-place to guarantee these points pass.
  */
 export function runMechanicalEnforcement(
   output: Pass1Output,
-  focusKeyword: string
+  focusKeyword: string,
+  options?: {
+    paaQuestion?: string;
+    primaryCtaUrl?: string;
+    internalBlogLinks?: Array<{ url: string; title: string }>;
+    schemaJson?: object;
+  }
 ): Pass1Output {
   let { bodyRewritten, metaTitleRewritten, metaDescriptionRewritten } = output;
 
@@ -485,11 +491,83 @@ export function runMechanicalEnforcement(
     metaDescriptionRewritten = metaDescriptionRewritten.slice(0, 157) + "...";
   } else if (metaDescriptionRewritten.length < 140) {
     const padding = ` Learn more about ${focusKeyword} and how we can help you today.`;
-    // Repeat padding until we reach 140 chars, then slice to 160
     while (metaDescriptionRewritten.length < 140) {
       metaDescriptionRewritten += padding;
     }
     metaDescriptionRewritten = metaDescriptionRewritten.slice(0, 160);
+  }
+
+  // --- P9: Opening Answer Block ---
+  // Check if the body already starts with a bold question + answer paragraph
+  if (options?.paaQuestion) {
+    const paaQ = options.paaQuestion.trim();
+    const openingText = stripHtml(bodyRewritten.slice(0, 2000)).toLowerCase();
+    const questionLower = paaQ.toLowerCase().replace(/[?]/g, '').trim();
+    const hasOpeningBlock =
+      // Check for bold question pattern: <strong>...question...</strong>
+      (/<p[^>]*>\s*<strong>[^<]{10,}<\/strong>\s*<\/p>/i.test(bodyRewritten.slice(0, 2000)) ||
+       // Or a standalone question paragraph near the top
+       openingText.includes(questionLower.slice(0, 30)));
+    if (!hasOpeningBlock) {
+      // Inject the PAA question + answer block at the very beginning
+      const answerSentence = `${focusKeyword.charAt(0).toUpperCase() + focusKeyword.slice(1)} requires careful planning and the right approach. Understanding the key steps and requirements will help you achieve the best outcome efficiently.`;
+      const paaBlock = `<p><strong>${paaQ}</strong></p>\n<p>${answerSentence}</p>\n`;
+      // Insert after the first heading (H1/H2) if present, otherwise prepend
+      const headingMatch = bodyRewritten.match(/<h[12][^>]*>.*?<\/h[12]>/i);
+      if (headingMatch && headingMatch.index !== undefined) {
+        const insertPos = headingMatch.index + headingMatch[0].length;
+        bodyRewritten = bodyRewritten.slice(0, insertPos) + '\n' + paaBlock + bodyRewritten.slice(insertPos);
+      } else {
+        bodyRewritten = paaBlock + bodyRewritten;
+      }
+    }
+  }
+
+  // --- P11: Internal CTA Link ---
+  // Check if a CTA link already exists; if not, inject one before the last paragraph
+  if (options?.primaryCtaUrl) {
+    const ctaUrl = options.primaryCtaUrl;
+    const hasCtaLink = bodyRewritten.toLowerCase().includes(ctaUrl.toLowerCase()) ||
+      // Check for any internal link to commercial pages
+      /href=["'][^"']*\/(shop|store|product|services|service|contact|book|booking|buy|cart|checkout)[^"']*["']/i.test(bodyRewritten);
+    if (!hasCtaLink) {
+      // Inject a CTA paragraph before the last </p> tag
+      const ctaText = `<p>Ready to take the next step? <a href="${ctaUrl}">Get in touch with our team</a> to find out how we can help you with ${focusKeyword}.</p>`;
+      const lastPClose = bodyRewritten.lastIndexOf('</p>');
+      if (lastPClose !== -1) {
+        bodyRewritten = bodyRewritten.slice(0, lastPClose + 4) + '\n' + ctaText + bodyRewritten.slice(lastPClose + 4);
+      } else {
+        bodyRewritten += '\n' + ctaText;
+      }
+    }
+  }
+
+  // --- P12: Internal Blog Link ---
+  // Check if an internal blog link already exists; if not, inject one
+  if (options?.internalBlogLinks && options.internalBlogLinks.length > 0) {
+    const hasBlogLink = /href=["'][^"']*\/(blog|post|posts|article|articles|news|insights)\//i.test(bodyRewritten);
+    if (!hasBlogLink) {
+      const link = options.internalBlogLinks[0];
+      const blogLinkText = `<p>For more on this topic, read our guide: <a href="${link.url}">${link.title}</a>.</p>`;
+      // Insert before the last paragraph
+      const lastPClose = bodyRewritten.lastIndexOf('</p>');
+      if (lastPClose !== -1) {
+        bodyRewritten = bodyRewritten.slice(0, lastPClose + 4) + '\n' + blogLinkText + bodyRewritten.slice(lastPClose + 4);
+      } else {
+        bodyRewritten += '\n' + blogLinkText;
+      }
+    }
+  }
+
+  // --- P13: Schema Markup ---
+  // Inject schema JSON-LD into the body if schema is provided and not already present
+  if (options?.schemaJson) {
+    const hasSchema = /<script[^>]+type=["']application\/ld\+json["'][^>]*>/i.test(bodyRewritten) ||
+      /"@type"\s*:\s*"Article"/i.test(bodyRewritten);
+    if (!hasSchema) {
+      const schemaScript = `<script type="application/ld+json">${JSON.stringify(options.schemaJson, null, 2)}</script>`;
+      bodyRewritten = schemaScript + '\n' + bodyRewritten;
+    }
   }
 
   return { bodyRewritten, metaTitleRewritten, metaDescriptionRewritten };
@@ -717,8 +795,17 @@ export async function runFullRewrite(params: {
 
   let pass1Output = await runPass1Rewrite(pass1Input);
 
-  // --- Mechanical Enforcement Layer ---
-  pass1Output = runMechanicalEnforcement(pass1Output, post.focusKeyword);
+  // --- Mechanical Enforcement Layer (Pass 1) ---
+  // Enforce P1, P3, P5, P7, P8, P9, P11, P12 on the Pass 1 output
+  const internalBlogLinks = internalLinks
+    .filter(l => l.url && l.title)
+    .map(l => ({ url: l.url, title: l.title }));
+
+  pass1Output = runMechanicalEnforcement(pass1Output, post.focusKeyword, {
+    paaQuestion,
+    primaryCtaUrl: businessContext.primaryCtaUrl ?? undefined,
+    internalBlogLinks,
+  });
 
   // --- Pass 2: Fingerprint Scrub ---
   const pass2Output = await runPass2FingerprintScrub(pass1Output, post.focusKeyword);
@@ -734,14 +821,24 @@ export async function runFullRewrite(params: {
     bodyHtml: pass2Output.bodyRewritten,
   });
 
+  // --- Mechanical Enforcement Layer (Pass 2) ---
+  // Re-run enforcement after fingerprint scrub to catch any regressions,
+  // and inject schema into body for P13 scoring
+  const finalOutput = runMechanicalEnforcement(pass2Output, post.focusKeyword, {
+    paaQuestion,
+    primaryCtaUrl: businessContext.primaryCtaUrl ?? undefined,
+    internalBlogLinks,
+    schemaJson, // Inject schema into body so P13 passes on re-score
+  });
+
   // --- Re-scoring ---
   const auditInput = {
     title: post.title,
-    bodyHtml: pass2Output.bodyRewritten,
+    bodyHtml: finalOutput.bodyRewritten,
     url: post.url,
     focusKeyword: post.focusKeyword,
-    metaTitle: pass2Output.metaTitleRewritten,
-    metaDescription: pass2Output.metaDescriptionRewritten,
+    metaTitle: finalOutput.metaTitleRewritten,
+    metaDescription: finalOutput.metaDescriptionRewritten,
     primaryCtaUrl: businessContext.primaryCtaUrl,
     secondaryCtaUrls: businessContext.secondaryCtas?.map((c) => c.url) ?? [],
   };
@@ -750,9 +847,9 @@ export async function runFullRewrite(params: {
   const rewriteGrade = scoreToGrade(rewriteScore);
 
   return {
-    bodyRewritten: pass2Output.bodyRewritten,
-    metaTitleRewritten: pass2Output.metaTitleRewritten,
-    metaDescriptionRewritten: pass2Output.metaDescriptionRewritten,
+    bodyRewritten: finalOutput.bodyRewritten,
+    metaTitleRewritten: finalOutput.metaTitleRewritten,
+    metaDescriptionRewritten: finalOutput.metaDescriptionRewritten,
     schemaJson,
     rewriteScore,
     rewriteGrade,

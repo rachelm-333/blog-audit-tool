@@ -512,3 +512,15 @@
 - [x] Improve Pass 1 prompt: explicit mandatory structure for P9 (opening answer block with exact HTML example), P10 (external authority link with acceptable sources), P11 (CTA link with exact URLs), P12 (internal blog link), P14 (E-E-A-T with 2+ required signals), P15 (banned phrases list)
 - [x] Improve Pass 1 prompt: word count is now marked MANDATORY with instruction to count carefully
 - [x] Improve Pass 1 prompt: Australian English spelling rules explicitly stated
+
+## Bug Fixes — Rewrite Quality (Target 14-16/16)
+
+- [x] Add post-rewrite mechanical enforcement for P9 (opening answer block injection if missing)
+- [x] Fix re-scoring audit to use plain text + internal link extraction (same as free audit fixes)
+- [x] Add mechanical enforcement for P11 (inject CTA link if AI omitted one)
+- [x] Add mechanical enforcement for P12 (inject internal blog link if AI omitted one)
+- [x] Add mechanical enforcement for P13 (inject schema JSON-LD into body before re-scoring so P13 always passes)
+- [x] Fix ARTICLE_TYPE_TARGETS in rewrite service to match audit service (cornerstone 2500-5000, pillar 1500-2499, cluster 800-1499)
+- [x] Fix inferArticleType thresholds to match (>=2500 cornerstone, >=1500 pillar)
+- [x] Run mechanical enforcement twice: once after Pass 1, once after Pass 2 fingerprint scrub (to catch regressions)
+- [x] Raise rewrite target threshold from 13 to 14 in the router

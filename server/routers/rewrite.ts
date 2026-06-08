@@ -233,8 +233,8 @@ export const rewriteRouter = router({
         });
       }
 
-      // --- Auto-retry if score < 13 ---
-      if (rewriteResult.rewriteScore < 13) {
+      // --- Auto-retry if score < 14 ---
+      if (rewriteResult.rewriteScore < 14) {
         try {
           const retryResult = await runFullRewrite({
             post: {
@@ -263,7 +263,7 @@ export const rewriteRouter = router({
             ? retryResult
             : rewriteResult;
 
-          if (bestResult.rewriteScore >= 13) {
+          if (bestResult.rewriteScore >= 14) {
             // Retry succeeded — save and return
             await saveRewriteResult(post.id, bestResult);
             await setRewriteStatus(post.id, "complete");
@@ -275,7 +275,7 @@ export const rewriteRouter = router({
               retried: true,
             };
           } else {
-            // Both attempts scored below 13 — still deliver the best version
+            // Both attempts scored below 14 — still deliver the best version
             // Refund credit since we didn't hit target, but ALWAYS show the article
             await refundCredit(input.iauditUserId, post.id);
             await saveRewriteResult(post.id, bestResult);
