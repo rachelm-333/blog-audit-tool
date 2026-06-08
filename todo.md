@@ -537,3 +537,13 @@
 - [x] Fix saveEdits re-scoring: now passes business primaryCtaUrl so P11 scores correctly
 - [x] Fix saveEdits score counting: now counts pass + na (not just pass) to match audit service semantics
 - [x] Add paaQuestion and articleType to getPostForReview query so review page can access them
+
+## Feature — Editor Sidebar SEO Breakdown
+
+- [x] Add SeoScorePanel component to ReviewEdit sidebar: shows all 16 points with pass/fail/unable-to-score grouped sections
+- [x] Failing points shown first in red with the exact reason (note field) so user knows what to fix
+- [x] Passing points shown in green (collapsible, expanded by default)
+- [x] Panel collapses/expands via "Point Breakdown" toggle button
+- [x] currentAuditPoints state initialised from post.auditResults on load, updated on every save
+- [x] saveEdits onSuccess now updates currentAuditPoints from the re-score response
+- [x] Fix saveEdits: now passes business primaryCtaUrl and counts na as passing (already done in previous batch)

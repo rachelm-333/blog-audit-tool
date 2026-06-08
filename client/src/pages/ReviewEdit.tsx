@@ -266,6 +266,155 @@ function ScoreComparison({
 }
 
 // ---------------------------------------------------------------------------
+// SeoScorePanel — full 16-point breakdown in the sidebar
+// ---------------------------------------------------------------------------
+type AuditPoint = { point: string; name: string; status: string; note: string };
+
+function SeoScorePanel({
+  currentScore,
+  currentGrade,
+  auditScore,
+  auditGrade,
+  rewriteScore,
+  rewriteGrade,
+  auditPoints,
+}: {
+  currentScore: number | null;
+  currentGrade: string | null;
+  auditScore: number | null;
+  auditGrade: string | null;
+  rewriteScore: number | null;
+  rewriteGrade: string | null;
+  auditPoints: AuditPoint[];
+}) {
+  const [expanded, setExpanded] = useState(true);
+  const failing = auditPoints.filter((p) => p.status === "fail");
+  const unscored = auditPoints.filter((p) => p.status === "unable_to_score");
+  const passing = auditPoints.filter(
+    (p) => p.status === "pass" || p.status === "na"
+  );
+
+  return (
+    <div className="bg-card border border-border rounded-lg overflow-hidden">
+      {/* Score header */}
+      <div className="p-4 space-y-3">
+        <div className="text-sm font-semibold text-foreground">SEO Score</div>
+        {currentScore !== null && currentGrade ? (
+          <GradeBadge grade={currentGrade} score={currentScore} />
+        ) : (
+          <span className="text-xs text-muted-foreground">Save to run re-score</span>
+        )}
+        <Separator />
+        <ScoreComparison
+          auditScore={auditScore}
+          auditGrade={auditGrade}
+          rewriteScore={rewriteScore}
+          rewriteGrade={rewriteGrade}
+        />
+      </div>
+
+      {/* 16-point breakdown */}
+      {auditPoints.length > 0 && (
+        <div className="border-t border-border">
+          <button
+            className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+            onClick={() => setExpanded((v) => !v)}
+          >
+            <span>Point Breakdown ({auditPoints.length})</span>
+            <ChevronRight
+              size={14}
+              className={`transition-transform ${expanded ? "rotate-90" : ""}`}
+            />
+          </button>
+
+          {expanded && (
+            <div className="px-3 pb-3 space-y-2">
+              {/* Failing */}
+              {failing.length > 0 && (
+                <div>
+                  <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 mt-1">
+                    Failing ({failing.length})
+                  </div>
+                  <div className="space-y-1.5">
+                    {failing.map((p) => (
+                      <div
+                        key={p.point}
+                        className="flex items-start gap-2 bg-red-500/5 border border-red-500/20 rounded-lg px-2.5 py-2"
+                      >
+                        <XCircle size={12} className="text-red-400 shrink-0 mt-0.5" />
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold text-foreground leading-tight">
+                            {p.point} — {p.name}
+                          </div>
+                          {p.note && (
+                            <div className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
+                              {p.note}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Unable to score */}
+              {unscored.length > 0 && (
+                <div>
+                  <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 mt-1">
+                    Unable to Score ({unscored.length})
+                  </div>
+                  <div className="space-y-1.5">
+                    {unscored.map((p) => (
+                      <div
+                        key={p.point}
+                        className="flex items-start gap-2 bg-amber-500/5 border border-amber-500/20 rounded-lg px-2.5 py-2"
+                      >
+                        <AlertTriangle size={12} className="text-amber-400 shrink-0 mt-0.5" />
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold text-foreground leading-tight">
+                            {p.point} — {p.name}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Passing */}
+              {passing.length > 0 && (
+                <div>
+                  <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 mt-1">
+                    Passing ({passing.length})
+                  </div>
+                  <div className="space-y-1">
+                    {passing.map((p) => (
+                      <div
+                        key={p.point}
+                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-emerald-500/5 border border-emerald-500/15"
+                      >
+                        <CheckCircle2 size={12} className="text-emerald-400 shrink-0" />
+                        <div className="text-xs text-foreground leading-tight">
+                          {p.point} — {p.name}
+                          {p.status === "na" && (
+                            <span className="text-muted-foreground font-normal ml-1">(N/A)</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // TipTap toolbar
 // ---------------------------------------------------------------------------
 function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
@@ -636,6 +785,7 @@ export default function ReviewEdit() {
   >("idle");
   const [currentScore, setCurrentScore] = useState<number | null>(null);
   const [currentGrade, setCurrentGrade] = useState<string | null>(null);
+  const [currentAuditPoints, setCurrentAuditPoints] = useState<Array<{ point: string; name: string; status: string; note: string }>>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [approving, setApproving] = useState(false);
   // ----- Keyword editing state -----
@@ -699,6 +849,9 @@ export default function ReviewEdit() {
     setImageAlts(alts.map((_, i) => storedAlts[i] ?? alts[i] ?? ""));
     setCurrentScore(post.rewriteScore ?? post.auditScore ?? null);
     setCurrentGrade(post.rewriteGrade ?? post.auditGrade ?? null);
+    // Initialise audit points from stored rewrite results (prefer rewrite audit over original audit)
+    const storedPoints = (post.auditResults as { points?: Array<{ point: string; name: string; status: string; note: string }> } | null)?.points ?? [];
+    setCurrentAuditPoints(storedPoints);
     setKeywordDraft(post.focusKeyword ?? "");
     setSecondaryKeywordsDraft(
       Array.isArray(post.secondaryKeywords)
@@ -715,6 +868,7 @@ export default function ReviewEdit() {
       setCurrentScore(data.score);
       setCurrentGrade(data.grade);
       setWarnings(data.warnings);
+      if (data.points) setCurrentAuditPoints(data.points as Array<{ point: string; name: string; status: string; note: string }>);
       if (data.warnings.length > 0) {
         toast.warning(
           `${data.warnings.length} point${data.warnings.length > 1 ? "s" : ""} regressed after your edit.`
@@ -1168,26 +1322,16 @@ ${editor.getHTML()}
 
         {/* Right: sidebar */}
         <div className="space-y-5">
-          {/* Score panel */}
-          <div className="bg-card border border-border rounded-lg p-4 space-y-3">
-            <div className="text-sm font-semibold text-foreground">
-              SEO Score
-            </div>
-            {currentScore !== null && currentGrade ? (
-              <GradeBadge grade={currentGrade} score={currentScore} />
-            ) : (
-              <span className="text-xs text-muted-foreground">
-                Save to run re-score
-              </span>
-            )}
-            <Separator />
-            <ScoreComparison
-              auditScore={post.auditScore ?? null}
-              auditGrade={post.auditGrade ?? null}
-              rewriteScore={post.rewriteScore ?? null}
-              rewriteGrade={post.rewriteGrade ?? null}
-            />
-          </div>
+          {/* Score panel — full 16-point breakdown */}
+          <SeoScorePanel
+            currentScore={currentScore}
+            currentGrade={currentGrade}
+            auditScore={post.auditScore ?? null}
+            auditGrade={post.auditGrade ?? null}
+            rewriteScore={post.rewriteScore ?? null}
+            rewriteGrade={post.rewriteGrade ?? null}
+            auditPoints={currentAuditPoints}
+          />
 
           {/* Post metadata (read-only) */}
           <div className="bg-card border border-border rounded-lg p-4 space-y-3">
