@@ -92,14 +92,49 @@ export const reviewRouter = router({
         });
       }
 
+      // Detect whether the user actually changed anything
+      const prevBody = post.bodyApproved ?? post.bodyRewritten ?? "";
+      const prevMetaTitle = post.metaTitleRewritten ?? "";
+      const prevMetaDesc = post.metaDescriptionRewritten ?? "";
+      const contentChanged =
+        input.bodyApproved !== prevBody ||
+        input.metaTitleRewritten !== prevMetaTitle ||
+        input.metaDescriptionRewritten !== prevMetaDesc;
+
+      // If nothing changed, skip re-score and return the stored audit results
+      if (!contentChanged) {
+        await saveApprovedContent(input.postId, {
+          bodyApproved: input.bodyApproved,
+          metaTitleRewritten: input.metaTitleRewritten,
+          metaDescriptionRewritten: input.metaDescriptionRewritten,
+          bodyImageAlts: input.bodyImageAlts,
+          // Do NOT update score/grade/auditResults — nothing changed
+        });
+        const storedResults = post.auditResults as
+          | { points: Array<{ point: string; status: string; note?: string }>; potentialScore?: number }
+          | null;
+        return {
+          score: post.rewriteScore ?? 0,
+          grade: post.rewriteGrade ?? "poor",
+          points: storedResults?.points ?? [],
+          warnings: [],
+        };
+      }
+
       // Load business context for accurate CTA link scoring
       const business = await getBusinessById(post.businessId);
       const primaryCtaUrl = business?.primaryCtaUrl ?? null;
 
+      // Inject schemaJson into body before re-scoring so P13 can detect it
+      let bodyForScoring = input.bodyApproved;
+      if (post.schemaJson && !bodyForScoring.includes('application/ld+json')) {
+        bodyForScoring = `<script type="application/ld+json">${post.schemaJson}</script>\n${bodyForScoring}`;
+      }
+
       // Run re-score against the saved content
       const auditResult = await runFullAudit({
         title: post.title,
-        bodyHtml: input.bodyApproved,
+        bodyHtml: bodyForScoring,
         focusKeyword: post.focusKeyword,
         url: post.url,
         metaTitle: input.metaTitleRewritten,

@@ -151,7 +151,9 @@ function MetaTitleField({
   onChange: (v: string) => void;
 }) {
   const len = value.length;
+  const isGood = len >= 50 && len <= 60;
   const isOver = len > 60;
+  const isShort = len > 0 && len < 50;
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between">
@@ -160,16 +162,35 @@ function MetaTitleField({
           <HelpTooltip text="The Meta Title is the headline that appears in Google search results. It should be 50–60 characters long and include your focus keyword. Keep it clear and descriptive — this is what people see before they click." />
         </label>
         <span
-          className={`text-xs font-mono ${isOver ? "text-red-400 font-bold" : "text-muted-foreground"}`}
+          className={`text-xs font-mono ${
+            isGood
+              ? "text-emerald-400 font-semibold"
+              : isOver
+                ? "text-red-400 font-bold"
+                : isShort
+                  ? "text-amber-400"
+                  : "text-muted-foreground"
+          }`}
         >
-          {len}/60{isOver && " — too long, Google will truncate"}
+          {len}/60
+          {isGood && " ✓ ideal length"}
+          {isOver && " — too long, Google will truncate"}
+          {isShort && " — too short (aim for 50–60)"}
         </span>
       </div>
       <Input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`bg-card border-border text-foreground ${isOver ? "border-red-500 focus-visible:ring-red-500" : ""}`}
-        placeholder="Meta title (max 60 characters)"
+        className={`bg-card border-border text-foreground ${
+          isOver
+            ? "border-red-500 focus-visible:ring-red-500"
+            : isShort
+              ? "border-amber-500 focus-visible:ring-amber-500"
+              : isGood
+                ? "border-emerald-500"
+                : ""
+        }`}
+        placeholder="Meta title (50–60 characters)"
       />
     </div>
   );
