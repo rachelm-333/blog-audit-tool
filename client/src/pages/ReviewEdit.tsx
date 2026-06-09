@@ -268,19 +268,20 @@ function ScoreComparison({
   rewriteGrade: string | null;
 }) {
   return (
-    <div className="flex items-center gap-3 flex-wrap">
-      <div className="text-xs text-muted-foreground">Original audit:</div>
-      {auditScore !== null && auditGrade ? (
-        <GradeBadge grade={auditGrade} score={auditScore} />
-      ) : (
-        <span className="text-xs text-muted-foreground">Not audited</span>
-      )}
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-2">
+        <div className="text-[10px] text-muted-foreground w-24 shrink-0">Before rewrite:</div>
+        {auditScore !== null && auditGrade ? (
+          <GradeBadge grade={auditGrade} score={auditScore} />
+        ) : (
+          <span className="text-xs text-muted-foreground">Not audited</span>
+        )}
+      </div>
       {rewriteScore !== null && rewriteGrade && (
-        <>
-          <ChevronRight size={14} className="text-muted-foreground" />
-          <div className="text-xs text-muted-foreground">After rewrite:</div>
+        <div className="flex items-center gap-2">
+          <div className="text-[10px] text-muted-foreground w-24 shrink-0">After AI rewrite:</div>
           <GradeBadge grade={rewriteGrade} score={rewriteScore} />
-        </>
+        </div>
       )}
     </div>
   );
@@ -319,9 +320,14 @@ function SeoScorePanel({
     <div className="bg-card border border-border rounded-lg overflow-hidden">
       {/* Score header */}
       <div className="p-4 space-y-3">
-        <div className="text-sm font-semibold text-foreground">SEO Score</div>
+        <div className="text-sm font-semibold text-foreground">Current Score</div>
         {currentScore !== null && currentGrade ? (
-          <GradeBadge grade={currentGrade} score={currentScore} />
+          <>
+            <GradeBadge grade={currentGrade} score={currentScore} />
+            <p className="text-[10px] text-muted-foreground leading-tight">
+              Score of the content in the editor. Updates when you save.
+            </p>
+          </>
         ) : (
           <span className="text-xs text-muted-foreground">Save to run re-score</span>
         )}
@@ -872,11 +878,13 @@ export default function ReviewEdit() {
     const alts = extractImgAlts(content);
     const storedAlts = (post.bodyImageAlts as string[] | null) ?? [];
     setImageAlts(alts.map((_, i) => storedAlts[i] ?? alts[i] ?? ""));
-    // Show the original audit score as the baseline in the SEO panel.
-    // rewriteScore is shown separately in the ScoreComparison row.
+    // The top SEO Score badge shows the score of the CURRENT EDITOR CONTENT.
+    // The editor is initialised with the rewritten body, so start from rewriteScore.
+    // The original audit score (auditScore) is shown separately in the comparison row
+    // and never changes — it reflects the pre-rewrite state.
     // After the user saves edits, currentScore updates to the re-scored value.
-    setCurrentScore(post.auditScore ?? post.rewriteScore ?? null);
-    setCurrentGrade(post.auditGrade ?? post.rewriteGrade ?? null);
+    setCurrentScore(post.rewriteScore ?? post.auditScore ?? null);
+    setCurrentGrade(post.rewriteGrade ?? post.auditGrade ?? null);
     // Initialise audit points from stored rewrite results (prefer rewrite audit over original audit)
     const storedPoints = (post.auditResults as { points?: Array<{ point: string; name: string; status: string; note: string }> } | null)?.points ?? [];
     setCurrentAuditPoints(storedPoints);
