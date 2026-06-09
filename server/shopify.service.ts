@@ -291,8 +291,10 @@ export interface ShopifyPostBackPayload {
   cmsPostId: string;
   blogId: string; // Shopify requires blog_id for article update
   bodyApproved: string;
+  bodyOriginal: string | null; // Used for image preservation
   metaTitle: string;
   metaDescription: string;
+  bodyImageAlts?: string[];
 }
 
 export interface ShopifyPostBackResult {
@@ -326,11 +328,16 @@ export async function postBackToShopify(
 
   const currentArticle = (await fetchRes.json() as any).article ?? {};
 
-  // 2. Merge only the approved fields — preserve everything else
+  // 2. Preserve original images and merge only the approved fields
+  const { preserveImagesInBody } = await import("./postback.service");
+  const bodyWithImages = payload.bodyOriginal
+    ? preserveImagesInBody(payload.bodyOriginal, payload.bodyApproved, payload.bodyImageAlts ?? [])
+    : payload.bodyApproved;
+
   const updatePayload = {
     article: {
       ...currentArticle,
-      body_html: payload.bodyApproved,
+      body_html: bodyWithImages,
       // Do NOT include: author, published_at, status, handle, title (preserve originals)
     },
   };

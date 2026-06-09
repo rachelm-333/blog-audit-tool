@@ -333,8 +333,10 @@ function extractWixBodyHtml(richContent: any): string {
 export interface WixPostBackPayload {
   cmsPostId: string;
   bodyApproved: string;
+  bodyOriginal: string | null; // Used for image preservation
   metaTitle: string;
   metaDescription: string;
+  bodyImageAlts?: string[];
 }
 
 export interface WixPostBackResult {
@@ -375,10 +377,16 @@ export async function postBackToWix(
     ],
   };
 
+  // Preserve original images in the rewritten body
+  const { preserveImagesInBody } = await import("./postback.service");
+  const bodyWithImages = payload.bodyOriginal
+    ? preserveImagesInBody(payload.bodyOriginal, payload.bodyApproved, payload.bodyImageAlts ?? [])
+    : payload.bodyApproved;
+
   // Step 1: Update the draft post with new content and SEO data
   const patchBody = {
     draftPost: {
-      content: payload.bodyApproved,
+      content: bodyWithImages,
       seoData,
     },
     fieldMask: "content,seoData",

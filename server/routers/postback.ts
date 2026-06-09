@@ -137,6 +137,7 @@ export const postbackRouter = router({
       const postBackPayload = {
         cmsPostId: post.cmsPostId,
         bodyApproved: post.bodyApproved,
+        bodyOriginal: post.bodyOriginal ?? null,
         metaTitle: post.metaTitleRewritten ?? "",
         metaDescription: post.metaDescriptionRewritten ?? "",
         authorIdCms: post.authorIdCms,
@@ -154,14 +155,14 @@ export const postbackRouter = router({
         } else if (post.cmsPlatform === "wix") {
           result = await postBackToWix(
             creds as unknown as WixCredentials,
-            { cmsPostId: post.cmsPostId, bodyApproved: post.bodyApproved, metaTitle: post.metaTitleRewritten ?? "", metaDescription: post.metaDescriptionRewritten ?? "" },
+            { cmsPostId: post.cmsPostId, bodyApproved: post.bodyApproved, bodyOriginal: post.bodyOriginal ?? null, bodyImageAlts: altTexts, metaTitle: post.metaTitleRewritten ?? "", metaDescription: post.metaDescriptionRewritten ?? "" },
             post.schemaJson ?? null
           );
         } else if (post.cmsPlatform === "shopify") {
           // Shopify requires blogId — stored in authorIdCms field for Shopify posts
           result = await postBackToShopify(
             creds as unknown as ShopifyCredentials,
-            { cmsPostId: post.cmsPostId, blogId: post.authorIdCms ?? "", bodyApproved: post.bodyApproved, metaTitle: post.metaTitleRewritten ?? "", metaDescription: post.metaDescriptionRewritten ?? "" },
+            { cmsPostId: post.cmsPostId, blogId: post.authorIdCms ?? "", bodyApproved: post.bodyApproved, bodyOriginal: post.bodyOriginal ?? null, bodyImageAlts: altTexts, metaTitle: post.metaTitleRewritten ?? "", metaDescription: post.metaDescriptionRewritten ?? "" },
             post.schemaJson ?? null
           );
         } else if (post.cmsPlatform === "zapier") {

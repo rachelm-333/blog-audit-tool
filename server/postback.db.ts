@@ -22,6 +22,7 @@ export interface PostForPostBack {
   cmsPlatform: "wordpress" | "wix" | "shopify" | "zapier";
   title: string;
   bodyApproved: string | null;
+  bodyOriginal: string | null; // Used for image preservation on post-back
   url: string;
   status: "published" | "scheduled" | "draft";
   authorIdCms: string;
@@ -55,6 +56,7 @@ export async function getPostForPostBack(postId: string): Promise<PostForPostBac
       cmsPlatform: posts.cmsPlatform,
       title: posts.title,
       bodyApproved: posts.bodyApproved,
+      bodyOriginal: posts.bodyOriginal,
       url: posts.url,
       status: posts.status,
       authorIdCms: posts.authorIdCms,

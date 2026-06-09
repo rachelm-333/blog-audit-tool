@@ -595,3 +595,11 @@
 
 - [x] P6 (Keyword in URL): when failing, show a "Manual action required" callout in the SEO point breakdown AND in the Approve & Post Back confirmation screen explaining the URL slug must be updated in the CMS after publishing, with a short example of a keyword-rich URL structure
 - [x] P12 (Internal Blog Link): when failing, show a callout explaining the content hierarchy (cluster → pillar → cornerstone) and that the internal link must point to an already-published live post to avoid broken links
+
+## Bug Fix — Image Preservation on Post-Back
+
+- [ ] Preserve original images in post-back: extract img tags from the original stored body and re-inject them into the rewritten body at the same relative positions before sending to Wix, WordPress, or Shopify
+
+## Bug Fix — Image Preservation on Post-Back
+
+- [x] Preserve original images in post-back: extract img tags from the original stored body and re-inject them at proportionally equivalent positions in the rewritten body before sending to Wix, WordPress, or Shopify

@@ -20,6 +20,7 @@
  *   - partial_failure       → content written but meta update failed
  */
 
+import { JSDOM } from "jsdom";
 import type { WordPressCredentials } from "./encryption.service";
 import { normaliseUrl } from "./wordpress.service";
 
@@ -51,6 +52,7 @@ export class PostBackException extends Error {
 export interface PostBackPayload {
   cmsPostId: string;
   bodyApproved: string;
+  bodyOriginal: string | null; // Original body — used to preserve images
   metaTitle: string;
   metaDescription: string;
   authorIdCms: string; // MUST be included — preserves original author
@@ -93,6 +95,100 @@ function injectAltTexts(bodyHtml: string, altTexts: string[]): string {
 
 function escapeAttr(str: string): string {
   return str.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/**
+ * Preserves images from the original body HTML by re-injecting them into the
+ * rewritten body at proportionally equivalent positions.
+ *
+ * Strategy:
+ *   1. Extract all <img> tags from the original body (in DOM order).
+ *   2. Count block-level elements (p, h1-h6, ul, ol, blockquote) in both bodies.
+ *   3. For each image, calculate its relative position in the original (e.g. after
+ *      block 3 of 10 = 30%) and insert it after the equivalent block in the rewritten body.
+ *   4. Any images that cannot be placed (rewritten body has fewer blocks) are appended
+ *      at the end.
+ *
+ * This is a best-effort approach — images will be near their original position
+ * even if the rewritten body has different paragraph counts.
+ */
+export function preserveImagesInBody(
+  originalHtml: string,
+  rewrittenHtml: string,
+  updatedAltTexts: string[]
+): string {
+  if (!originalHtml || !rewrittenHtml) return rewrittenHtml;
+
+  try {
+    const origDom = new JSDOM(originalHtml);
+    const origDoc = origDom.window.document;
+
+    // Extract all img elements from original body in order
+    const origImgs = Array.from(origDoc.querySelectorAll("img")) as Element[];
+    if (origImgs.length === 0) return rewrittenHtml; // No images to preserve
+
+    // Count block elements in original to determine relative positions
+    const BLOCK_SELECTOR = "p, h1, h2, h3, h4, h5, h6, ul, ol, blockquote, figure";
+    const origBlocks = Array.from(origDoc.querySelectorAll(BLOCK_SELECTOR)) as Element[];
+    const origBlockCount = Math.max(origBlocks.length, 1);
+
+    // For each image, find which block it comes after in the original
+    const imgPositions: Array<{ imgHtml: string; relativePos: number }> = [];
+    origImgs.forEach((img, imgIdx) => {
+      // Apply updated alt text if available
+      const altText = updatedAltTexts[imgIdx];
+      if (altText !== undefined) {
+        img.setAttribute("alt", altText);
+      }
+      const imgHtml = img.outerHTML;
+
+      // Find the block index this image appears after
+      let blocksBefore = 0;
+      let node: Node | null = img;
+      while (node && node.parentNode) {
+        const siblings = Array.from(node.parentNode.childNodes);
+        const nodeIdx = siblings.indexOf(node as ChildNode);
+        for (let i = 0; i < nodeIdx; i++) {
+          const sib = siblings[i] as Element;
+          if (sib.nodeType === 1 && sib.matches && sib.matches(BLOCK_SELECTOR)) {
+            blocksBefore++;
+          }
+        }
+        node = node.parentNode;
+        if ((node as Element).tagName === "BODY") break;
+      }
+      const relativePos = blocksBefore / origBlockCount;
+      imgPositions.push({ imgHtml, relativePos });
+    });
+
+    // Now work on the rewritten body
+    const rewriteDom = new JSDOM(rewrittenHtml);
+    const rewriteDoc = rewriteDom.window.document;
+    const rewriteBlocks = Array.from(rewriteDoc.querySelectorAll(BLOCK_SELECTOR)) as Element[];
+    const rewriteBlockCount = Math.max(rewriteBlocks.length, 1);
+
+    // Insert each image at the proportionally equivalent position
+    imgPositions.forEach(({ imgHtml, relativePos }) => {
+      const targetBlockIdx = Math.min(
+        Math.round(relativePos * rewriteBlockCount),
+        rewriteBlocks.length - 1
+      );
+      const targetBlock = rewriteBlocks[targetBlockIdx];
+      if (targetBlock) {
+        // Create a wrapper div for the image
+        const wrapper = rewriteDoc.createElement("figure");
+        wrapper.className = "wp-block-image";
+        wrapper.innerHTML = imgHtml;
+        // Insert after the target block
+        targetBlock.parentNode?.insertBefore(wrapper, targetBlock.nextSibling);
+      }
+    });
+
+    return rewriteDoc.body.innerHTML;
+  } catch {
+    // If anything fails, return the rewritten body unchanged rather than crashing
+    return rewrittenHtml;
+  }
 }
 
 /**
@@ -155,13 +251,15 @@ export async function postBackToWordPress(
   const authHeader = buildAuthHeader(creds.username, creds.applicationPassword);
   const endpoint = `${baseUrl}/wp-json/wp/v2/posts/${payload.cmsPostId}`;
 
-  // Inject updated alt texts into the body HTML
-  const bodyWithAlts = injectAltTexts(payload.bodyApproved, payload.bodyImageAlts);
+  // Preserve original images and inject updated alt texts into the body HTML
+  const bodyWithImages = payload.bodyOriginal
+    ? preserveImagesInBody(payload.bodyOriginal, payload.bodyApproved, payload.bodyImageAlts)
+    : injectAltTexts(payload.bodyApproved, payload.bodyImageAlts);
 
   // ── Step 1: Write content + author ──────────────────────────────────────────
   // CRITICAL: Include author to preserve original. NEVER include status/date/slug.
   const contentPayload: Record<string, unknown> = {
-    content: bodyWithAlts,
+    content: bodyWithImages,
     author: parseInt(payload.authorIdCms, 10) || payload.authorIdCms,
     // Note: title is intentionally omitted — the rewrite does not change the title
     // status, date_gmt, slug are intentionally omitted — omitting preserves existing values
