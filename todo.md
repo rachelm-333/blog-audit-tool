@@ -583,3 +583,9 @@
 - [x] Approve All button and individual Approve + Edit in Editor buttons
 - [x] Add Review Queue link to sidebar navigation (ClipboardCheck icon)
 - [x] Add /review-queue route to App.tsx
+
+## Bug Fixes — Data Accuracy (June 2026)
+
+- [x] Fix Review Queue threshold: queue posts where original audit_score >= 14, not rewrite_score >= 14
+- [x] Fix dashboard "issues" count: show count of FAILING points only, not total 16 points
+- [x] Fix ReviewEdit score display: ensure original audit score and rewrite score are read from correct DB columns (audit_score vs rewrite_score)

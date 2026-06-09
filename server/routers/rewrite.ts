@@ -276,8 +276,8 @@ export const rewriteRouter = router({
 
           if (bestResult.rewriteScore >= 14) {
             // Retry succeeded — save and return
+            // saveRewriteResult sets rewriteStatus to awaiting_review automatically
             await saveRewriteResult(post.id, bestResult);
-            await setRewriteStatus(post.id, "complete");
             return {
               success: true,
               rewriteScore: bestResult.rewriteScore,
@@ -476,14 +476,15 @@ export const rewriteRouter = router({
         }
       }
 
+      // saveRewriteResult always sets rewriteStatus to awaiting_review.
+      // For low-scoring rewrites, override to needs_manual_review after saving.
       await saveRewriteResult(post.id, rewriteResult);
       const needsManualReview = rewriteResult.rewriteScore < 14;
       if (needsManualReview) {
         await refundCredit(input.iauditUserId, post.id);
         await setRewriteStatus(post.id, "needs_manual_review");
-      } else {
-        await setRewriteStatus(post.id, "complete");
       }
+      // else: rewriteStatus stays as awaiting_review (set by saveRewriteResult)
 
       return {
         success: true,

@@ -872,8 +872,11 @@ export default function ReviewEdit() {
     const alts = extractImgAlts(content);
     const storedAlts = (post.bodyImageAlts as string[] | null) ?? [];
     setImageAlts(alts.map((_, i) => storedAlts[i] ?? alts[i] ?? ""));
-    setCurrentScore(post.rewriteScore ?? post.auditScore ?? null);
-    setCurrentGrade(post.rewriteGrade ?? post.auditGrade ?? null);
+    // Show the original audit score as the baseline in the SEO panel.
+    // rewriteScore is shown separately in the ScoreComparison row.
+    // After the user saves edits, currentScore updates to the re-scored value.
+    setCurrentScore(post.auditScore ?? post.rewriteScore ?? null);
+    setCurrentGrade(post.auditGrade ?? post.rewriteGrade ?? null);
     // Initialise audit points from stored rewrite results (prefer rewrite audit over original audit)
     const storedPoints = (post.auditResults as { points?: Array<{ point: string; name: string; status: string; note: string }> } | null)?.points ?? [];
     setCurrentAuditPoints(storedPoints);

@@ -326,12 +326,16 @@ export async function getPostTableRows(
     .where(and(...conditions));
 
   // Count issues from auditResults JSONB
+  // Audit points use { status: 'pass' | 'fail' | 'na' | 'unable_to_score' } — NOT a boolean `pass` field.
+  // Only count points with status === 'fail' as issues.
   const mapped: PostTableRow[] = rows.map((row) => {
     let issueCount: number | null = null;
     if (row.auditResults && typeof row.auditResults === "object") {
-      const results = row.auditResults as { points?: Array<{ pass: boolean }> };
+      const results = row.auditResults as { points?: Array<{ status?: string; pass?: boolean }> };
       if (Array.isArray(results.points)) {
-        issueCount = results.points.filter((p) => !p.pass).length;
+        issueCount = results.points.filter((p) =>
+          p.status === "fail" || (p.status === undefined && p.pass === false)
+        ).length;
       }
     }
     return {

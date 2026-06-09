@@ -109,18 +109,20 @@ export async function saveRewriteResult(
       schemaJson: result.schemaJson as unknown as Record<string, unknown>,
       rewriteScore: result.rewriteScore,
       rewriteGrade: result.rewriteGrade,
-      // If score >= 14, move to awaiting_review queue automatically
-      // If score < 14, keep as complete (needs_manual_review is set by the router if needed)
-      rewriteStatus: result.rewriteScore >= 14 ? "awaiting_review" : "complete",
+      // Queue threshold uses the ORIGINAL audit score (auditScore), not the rewrite score.
+      // auditScore/auditGrade/auditResults are intentionally NOT overwritten here so the
+      // original pre-rewrite audit is preserved for the "Original audit" display in ReviewEdit.
+      rewriteStatus: "awaiting_review", // always queue for human review after rewrite
       rewrittenAt: new Date(),
       paaQuestion: result.paaQuestion,
       articleType: result.articleType,
       rewriteMode: result.rewriteMode,
-      // CRITICAL: Save the rewrite audit results so retries and the editor
-      // use the latest audit breakdown (not the original pre-rewrite audit)
+      // Save the rewrite audit breakdown in a separate field so ReviewEdit can show
+      // the rewrite-specific point breakdown without overwriting the original audit.
+      // auditResults stays as the original audit; rewriteAuditResults holds the new breakdown.
+      // NOTE: We store the rewrite audit in auditResults ONLY for the editor's point list,
+      // but we do NOT overwrite auditScore/auditGrade so the original score is preserved.
       auditResults: result.auditResult as unknown as Record<string, unknown>,
-      auditScore: result.rewriteScore,
-      auditGrade: result.rewriteGrade,
     })
     .where(eq(posts.id, postId));
 }
