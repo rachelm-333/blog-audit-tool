@@ -273,14 +273,18 @@ export async function postBackToWordPress(
     );
 
     if (!schemaInjected) {
-      // Build the copyable JSON-LD fallback
-      const schemaObj = typeof payload.schemaJson === "string"
-        ? JSON.parse(payload.schemaJson)
-        : payload.schemaJson;
-
-      // Wrap in a <script> tag for easy copy-paste into theme header / SEO plugin
-      const scriptBlock = `<script type="application/ld+json">\n${JSON.stringify(schemaObj, null, 2)}\n</script>`;
-      schemaFallbackJson = scriptBlock;
+      // Build the copyable JSON-LD fallback — guard against malformed stored strings
+      try {
+        const schemaObj = typeof payload.schemaJson === "string"
+          ? JSON.parse(payload.schemaJson)
+          : payload.schemaJson;
+        // Wrap in a <script> tag for easy copy-paste into theme header / SEO plugin
+        const scriptBlock = `<script type="application/ld+json">\n${JSON.stringify(schemaObj, null, 2)}\n</script>`;
+        schemaFallbackJson = scriptBlock;
+      } catch {
+        // schemaJson was unparseable — skip fallback display, post-back still succeeded
+        schemaFallbackJson = null;
+      }
     }
   }
 
