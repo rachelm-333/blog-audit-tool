@@ -590,3 +590,8 @@
 - [x] Fix dashboard "issues" count: show count of FAILING points only, not total 16 points
 - [x] Fix ReviewEdit score display: ensure original audit score and rewrite score are read from correct DB columns (audit_score vs rewrite_score)
 - [x] Fix saveEdits re-score: when only meta title/description changes (body unchanged), do NOT re-score — just save the meta fields and return the existing score/grade/points unchanged
+
+## Feature — Manual Action Callouts for P6 and P12
+
+- [x] P6 (Keyword in URL): when failing, show a "Manual action required" callout in the SEO point breakdown AND in the Approve & Post Back confirmation screen explaining the URL slug must be updated in the CMS after publishing, with a short example of a keyword-rich URL structure
+- [x] P12 (Internal Blog Link): when failing, show a callout explaining the content hierarchy (cluster → pillar → cornerstone) and that the internal link must point to an already-published live post to avoid broken links

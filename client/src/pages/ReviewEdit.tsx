@@ -364,21 +364,44 @@ function SeoScorePanel({
                   </div>
                   <div className="space-y-1.5">
                     {failing.map((p) => (
-                      <div
-                        key={p.point}
-                        className="flex items-start gap-2 bg-red-500/5 border border-red-500/20 rounded-lg px-2.5 py-2"
-                      >
-                        <XCircle size={12} className="text-red-400 shrink-0 mt-0.5" />
-                        <div className="min-w-0">
-                          <div className="text-xs font-semibold text-foreground leading-tight">
-                            {p.point} — {p.name}
-                          </div>
-                          {p.note && (
-                            <div className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
-                              {p.note}
+                      <div key={p.point}>
+                        <div className="flex items-start gap-2 bg-red-500/5 border border-red-500/20 rounded-lg px-2.5 py-2">
+                          <XCircle size={12} className="text-red-400 shrink-0 mt-0.5" />
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold text-foreground leading-tight">
+                              {p.point} — {p.name}
                             </div>
-                          )}
+                            {p.note && (
+                              <div className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
+                                {p.note}
+                              </div>
+                            )}
+                          </div>
                         </div>
+                        {/* P6 manual action callout */}
+                        {p.point === "P6" && (
+                          <div className="mt-1 ml-1 bg-amber-500/8 border border-amber-500/30 rounded-lg px-2.5 py-2 space-y-1">
+                            <div className="flex items-center gap-1.5">
+                              <AlertTriangle size={11} className="text-amber-400 shrink-0" />
+                              <span className="text-[10px] font-semibold text-amber-400 uppercase tracking-wide">Manual action required after publishing</span>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground leading-snug">
+                              The URL slug cannot be changed here — it must be updated directly in your CMS after publishing. A keyword-rich slug looks like: <span className="font-mono text-foreground/80">/blog/your-focus-keyword-here</span>. Once updated, re-run the audit to confirm P6 passes.
+                            </p>
+                          </div>
+                        )}
+                        {/* P12 manual action callout */}
+                        {p.point === "P12" && (
+                          <div className="mt-1 ml-1 bg-amber-500/8 border border-amber-500/30 rounded-lg px-2.5 py-2 space-y-1">
+                            <div className="flex items-center gap-1.5">
+                              <AlertTriangle size={11} className="text-amber-400 shrink-0" />
+                              <span className="text-[10px] font-semibold text-amber-400 uppercase tracking-wide">Manual action required — internal linking</span>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground leading-snug">
+                              Add a link in the body to a related post that is already live and published. Follow the content hierarchy: <span className="font-semibold text-foreground/80">Cluster → Pillar → Cornerstone</span>. Cluster posts link up to their pillar; pillar posts link up to the cornerstone. Never link to a draft or unpublished page — broken links hurt SEO.
+                            </p>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -529,6 +552,7 @@ interface PostBackConfirmationProps {
   schemaInjected: boolean;
   schemaFallbackJson: string | null;
   showBlogBatcherUpsell: boolean;
+  auditPoints?: Array<{ point: string; name: string; status: string; note: string }>;
   onDone: () => void;
 }
 
@@ -541,8 +565,11 @@ function PostBackConfirmation({
   schemaFallbackJson,
   showBlogBatcherUpsell,
   onDone,
+  auditPoints = [],
 }: PostBackConfirmationProps) {
   const [schemaCopied, setSchemaCopied] = useState(false);
+  const p6Failing = auditPoints.some((p) => p.point === "P6" && p.status === "fail");
+  const p12Failing = auditPoints.some((p) => p.point === "P12" && p.status === "fail");
 
   const handleCopySchema = () => {
     if (!schemaFallbackJson) return;
@@ -671,6 +698,38 @@ function PostBackConfirmation({
               Explore Blog Batcher
               <ExternalLink size={10} />
             </a>
+          </div>
+        )}
+
+        {/* P6 manual action banner */}
+        {p6Failing && (
+          <div className="bg-amber-500/8 border border-amber-500/40 rounded-xl p-4 space-y-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={14} className="text-amber-400 shrink-0" />
+              <span className="text-sm font-semibold text-amber-300">Action needed — Update the URL slug in your CMS</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              <strong className="text-foreground">P6 (Keyword in URL)</strong> is still failing. The URL slug must be updated manually in your CMS — it cannot be changed from here. A keyword-rich slug improves click-through rates and signals relevance to search engines.
+            </p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Example: change <span className="font-mono text-foreground/70">/blog/post-123</span> to <span className="font-mono text-foreground/70">/blog/your-focus-keyword</span>. After updating, re-run the audit in iAudit to confirm P6 passes.
+            </p>
+          </div>
+        )}
+
+        {/* P12 manual action banner */}
+        {p12Failing && (
+          <div className="bg-amber-500/8 border border-amber-500/40 rounded-xl p-4 space-y-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={14} className="text-amber-400 shrink-0" />
+              <span className="text-sm font-semibold text-amber-300">Action needed — Add an internal blog link</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              <strong className="text-foreground">P12 (Internal Blog Link)</strong> is still failing. Go back and add a link in the body to a related post that is <strong className="text-foreground">already live and published</strong>. Linking to a draft or unpublished page creates a broken link and hurts SEO.
+            </p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Follow the content hierarchy: <strong className="text-foreground">Cluster → Pillar → Cornerstone</strong>. A cluster post should link up to its pillar page; a pillar post should link up to the cornerstone. This structure passes authority upward and strengthens the whole topic cluster.
+            </p>
           </div>
         )}
 
@@ -831,6 +890,7 @@ export default function ReviewEdit() {
     schemaInjected: boolean;
     schemaFallbackJson: string | null;
     showBlogBatcherUpsell: boolean;
+    auditPoints?: Array<{ point: string; name: string; status: string; note: string }>;
   } | null>(null);
 
   const [partialFailure, setPartialFailure] = useState<{
@@ -1002,6 +1062,7 @@ export default function ReviewEdit() {
         schemaInjected: data.schemaInjected,
         schemaFallbackJson: data.schemaFallbackJson,
         showBlogBatcherUpsell: data.showBlogBatcherUpsell,
+        auditPoints: currentAuditPoints,
       });
     },
     onError: (err) => {
