@@ -22,7 +22,7 @@ import { PostBackException } from "./postback.service";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const WIX_BASE = "https://www.wixapis.com/v3";
+const WIX_BASE = "https://www.wixapis.com/blog/v3";
 
 // ─── Error types ──────────────────────────────────────────────────────────────
 
@@ -346,8 +346,14 @@ export interface WixPostBackResult {
 
 /**
  * Posts back approved content to a Wix blog post.
+ *
+ * Wix Blog v3 does NOT have a PATCH endpoint for published posts.
+ * The correct flow is:
+ *   1. PATCH /blog/v3/draft-posts/{id}  — update the draft (same ID as published post)
+ *   2. POST  /blog/v3/draft-posts/{id}/publish — re-publish, updating the live post
+ *
  * ONLY updates: content, meta title, meta description.
- * NEVER updates: author, date, status, URL.
+ * NEVER updates: author, date, status, URL, title.
  * Schema injection is NOT supported by Wix API — always returns schemaFallbackJson.
  */
 export async function postBackToWix(
@@ -355,8 +361,8 @@ export async function postBackToWix(
   payload: WixPostBackPayload,
   schemaJson: unknown | null
 ): Promise<WixPostBackResult> {
-  const url = `${WIX_BASE}/posts/${payload.cmsPostId}`;
-  // Wix Blog v3 PATCH — Authorization: Bearer <api-key> + wix-site-id header
+  const draftUrl = `${WIX_BASE}/draft-posts/${payload.cmsPostId}`;
+  const publishUrl = `${WIX_BASE}/draft-posts/${payload.cmsPostId}/publish`;
 
   // Build SEO tags for meta title and description
   const seoData = {
@@ -369,18 +375,18 @@ export async function postBackToWix(
     ],
   };
 
-  // Wix PATCH — only content and SEO data
+  // Step 1: Update the draft post with new content and SEO data
   const patchBody = {
-    post: {
+    draftPost: {
       content: payload.bodyApproved,
       seoData,
     },
     fieldMask: "content,seoData",
   };
 
-  let res: Response;
+  let patchRes: Response;
   try {
-    res = await wixFetch(url, creds, {
+    patchRes = await wixFetch(draftUrl, creds, {
       method: "PATCH",
       body: JSON.stringify(patchBody),
     });
@@ -391,24 +397,45 @@ export async function postBackToWix(
     );
   }
 
-  if (res.status === 401 || res.status === 403) {
+  if (patchRes.status === 401 || patchRes.status === 403) {
     throw new PostBackException(
       "insufficient_permissions",
-      "iAudit does not have permission to update this Wix post. Please check your API key has write access."
+      "iAudit does not have permission to update this Wix post. Please check your API key has write access to the Blog."
     );
   }
-  if (res.status === 404) {
+  if (patchRes.status === 404) {
     throw new PostBackException(
       "post_not_found",
-      "This post no longer exists in your Wix site — it may have been deleted."
+      "This post could not be found in your Wix site. It may have been deleted or the connection may need to be re-synced."
     );
   }
-  if (!res.ok) {
+  if (!patchRes.ok) {
     let detail = "";
-    try { const b = await res.json(); detail = JSON.stringify(b); } catch {}
+    try { const b = await patchRes.json(); detail = JSON.stringify(b); } catch {}
     throw new PostBackException(
       "site_unreachable",
-      `Could not reach your Wix site (HTTP ${res.status}${detail ? ": " + detail : ""}). Please try again.`
+      `Could not update the draft post in Wix (HTTP ${patchRes.status}${detail ? ": " + detail : ""}). Please try again.`
+    );
+  }
+
+  // Step 2: Publish the draft — this updates the live published post
+  let publishRes: Response;
+  try {
+    publishRes = await wixFetch(publishUrl, creds, { method: "POST" });
+  } catch (err: any) {
+    throw new PostBackException(
+      "site_unreachable",
+      "Content was updated but could not be published. Please publish manually from your Wix dashboard."
+    );
+  }
+
+  if (!publishRes.ok) {
+    let detail = "";
+    try { const b = await publishRes.json(); detail = JSON.stringify(b); } catch {}
+    throw new PostBackException(
+      "partial_failure",
+      `Content was updated but publishing failed (HTTP ${publishRes.status}${detail ? ": " + detail : ""}). Please publish manually from your Wix dashboard.`,
+      { contentWritten: true, metaTitle: payload.metaTitle, metaDescription: payload.metaDescription }
     );
   }
 
