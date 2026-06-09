@@ -18,6 +18,7 @@
 import type { WixCredentials } from "./encryption.service";
 import { extractBodyImageAlts } from "./wordpress.service";
 import type { WpImportedPost, WpPostStatus } from "./wordpress.service";
+import { PostBackException } from "./postback.service";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -377,19 +378,38 @@ export async function postBackToWix(
     fieldMask: "content,seoData",
   };
 
-  const res = await wixFetch(url, creds, {
-    method: "PATCH",
-    body: JSON.stringify(patchBody),
-  });
+  let res: Response;
+  try {
+    res = await wixFetch(url, creds, {
+      method: "PATCH",
+      body: JSON.stringify(patchBody),
+    });
+  } catch (err: any) {
+    throw new PostBackException(
+      "site_unreachable",
+      err?.message ?? "Could not reach your Wix site. Please check it is online and try again."
+    );
+  }
 
   if (res.status === 401 || res.status === 403) {
-    throw new Error("insufficient_permissions");
+    throw new PostBackException(
+      "insufficient_permissions",
+      "iAudit does not have permission to update this Wix post. Please check your API key has write access."
+    );
   }
   if (res.status === 404) {
-    throw new Error("post_not_found");
+    throw new PostBackException(
+      "post_not_found",
+      "This post no longer exists in your Wix site — it may have been deleted."
+    );
   }
   if (!res.ok) {
-    throw new Error(`site_unreachable:HTTP ${res.status}`);
+    let detail = "";
+    try { const b = await res.json(); detail = JSON.stringify(b); } catch {}
+    throw new PostBackException(
+      "site_unreachable",
+      `Could not reach your Wix site (HTTP ${res.status}${detail ? ": " + detail : ""}). Please try again.`
+    );
   }
 
   // Schema fallback — Wix never supports auto-injection

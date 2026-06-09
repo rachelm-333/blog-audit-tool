@@ -229,7 +229,8 @@ export const postbackRouter = router({
           });
         }
 
-        // Unknown error
+        // Unknown error — log full details for debugging
+        console.error("[PostBack] Unexpected error:", err instanceof Error ? err.stack : String(err));
         await setPostBackFailed(input.postId).catch(() => {});
         void logError({
           userId: input.iauditUserId,

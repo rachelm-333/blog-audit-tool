@@ -17,6 +17,7 @@
 import type { ShopifyCredentials } from "./encryption.service";
 import { extractBodyImageAlts } from "./wordpress.service";
 import type { WpImportedPost, WpPostStatus } from "./wordpress.service";
+import { PostBackException } from "./postback.service";
 
 // ─── Error types ──────────────────────────────────────────────────────────────
 
@@ -319,9 +320,9 @@ export async function postBackToShopify(
     creds
   );
 
-  if (fetchRes.status === 404) throw new Error("post_not_found");
-  if (fetchRes.status === 401 || fetchRes.status === 403) throw new Error("insufficient_permissions");
-  if (!fetchRes.ok) throw new Error(`site_unreachable:HTTP ${fetchRes.status}`);
+  if (fetchRes.status === 404) throw new PostBackException("post_not_found", "This post no longer exists in your Shopify store — it may have been deleted.");
+  if (fetchRes.status === 401 || fetchRes.status === 403) throw new PostBackException("insufficient_permissions", "iAudit does not have permission to update this Shopify article. Please check your access token.");
+  if (!fetchRes.ok) throw new PostBackException("site_unreachable", `Could not reach your Shopify store (HTTP ${fetchRes.status}). Please try again.`);
 
   const currentArticle = (await fetchRes.json() as any).article ?? {};
 
@@ -343,9 +344,9 @@ export async function postBackToShopify(
     }
   );
 
-  if (putRes.status === 404) throw new Error("post_not_found");
-  if (putRes.status === 401 || putRes.status === 403) throw new Error("insufficient_permissions");
-  if (!putRes.ok) throw new Error(`site_unreachable:HTTP ${putRes.status}`);
+  if (putRes.status === 404) throw new PostBackException("post_not_found", "This post no longer exists in your Shopify store — it may have been deleted.");
+  if (putRes.status === 401 || putRes.status === 403) throw new PostBackException("insufficient_permissions", "iAudit does not have permission to update this Shopify article. Please check your access token.");
+  if (!putRes.ok) throw new PostBackException("site_unreachable", `Could not reach your Shopify store (HTTP ${putRes.status}). Please try again.`);
 
   // 3. Update meta title and description via metafields
   let metaWritten = false;
@@ -391,7 +392,7 @@ export async function postBackToShopify(
     metaWritten = true;
   } catch {
     // Meta update failure — partial_failure
-    throw new Error(`partial_failure:content_written_meta_failed`);
+    throw new PostBackException("partial_failure", "Post body updated successfully, but meta title and meta description could not be written to Shopify. Please update them manually.", { contentWritten: true, metaTitle: payload.metaTitle, metaDescription: payload.metaDescription });
   }
 
   // 4. Attempt schema injection via metafield
