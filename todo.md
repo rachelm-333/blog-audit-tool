@@ -589,3 +589,4 @@
 - [x] Fix Review Queue threshold: queue posts where original audit_score >= 14, not rewrite_score >= 14
 - [x] Fix dashboard "issues" count: show count of FAILING points only, not total 16 points
 - [x] Fix ReviewEdit score display: ensure original audit score and rewrite score are read from correct DB columns (audit_score vs rewrite_score)
+- [x] Fix saveEdits re-score: when only meta title/description changes (body unchanged), do NOT re-score — just save the meta fields and return the existing score/grade/points unchanged

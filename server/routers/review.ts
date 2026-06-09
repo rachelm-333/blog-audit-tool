@@ -93,27 +93,27 @@ export const reviewRouter = router({
         });
       }
 
-      // Detect whether the user actually changed anything
+      // Detect what changed
       const prevBody = post.bodyApproved ?? post.bodyRewritten ?? "";
       const prevMetaTitle = post.metaTitleRewritten ?? "";
       const prevMetaDesc = post.metaDescriptionRewritten ?? "";
-      const contentChanged =
-        input.bodyApproved !== prevBody ||
-        input.metaTitleRewritten !== prevMetaTitle ||
-        input.metaDescriptionRewritten !== prevMetaDesc;
 
-      // If nothing changed, skip re-score and return the stored audit results
-      if (!contentChanged) {
-        await saveApprovedContent(input.postId, {
-          bodyApproved: input.bodyApproved,
-          metaTitleRewritten: input.metaTitleRewritten,
-          metaDescriptionRewritten: input.metaDescriptionRewritten,
-          bodyImageAlts: input.bodyImageAlts,
-          // Do NOT update score/grade/auditResults — nothing changed
-        });
-        const storedResults = post.auditResults as
-          | { points: Array<{ point: string; status: string; note?: string }>; potentialScore?: number }
-          | null;
+      // Normalise HTML for comparison: strip whitespace differences that Tiptap introduces
+      // when serialising unchanged content (e.g. trailing newlines, attribute order).
+      const normalise = (html: string) =>
+        html.replace(/\s+/g, " ").replace(/> </g, "><").trim();
+
+      const bodyChanged = normalise(input.bodyApproved) !== normalise(prevBody);
+      const metaTitleChanged = input.metaTitleRewritten !== prevMetaTitle;
+      const metaDescChanged = input.metaDescriptionRewritten !== prevMetaDesc;
+      const anythingChanged = bodyChanged || metaTitleChanged || metaDescChanged;
+
+      const storedResults = post.auditResults as
+        | { points: Array<{ point: string; status: string; note?: string }>; potentialScore?: number }
+        | null;
+
+      // If nothing changed at all, skip save and return stored results
+      if (!anythingChanged) {
         return {
           score: post.rewriteScore ?? 0,
           grade: post.rewriteGrade ?? "poor",
@@ -122,7 +122,70 @@ export const reviewRouter = router({
         };
       }
 
-      // Load business context for accurate CTA link scoring
+      // If ONLY meta fields changed (body is the same), save meta without re-scoring the body.
+      // Re-scoring the body when it hasn't changed is unreliable because the Tiptap editor
+      // can subtly reformat HTML on serialisation, causing false regressions.
+      // Meta-only changes that affect scoring (P2 keyword in meta title, P3 meta description
+      // length) are re-scored here using the STORED body so the result is stable.
+      if (!bodyChanged && (metaTitleChanged || metaDescChanged)) {
+        // Load business context
+        const business = await getBusinessById(post.businessId);
+        const primaryCtaUrl = business?.primaryCtaUrl ?? null;
+
+        // Use the STORED body (not the editor body) to avoid Tiptap serialisation drift
+        const storedBody = prevBody;
+        let bodyForScoring = storedBody;
+        if (post.schemaJson && !bodyForScoring.includes('application/ld+json')) {
+          bodyForScoring = `<script type="application/ld+json">${post.schemaJson}</script>\n${bodyForScoring}`;
+        }
+
+        const auditResult = await runFullAudit({
+          title: post.title,
+          bodyHtml: bodyForScoring,
+          focusKeyword: post.focusKeyword,
+          url: post.url,
+          metaTitle: input.metaTitleRewritten,
+          metaDescription: input.metaDescriptionRewritten,
+          primaryCtaUrl,
+        });
+
+        const newScore = auditResult.points.filter(
+          (p) => p.status === "pass" || p.status === "na"
+        ).length;
+        const newGrade = scoreToGrade(newScore);
+
+        // Detect regressions vs stored results
+        const warnings: string[] = [];
+        if (storedResults?.points) {
+          for (const prevPoint of storedResults.points) {
+            if (prevPoint.status !== "pass") continue;
+            const newPoint = auditResult.points.find((p) => p.point === prevPoint.point);
+            if (newPoint && newPoint.status === "fail") {
+              warnings.push(
+                `Your edit has caused ${newPoint.point} to fail — ${newPoint.note ?? "see details below."}`
+              );
+            }
+          }
+        }
+
+        // Save meta fields + updated score; body_approved stays as the stored body
+        await saveApprovedContent(input.postId, {
+          bodyApproved: storedBody, // preserve the stored body exactly
+          metaTitleRewritten: input.metaTitleRewritten,
+          metaDescriptionRewritten: input.metaDescriptionRewritten,
+          bodyImageAlts: input.bodyImageAlts,
+          rewriteScore: newScore,
+          rewriteGrade: newGrade,
+          auditResults: {
+            points: auditResult.points,
+            potentialScore: auditResult.potentialScore,
+          },
+        });
+
+        return { score: newScore, grade: newGrade, points: auditResult.points, warnings };
+      }
+
+      // Body changed — full re-score against the new body
       const business = await getBusinessById(post.businessId);
       const primaryCtaUrl = business?.primaryCtaUrl ?? null;
 
@@ -151,11 +214,8 @@ export const reviewRouter = router({
 
       // Detect regressions — points that previously passed but now fail
       const warnings: string[] = [];
-      const prevResults = post.auditResults as
-        | { points: Array<{ point: string; status: string; note?: string }> }
-        | null;
-      if (prevResults?.points) {
-        for (const prevPoint of prevResults.points) {
+      if (storedResults?.points) {
+        for (const prevPoint of storedResults.points) {
           if (prevPoint.status !== "pass") continue;
           const newPoint = auditResult.points.find(
             (p) => p.point === prevPoint.point
