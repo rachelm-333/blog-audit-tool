@@ -617,3 +617,9 @@
 - [x] Fix CMS Connections page: after adding a connection, do NOT auto-redirect to Import Posts — return user to the Connections list with a success state and a clear "Import Posts" button they can choose to click
 - [x] Redesign Connections list: each connected CMS shows its platform icon, site name/URL, status badge (connected/error), and action buttons: "Import Posts", "Edit Credentials", "Remove" — no ambiguous labels
 - [x] Fix duplicate Startup Deck entries in the sidebar navigation (deduplicate by name client-side)
+
+## UX Fix — Approved Post Workflow
+
+- [x] Hide "Fix this post" / "Fix for a credit" button from posts that are already in approved status
+- [x] Add a clear "Publish to CMS" button on approved posts so user can push the rewritten post back to their CMS
+- [x] Ensure the post detail/review page for an approved post shows its approved status clearly (not just the audit score)

@@ -55,6 +55,8 @@ import {
   Zap,
   FileText,
   ExternalLink,
+  Send,
+  Globe,
 } from "lucide-react";
 import { toast } from "sonner";
 import { HelpTooltip } from "@/components/HelpTooltip";
@@ -207,11 +209,13 @@ function AuditResultsPanel({
   iauditUserId,
   onClose,
   onFix,
+  rewriteStatus,
 }: {
   postId: string;
   iauditUserId: string;
   onClose: () => void;
   onFix?: () => void;
+  rewriteStatus?: string | null;
 }) {
   const { data, isLoading } = trpc.audit.getPostResults.useQuery(
     { postId, iauditUserId },
@@ -355,20 +359,22 @@ function AuditResultsPanel({
         </div>
       )}
 
-      {/* Fix CTA */}
-      <div className="pt-2 border-t border-border">
-        <Button
-          size="sm"
-          className="w-full gap-2 font-semibold"
-          onClick={() => {
-            onClose();
-            onFix?.();
-          }}
-        >
-          <Zap size={14} />
-          Fix This Post · 1 Credit · Ready in ~2 minutes
-        </Button>
-      </div>
+      {/* Fix CTA — hidden for approved/published posts */}
+      {rewriteStatus !== "approved" && rewriteStatus !== "published" && (
+        <div className="pt-2 border-t border-border">
+          <Button
+            size="sm"
+            className="w-full gap-2 font-semibold"
+            onClick={() => {
+              onClose();
+              onFix?.();
+            }}
+          >
+            <Zap size={14} />
+            Fix This Post · 1 Credit · Ready in ~2 minutes
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -1031,6 +1037,15 @@ export default function PostList() {
   const auditOneMutation = trpc.audit.runAudit.useMutation();
   const getPaaMutation = trpc.rewrite.getPaaQuestion.useMutation();
   const runRewriteMutation = trpc.rewrite.runRewrite.useMutation();
+  const publishMutation = trpc.postback.runPostBack.useMutation({
+    onSuccess: () => {
+      refetch();
+      toast.success("Post published to CMS successfully!");
+    },
+    onError: (err) => {
+      toast.error(err.message ?? "Publish failed. Please try again.");
+    },
+  });
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -1515,6 +1530,19 @@ export default function PostList() {
                       </p>
                     </div>
 
+                    {/* Rewrite status badge */}
+                    {post.rewriteStatus === "approved" && post.postBackStatus !== "complete" && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold text-emerald-400 bg-emerald-400/10 shrink-0">
+                        <CheckCircle2 size={11} />
+                        Approved
+                      </span>
+                    )}
+                    {post.rewriteStatus === "awaiting_review" && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold text-blue-400 bg-blue-400/10 shrink-0">
+                        Awaiting Review
+                      </span>
+                    )}
+
                     {/* Audit score badge (if audited) */}
                     {post.auditScore !== null && post.auditScore !== undefined && (
                       <div className="shrink-0 flex items-center gap-1.5">
@@ -1586,35 +1614,65 @@ export default function PostList() {
                         </Button>
                       )}
 
-                      {/* Fix / Rewrite button — disabled when cannibalization_flag is set */}
-                      {post.cannibalizationFlag ? (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span>
-                              <Button
-                                size="sm"
-                                disabled
-                                className="text-xs h-7 px-2.5 cursor-not-allowed opacity-50"
-                              >
-                                Fix
-                              </Button>
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent side="left" className="max-w-xs">
-                            Resolve the duplicate keyword before rewriting.
-                          </TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        post.auditStatus === "complete" && (
-                          <Button
-                            size="sm"
-                            className="text-xs h-7 px-2.5 gap-1"
-                            onClick={() => handleFix(post)}
-                          >
-                            <Zap size={12} />
-                            Fix
-                          </Button>
+                      {/* Fix / Rewrite button — hidden for approved/published posts */}
+                      {post.rewriteStatus !== "approved" && post.postBackStatus !== "complete" && (
+                        post.cannibalizationFlag ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span>
+                                <Button
+                                  size="sm"
+                                  disabled
+                                  className="text-xs h-7 px-2.5 cursor-not-allowed opacity-50"
+                                >
+                                  Fix
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="left" className="max-w-xs">
+                              Resolve the duplicate keyword before rewriting.
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          post.auditStatus === "complete" && (
+                            <Button
+                              size="sm"
+                              className="text-xs h-7 px-2.5 gap-1"
+                              onClick={() => handleFix(post)}
+                            >
+                              <Zap size={12} />
+                              Fix
+                            </Button>
+                          )
                         )
+                      )}
+
+                      {/* Publish to CMS button — shown for approved posts not yet published */}
+                      {post.rewriteStatus === "approved" && post.postBackStatus !== "complete" && (
+                        <Button
+                          size="sm"
+                          className="text-xs h-7 px-2.5 gap-1 bg-emerald-600 hover:bg-emerald-500 text-white"
+                          disabled={publishMutation.isPending && publishMutation.variables?.postId === post.id}
+                          onClick={() => {
+                            if (!iauditUserId) return;
+                            publishMutation.mutate({ postId: post.id, iauditUserId });
+                          }}
+                        >
+                          {publishMutation.isPending && publishMutation.variables?.postId === post.id ? (
+                            <Loader2 size={12} className="animate-spin" />
+                          ) : (
+                            <Send size={12} />
+                          )}
+                          Publish to CMS
+                        </Button>
+                      )}
+
+                      {/* Published badge */}
+                      {post.postBackStatus === "complete" && (
+                        <span className="inline-flex items-center gap-1 text-xs text-emerald-400 font-medium">
+                          <Globe size={12} />
+                          Published
+                        </span>
                       )}
                       {/* View Rewrite button — shown when rewrite is complete */}
                       {post.rewriteStatus === "complete" && (
@@ -1654,6 +1712,7 @@ export default function PostList() {
                         iauditUserId={iauditUserId}
                         onClose={() => setExpandedAuditPostId(null)}
                         onFix={() => handleFix(post)}
+                        rewriteStatus={post.rewriteStatus}
                       />
                     </div>
                   )}
