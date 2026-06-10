@@ -1038,12 +1038,40 @@ export default function PostList() {
   const getPaaMutation = trpc.rewrite.getPaaQuestion.useMutation();
   const runRewriteMutation = trpc.rewrite.runRewrite.useMutation();
   const publishMutation = trpc.postback.runPostBack.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       refetch();
-      toast.success("Post published to CMS successfully!");
+      const postUrl = data?.postUrl;
+      if (postUrl) {
+        toast.success(
+          <span className="flex flex-col gap-1">
+            <span>Content updated and published successfully!</span>
+            <a
+              href={postUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline text-emerald-300 hover:text-emerald-200 text-xs"
+            >
+              View live post →
+            </a>
+          </span>,
+          { duration: 8000 }
+        );
+      } else {
+        toast.success("Content updated and published to CMS successfully!");
+      }
     },
     onError: (err) => {
-      toast.error(err.message ?? "Publish failed. Please try again.");
+      // partial_failure: content saved but publish step failed
+      const cause = (err as any)?.data?.cause;
+      if (cause?.errorCode === "partial_failure") {
+        toast.warning(
+          "Content saved but not published — please publish manually from your CMS dashboard.",
+          { duration: 10000 }
+        );
+        refetch();
+      } else {
+        toast.error(err.message ?? "Publish failed. Please try again.");
+      }
     },
   });
 
@@ -1667,11 +1695,22 @@ export default function PostList() {
                         </Button>
                       )}
 
-                      {/* Published badge */}
+                      {/* Published badge + View live link */}
                       {post.postBackStatus === "complete" && (
                         <span className="inline-flex items-center gap-1 text-xs text-emerald-400 font-medium">
                           <Globe size={12} />
                           Published
+                          {post.url && (
+                            <a
+                              href={post.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ml-1 underline text-emerald-400 hover:text-emerald-300"
+                              title="View live post"
+                            >
+                              View
+                            </a>
+                          )}
                         </span>
                       )}
                       {/* View Rewrite button — shown when rewrite is complete */}

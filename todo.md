@@ -623,3 +623,8 @@
 - [x] Hide "Fix this post" / "Fix for a credit" button from posts that are already in approved status
 - [x] Add a clear "Publish to CMS" button on approved posts so user can push the rewritten post back to their CMS
 - [x] Ensure the post detail/review page for an approved post shows its approved status clearly (not just the audit score)
+
+## UX Fix — Publish to CMS Feedback
+- [x] Return a `publishedLive` boolean and `postUrl` from the postback router so the frontend knows if the publish step actually completed
+- [x] Show clear success toast: "Content updated and published to Wix" with a "View live post" link when both steps succeed
+- [x] Show warning toast: "Content saved but not published — please publish manually from Wix" when draft saved but publish step failed

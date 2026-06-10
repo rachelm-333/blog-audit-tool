@@ -106,7 +106,20 @@ function htmlToRicos(html: string): object {
     if (tag === "a") {
       const href = (el as HTMLAnchorElement).href;
       if (href && href !== "about:blank") {
-        decs.push({ type: "LINK", linkData: { link: { url: href, target: "_BLANK" } } });
+        // Wix richContent target must be a numeric enum: 0=SELF, 1=BLANK, 2=PARENT, 3=TOP
+        const targetAttr = (el as HTMLAnchorElement).target;
+        let wixTarget: number;
+        if (targetAttr === "_self" || targetAttr === "SELF" || targetAttr === "0") {
+          wixTarget = 0;
+        } else if (targetAttr === "_parent" || targetAttr === "PARENT" || targetAttr === "2") {
+          wixTarget = 2;
+        } else if (targetAttr === "_top" || targetAttr === "TOP" || targetAttr === "3") {
+          wixTarget = 3;
+        } else {
+          // Default to BLANK (1) for _blank, empty, or any unrecognised value
+          wixTarget = 1;
+        }
+        decs.push({ type: "LINK", linkData: { link: { url: href, target: wixTarget } } });
       }
     }
     return decs;
