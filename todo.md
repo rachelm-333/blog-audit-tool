@@ -628,3 +628,11 @@
 - [x] Return a `publishedLive` boolean and `postUrl` from the postback router so the frontend knows if the publish step actually completed
 - [x] Show clear success toast: "Content updated and published to Wix" with a "View live post" link when both steps succeed
 - [x] Show warning toast: "Content saved but not published — please publish manually from Wix" when draft saved but publish step failed
+
+## Bug — CMS Connection Status Drops (FIXED)
+- [x] Diagnose why Wix connection keeps losing "connected" status — root cause: any import error (even transient) was setting connection_status to "error"
+- [x] Fix import catch block in cms.ts — only set "error" for credential/auth failures (invalid_credentials), not for transient network or data errors
+- [x] Fix testConnection catch block in cms.ts — same rule, only auth failures set "error"
+- [x] Fix postback.ts — only set "error" for insufficient_permissions, not for site_unreachable (transient)
+- [x] Fix error message to be platform-aware (say "Wix" not "WordPress" for Wix connections)
+- [x] Manually reset the broken Wix connection (id: lyvbsh7MjLps5AD_jTun1) back to "connected" in the database

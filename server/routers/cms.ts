@@ -423,10 +423,18 @@ export const cmsRouter = router({
           return { success: true, displayName: "Zapier Webhook" };
         }
       } catch (err) {
-        await updateCmsConnectionStatus(connection.id, "error");
+        // Only mark as error for auth failures, not transient network errors
+        const isAuthFailure =
+          (err instanceof WpImportException && err.code === "invalid_credentials") ||
+          (err instanceof WixImportException && err.code === "invalid_credentials") ||
+          (err instanceof ShopifyImportException && err.code === "invalid_credentials");
+        if (isAuthFailure) {
+          await updateCmsConnectionStatus(connection.id, "error");
+        }
         if (err instanceof WpImportException) throw mapWpError(err);
         if (err instanceof WixImportException) throw mapWixError(err);
         if (err instanceof ShopifyImportException) throw mapShopifyError(err);
+        if (err instanceof TRPCError) throw err;
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Connection test failed." });
       }
     }),
@@ -472,7 +480,14 @@ export const cmsRouter = router({
           });
         }
       } catch (err) {
-        await updateCmsConnectionStatus(connection.id, "error");
+        // Only mark as error for credential/auth failures — not for transient import errors
+        const isAuthFailure =
+          (err instanceof WpImportException && err.code === "invalid_credentials") ||
+          (err instanceof WixImportException && err.code === "invalid_credentials") ||
+          (err instanceof ShopifyImportException && err.code === "invalid_credentials");
+        if (isAuthFailure) {
+          await updateCmsConnectionStatus(connection.id, "error");
+        }
         if (err instanceof WpImportException) throw mapWpError(err);
         if (err instanceof WixImportException) {
           throw new TRPCError({ code: "BAD_REQUEST", message: err.message });

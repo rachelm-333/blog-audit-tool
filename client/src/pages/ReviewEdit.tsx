@@ -1083,8 +1083,9 @@ export default function ReviewEdit() {
 
       // Error state 1: Connection lost
       if (cause?.errorCode === "connection_lost") {
+        const platformName = (cause as any)?.platform === "wix" ? "Wix" : (cause as any)?.platform === "shopify" ? "Shopify" : "WordPress";
         toast.error(
-          "Your CMS connection has been lost. Please reconnect your WordPress site before posting back.",
+          `Your CMS connection has been lost. Please reconnect your ${platformName} site before posting back.`,
           { duration: 8000 }
         );
         return;

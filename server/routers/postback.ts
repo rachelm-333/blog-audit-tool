@@ -107,11 +107,12 @@ export const postbackRouter = router({
 
       // Error state 1: CMS connection lost
       if (!connection || connection.connectionStatus !== "connected") {
+        const platformName = post.cmsPlatform === "wix" ? "Wix" : post.cmsPlatform === "shopify" ? "Shopify" : "WordPress";
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
           message:
-            "Your CMS connection has been lost. Please reconnect your WordPress site before posting back.",
-          cause: { errorCode: "connection_lost" },
+            `Your CMS connection has been lost. Please reconnect your ${platformName} site before posting back.`,
+          cause: { errorCode: "connection_lost", platform: post.cmsPlatform },
         });
       }
 
@@ -121,11 +122,12 @@ export const postbackRouter = router({
         const raw = decryptConnectionCredentials(connection);
         creds = raw as unknown as WordPressCredentials;
       } catch {
+        const platformName = post.cmsPlatform === "wix" ? "Wix" : post.cmsPlatform === "shopify" ? "Shopify" : "WordPress";
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message:
-            "Could not read your CMS credentials. Please reconnect your WordPress site.",
-          cause: { errorCode: "connection_lost" },
+            `Could not read your CMS credentials. Please reconnect your ${platformName} site.`,
+          cause: { errorCode: "connection_lost", platform: post.cmsPlatform },
         });
       }
 
@@ -205,8 +207,8 @@ export const postbackRouter = router({
             await setPostBackFailed(input.postId).catch(() => {});
           }
 
-          // Mark connection as error for connection-related failures
-          if (err.code === "connection_lost" || err.code === "site_unreachable") {
+          // Only mark connection as error for auth/permission failures, not transient network errors
+          if (err.code === "insufficient_permissions") {
             await updateCmsConnectionStatus(connection.id, "error").catch(() => {});
           }
 
