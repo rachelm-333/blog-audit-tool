@@ -231,7 +231,15 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                   Client
                 </p>
                 <div className="space-y-0.5">
-                  {bizData.businesses.map((biz) => {
+                  {/* Deduplicate by name — keep the most recently created entry */}
+                  {bizData.businesses
+                    .reduce((acc: typeof bizData.businesses, biz) => {
+                      const existing = acc.findIndex(b => b.name === biz.name);
+                      if (existing === -1) acc.push(biz);
+                      else if (biz.id > acc[existing].id) acc[existing] = biz;
+                      return acc;
+                    }, [])
+                    .map((biz) => {
                     const isSelected = selectedBusinessId === biz.id;
                     return (
                       <button

@@ -159,6 +159,7 @@ export default function CmsConnect() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [error, setError] = useState<ErrorState | null>(null);
   const [importResults, setImportResults] = useState<ImportResults | null>(null);
+  const [justConnected, setJustConnected] = useState<string | null>(null); // platform name after successful connect
 
   // WordPress form
   const [wpUrl, setWpUrl] = useState("");
@@ -257,6 +258,18 @@ export default function CmsConnect() {
           </Button>
         </div>
 
+        {/* Success banner after connecting */}
+        {justConnected && (
+          <div className="flex items-start gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-200 mb-6">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-emerald-800">{justConnected} connected successfully!</p>
+              <p className="text-xs text-emerald-700 mt-0.5">Click <strong>Import Posts</strong> next to your connection to pull in your blog posts.</p>
+            </div>
+            <button onClick={() => setJustConnected(null)} className="text-emerald-400 hover:text-emerald-600 text-xs shrink-0">Dismiss</button>
+          </div>
+        )}
+
         {!hasConnections ? (
           // Empty state
           <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-xl">
@@ -324,16 +337,17 @@ export default function CmsConnect() {
                       }}
                       className="border-gray-200 text-gray-600 hover:bg-gray-50"
                     >
-                      Update
+                      Edit Credentials
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => handleDisconnect(conn.id)}
-                      className="border-red-200 text-red-500 hover:bg-red-50"
+                      className="border-red-200 text-red-500 hover:bg-red-50 gap-1.5"
                       disabled={disconnectMutation.isPending}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
+                      Remove
                     </Button>
                   </div>
                 </div>
@@ -410,7 +424,8 @@ export default function CmsConnect() {
           });
           setActiveConnectionId(result.connectionId);
           await refetchConnections();
-          setView("import-options");
+          setJustConnected("WordPress");
+          setView("connections");
         } catch (err: any) {
           const msg: string = err?.message ?? "Connection failed.";
           const code = Object.entries(ERROR_MESSAGES).find(([, v]) => v === msg)?.[0] ?? "unknown";
@@ -468,8 +483,8 @@ export default function CmsConnect() {
           });
           setActiveConnectionId(result.connectionId);
           await refetchConnections();
-          toast.success(result.reconnected ? "Wix credentials updated." : "Wix connected successfully.");
-          setView("import-options");
+          setJustConnected(result.reconnected ? "Wix (credentials updated)" : "Wix");
+          setView("connections");
         } catch (err: any) {
           const msg: string = err?.message ?? "Connection failed.";
           const code = Object.entries(ERROR_MESSAGES).find(([, v]) => v === msg)?.[0] ?? "unknown";
@@ -552,7 +567,8 @@ export default function CmsConnect() {
           });
           setActiveConnectionId(result.connectionId);
           await refetchConnections();
-          setView("import-options");
+          setJustConnected(result.reconnected ? "Shopify (credentials updated)" : "Shopify");
+          setView("connections");
         } catch (err: any) {
           const msg: string = err?.message ?? "Connection failed.";
           const code = Object.entries(ERROR_MESSAGES).find(([, v]) => v === msg)?.[0] ?? "unknown";
@@ -607,7 +623,8 @@ export default function CmsConnect() {
             setZapierInboundUrl(`${window.location.origin}${result.inboundUrl}`);
           }
           await refetchConnections();
-          setView("import-options");
+          setJustConnected("Zapier");
+          setView("connections");
         } catch (err: any) {
           const msg: string = err?.message ?? "Connection failed.";
           setError({ code: "unknown", message: msg });

@@ -611,3 +611,9 @@
 - [x] Remove p.note display from passing points in PostList AuditResultsPanel (just show green tick + name)
 - [x] Remove p.note display from passing points in Audit.tsx public page (just show green tick + name)
 - [x] Remove p.note display from passing points in ReviewEdit SeoScorePanel (already no note shown — verified, notes never rendered for passing points)
+
+## UX Fix — CMS Connections Page & Sidebar
+
+- [x] Fix CMS Connections page: after adding a connection, do NOT auto-redirect to Import Posts — return user to the Connections list with a success state and a clear "Import Posts" button they can choose to click
+- [x] Redesign Connections list: each connected CMS shows its platform icon, site name/URL, status badge (connected/error), and action buttons: "Import Posts", "Edit Credentials", "Remove" — no ambiguous labels
+- [x] Fix duplicate Startup Deck entries in the sidebar navigation (deduplicate by name client-side)
