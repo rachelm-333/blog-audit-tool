@@ -34,6 +34,14 @@ queryClient.getMutationCache().subscribe(event => {
   if (event.type === "updated" && event.action.type === "error") {
     const error = event.mutation.state.error;
     redirectToLoginIfUnauthorized(error);
+    // Suppress expected "No refresh token provided" — this fires for Manus OAuth users
+    // who have no iAudit email/password session cookie. It is handled silently in useIauditAuth.
+    if (
+      error instanceof TRPCClientError &&
+      error.message === "No refresh token provided"
+    ) {
+      return;
+    }
     console.error("[API Mutation Error]", error);
   }
 });
