@@ -19,7 +19,7 @@ import { JSDOM } from "jsdom";
 import type { WixCredentials } from "./encryption.service";
 import { extractBodyImageAlts } from "./wordpress.service";
 import type { WpImportedPost, WpPostStatus } from "./wordpress.service";
-import { PostBackException } from "./postback.service";
+import { PostBackException, preserveImagesInBody } from "./postback.service";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -549,9 +549,11 @@ export interface WixPostBackResult {
  *
  * Wix Blog v3 uses richContent (Ricos JSON), NOT HTML.
  * The correct flow is:
- *   1. Convert HTML body to Ricos richContent document
- *   2. PATCH /blog/v3/draft-posts/{id}  — update the draft with richContent + seoData
- *   3. POST  /blog/v3/draft-posts/{id}/publish — re-publish, updating the live post
+ *   1. Fetch the current draft to extract original IMAGE nodes (preserves Wix-hosted images)
+ *   2. Run preserveImagesInBody to re-inject original images into the rewritten HTML
+ *   3. Convert the merged HTML body to Ricos richContent
+ *   4. PATCH /blog/v3/draft-posts/{id}  — update the draft with richContent + seoData
+ *   5. POST  /blog/v3/draft-posts/{id}/publish — re-publish, updating the live post
  *
  * ONLY updates: richContent (body), seoData (meta title + description).
  * NEVER updates: author, date, status, URL/slug, post title.
@@ -576,10 +578,80 @@ export async function postBackToWix(
     ],
   };
 
-  // Convert HTML body to Ricos richContent
-  // Images from the original body are preserved because htmlToRicos handles <img> tags,
-  // and the bodyApproved HTML already has images re-injected by preserveImagesInBody.
-  const richContent = htmlToRicos(payload.bodyApproved);
+  // Step 0: Fetch the current draft to get original IMAGE nodes from Wix richContent.
+  // This is critical — Wix images are stored as Ricos IMAGE nodes with Wix-internal
+  // media IDs (not plain URLs), so we must preserve them from the original draft.
+  let originalImageNodes: object[] = [];
+  let originalRicosNodeCount = 0;
+  try {
+    const draftRes = await wixFetch(`${draftUrl}?fieldsets=RICH_CONTENT`, creds);
+    if (draftRes.ok) {
+      const draftData = await draftRes.json() as Record<string, unknown>;
+      const draftPost = (draftData.draftPost ?? draftData) as Record<string, unknown>;
+      const rc = draftPost.richContent as Record<string, unknown> | undefined;
+      if (rc?.nodes && Array.isArray(rc.nodes)) {
+        const allNodes = rc.nodes as Record<string, unknown>[];
+        originalRicosNodeCount = allNodes.length;
+        originalImageNodes = allNodes.filter((n) => n.type === "IMAGE" || n.type === "GALLERY");
+      }
+    }
+  } catch {
+    // If we can't fetch the original, proceed without image preservation
+    console.warn("[Wix PostBack] Could not fetch original draft for image preservation");
+  }
+
+  // Step 1: Re-inject original images into the rewritten HTML at proportional positions
+  // using the same strategy as WordPress post-back.
+  const altTexts = payload.bodyImageAlts ?? [];
+  const bodyWithImages = preserveImagesInBody(
+    payload.bodyOriginal ?? "",
+    payload.bodyApproved,
+    altTexts
+  );
+
+  // Step 2: Convert the merged HTML body to Ricos richContent
+  const richContentFromHtml = htmlToRicos(bodyWithImages) as { nodes: object[] };
+
+  // Step 3: If we have original Wix IMAGE nodes (with Wix media IDs), merge them back in
+  // at proportional positions within the converted richContent nodes.
+  // This handles Wix-hosted images that have internal media IDs rather than plain URLs.
+  let finalNodes: object[] = richContentFromHtml.nodes;
+  if (originalImageNodes.length > 0) {
+    // Remove any IMAGE nodes that htmlToRicos produced (they came from <img> tags in the
+    // original HTML which may have had external URLs — replace with original Wix nodes)
+    const textOnlyNodes = richContentFromHtml.nodes.filter(
+      (n) => (n as any).type !== "IMAGE" && (n as any).type !== "GALLERY"
+    );
+    const textNodeCount = Math.max(textOnlyNodes.length, 1);
+
+    // Insert each original Wix image node at a proportional position
+    const result: object[] = [...textOnlyNodes];
+    originalImageNodes.forEach((imgNode, idx) => {
+      // Distribute images evenly through the text nodes
+      const relPos = originalRicosNodeCount > 0
+        ? (idx + 1) / (originalImageNodes.length + 1)
+        : (idx + 1) / (originalImageNodes.length + 1);
+      const insertAt = Math.min(
+        Math.round(relPos * textNodeCount),
+        result.length
+      );
+      result.splice(insertAt + idx, 0, imgNode);
+    });
+    finalNodes = result;
+  }
+
+  // Ensure document ends with an empty paragraph (Wix requirement)
+  if (finalNodes.length === 0 || (finalNodes[finalNodes.length - 1] as any).type !== "PARAGRAPH") {
+    const { nanoid } = await import("nanoid");
+    finalNodes.push({
+      type: "PARAGRAPH",
+      id: nanoid(8),
+      nodes: [],
+      paragraphData: { textStyle: { textAlignment: "AUTO" } },
+    });
+  }
+
+  const richContent = { nodes: finalNodes };
 
   // Step 1: Update the draft post with richContent and SEO data
   const patchBody = {

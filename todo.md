@@ -636,3 +636,8 @@
 - [x] Fix postback.ts — only set "error" for insufficient_permissions, not for site_unreachable (transient)
 - [x] Fix error message to be platform-aware (say "Wix" not "WordPress" for Wix connections)
 - [x] Manually reset the broken Wix connection (id: lyvbsh7MjLps5AD_jTun1) back to "connected" in the database
+
+## Critical Bug — Wix Post-Back Destroys Images and Formatting
+- [x] Fix Wix post-back: preserve all original images from the Wix post (fetch original richContent nodes and merge image nodes back in)
+- [x] Fix Wix post-back: ensure paragraph spacing is correct (each paragraph separated properly, headings have correct spacing)
+- [x] Fix htmlToRicos converter: produce proper Wix richContent paragraph nodes with correct spacing
