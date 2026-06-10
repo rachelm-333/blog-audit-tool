@@ -508,21 +508,23 @@ export function runMechanicalEnforcement(
   }
 
   // --- P9: Opening Answer Block ---
-  // Check if the body already starts with a bold question + answer paragraph
+  // Strictly require a STANDALONE bold-only paragraph as the very first non-heading element.
+  // A paragraph that has bold text mixed with other text does NOT count.
   if (options?.paaQuestion) {
     const paaQ = options.paaQuestion.trim();
-    const openingText = stripHtml(bodyRewritten.slice(0, 2000)).toLowerCase();
-    const questionLower = paaQ.toLowerCase().replace(/[?]/g, '').trim();
-    const hasOpeningBlock =
-      // Check for bold question pattern: <strong>...question...</strong>
-      (/<p[^>]*>\s*<strong>[^<]{10,}<\/strong>\s*<\/p>/i.test(bodyRewritten.slice(0, 2000)) ||
-       // Or a standalone question paragraph near the top
-       openingText.includes(questionLower.slice(0, 30)));
-    if (!hasOpeningBlock) {
-      // Inject the PAA question + answer block at the very beginning
-      const answerSentence = `${focusKeyword.charAt(0).toUpperCase() + focusKeyword.slice(1)} requires careful planning and the right approach. Understanding the key steps and requirements will help you achieve the best outcome efficiently.`;
+    // Strip any H1 from the top (we strip H1 before Wix post-back, but enforce here too)
+    const bodyWithoutH1 = bodyRewritten.replace(/^\s*<h1[^>]*>.*?<\/h1>\s*/i, '');
+    // Find the first <p> tag in the body
+    const firstPMatch = bodyWithoutH1.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
+    const firstPContent = firstPMatch ? firstPMatch[1].trim() : '';
+    // A valid PAA block is a <p> whose ENTIRE content is a single <strong>...</strong> tag
+    const isStandaloneBoldParagraph = /^<strong>[^<]{10,}<\/strong>$/i.test(firstPContent);
+    if (!isStandaloneBoldParagraph) {
+      // Inject the PAA question + answer block
+      // Use a meaningful answer derived from the keyword rather than a generic placeholder
+      const answerSentence = `${focusKeyword.charAt(0).toUpperCase() + focusKeyword.slice(1)} is the foundation of a strong content strategy. Getting it right means your posts are easier to find, more engaging to read, and more likely to convert visitors into customers.`;
       const paaBlock = `<p><strong>${paaQ}</strong></p>\n<p>${answerSentence}</p>\n`;
-      // Insert after the first heading (H1/H2) if present, otherwise prepend
+      // Insert after the first H1/H2 if present, otherwise prepend to body
       const headingMatch = bodyRewritten.match(/<h[12][^>]*>.*?<\/h[12]>/i);
       if (headingMatch && headingMatch.index !== undefined) {
         const insertPos = headingMatch.index + headingMatch[0].length;
