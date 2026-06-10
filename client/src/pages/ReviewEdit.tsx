@@ -1109,6 +1109,15 @@ export default function ReviewEdit() {
         return;
       }
 
+      // Error state 5: Image loss risk — safety gate fired, nothing was written
+      if (cause?.errorCode === "image_loss_risk") {
+        toast.error(
+          "Post-back blocked — your images could not be safely preserved. Your Wix post has NOT been changed. Please contact support.",
+          { duration: 12000 }
+        );
+        return;
+      }
+
       // Generic error
       toast.error(err.message ?? "Post-back failed. Please try again.");
     },

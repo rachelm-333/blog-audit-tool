@@ -32,6 +32,7 @@ export type PostBackErrorCode =
   | "insufficient_permissions"
   | "partial_failure"
   | "site_unreachable"
+  | "image_loss_risk"
   | "unknown";
 
 export class PostBackException extends Error {

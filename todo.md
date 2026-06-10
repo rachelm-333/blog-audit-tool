@@ -641,3 +641,7 @@
 - [x] Fix Wix post-back: preserve all original images from the Wix post (fetch original richContent nodes and merge image nodes back in)
 - [x] Fix Wix post-back: ensure paragraph spacing is correct (each paragraph separated properly, headings have correct spacing)
 - [x] Fix htmlToRicos converter: produce proper Wix richContent paragraph nodes with correct spacing
+
+## Safety Gate — Wix Post-Back Image Protection
+- [x] Add pre-flight check in postBackToWix: if original draft has images but final richContent nodes contain zero IMAGE nodes, abort with error_code "image_loss_risk"
+- [x] Show a blocking warning toast in the UI when image_loss_risk fires: "Post-back blocked — images could not be preserved. Please contact support."

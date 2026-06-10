@@ -651,6 +651,21 @@ export async function postBackToWix(
     });
   }
 
+  // ── Safety gate: never post back if images would be lost ───────────────────
+  // If the original draft had images but our final nodes contain zero IMAGE nodes,
+  // abort immediately rather than wiping the user's images.
+  if (originalImageNodes.length > 0) {
+    const finalImageCount = finalNodes.filter(
+      (n) => (n as any).type === "IMAGE" || (n as any).type === "GALLERY"
+    ).length;
+    if (finalImageCount === 0) {
+      throw new PostBackException(
+        "image_loss_risk",
+        `Post-back blocked — your post has ${originalImageNodes.length} image(s) that could not be safely preserved in the rewritten content. No changes have been made to your Wix post. Please contact support or publish manually.`
+      );
+    }
+  }
+
   const richContent = { nodes: finalNodes };
 
   // Step 1: Update the draft post with richContent and SEO data
