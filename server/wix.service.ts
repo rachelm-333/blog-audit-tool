@@ -5,7 +5,7 @@
  * Base URL: https://www.wixapis.com/blog/v3/
  *
  * Import: GET /blog/v3/posts (with SEO data)
- * Post-back: PATCH /blog/v3/posts/{id} — body + meta only
+ * Post-back: PATCH /blog/v3/draft-posts/{id} — richContent + seoData only
  * Schema: NEVER auto-inject via Wix API — always show copyable JSON-LD block
  *
  * Status mapping:
@@ -15,6 +15,7 @@
  *   (DELETED is never imported)
  */
 
+import { JSDOM } from "jsdom";
 import type { WixCredentials } from "./encryption.service";
 import { extractBodyImageAlts } from "./wordpress.service";
 import type { WpImportedPost, WpPostStatus } from "./wordpress.service";
@@ -58,6 +59,7 @@ function buildHeaders(creds: WixCredentials): Record<string, string> {
     "Authorization": `Bearer ${creds.apiKey}`,
     "wix-site-id": creds.siteId,
     "Content-Type": "application/json",
+    "Accept": "application/json",
   };
 }
 
@@ -66,276 +68,459 @@ async function wixFetch(
   creds: WixCredentials,
   options: RequestInit = {}
 ): Promise<Response> {
-  try {
-    const res = await fetch(url, {
-      ...options,
-      headers: {
-        ...buildHeaders(creds),
-        ...(options.headers as Record<string, string> ?? {}),
-      },
-      signal: AbortSignal.timeout(30_000),
-    });
-    return res;
-  } catch (err: any) {
-    if (err?.name === "TimeoutError") {
-      throw new WixImportException("site_unreachable", "Connection to Wix timed out. Please try again.");
-    }
-    throw new WixImportException("site_unreachable", "Could not reach the Wix API. Please check your credentials and try again.");
-  }
+  return fetch(url, {
+    ...options,
+    headers: {
+      ...buildHeaders(creds),
+      ...(options.headers as Record<string, string> | undefined ?? {}),
+    },
+  });
 }
 
-// ─── Connection test ──────────────────────────────────────────────────────────
+// ─── HTML → Ricos converter ───────────────────────────────────────────────────
+
+let _nodeIdCounter = 0;
+function genId(): string {
+  _nodeIdCounter = (_nodeIdCounter + 1) % 1_000_000;
+  return `n${Date.now().toString(36)}${_nodeIdCounter.toString(36)}`;
+}
 
 /**
- * Tests a Wix connection by fetching the first page of posts.
- * Returns { ok: true, siteId } on success, or { ok: false, errorCode, message } on failure.
+ * Convert an HTML string to a Wix Ricos richContent document.
+ * Supports: h1-h6, p, ul, ol, li, strong/b, em/i, a, br, img.
+ * Non-text nodes (images from original body) are preserved as IMAGE nodes.
  */
-export async function testWixConnection(
-  creds: WixCredentials
-): Promise<{ ok: true; siteId: string } | { ok: false; errorCode: string; message: string }> {
-  let res: Response;
-  try {
-    const url = `${WIX_BASE}/posts?fieldsets=SEO&paging.limit=1&paging.offset=0`;
-    res = await wixFetch(url, creds);
-  } catch {
-    return { ok: false, errorCode: "site_unreachable", message: "Could not reach the Wix API. Please check your credentials and try again." };
+function htmlToRicos(html: string): object {
+  const { window } = new JSDOM(`<body>${html}</body>`);
+  const doc = window.document;
+  const body = doc.body;
+
+  const nodes: object[] = [];
+
+  function textDecorations(el: Element): object[] {
+    const decs: object[] = [];
+    const tag = el.tagName?.toLowerCase();
+    if (tag === "strong" || tag === "b") decs.push({ type: "BOLD" });
+    if (tag === "em" || tag === "i") decs.push({ type: "ITALIC" });
+    if (tag === "u") decs.push({ type: "UNDERLINE" });
+    if (tag === "a") {
+      const href = (el as HTMLAnchorElement).href;
+      if (href && href !== "about:blank") {
+        decs.push({ type: "LINK", linkData: { link: { url: href, target: "_BLANK" } } });
+      }
+    }
+    return decs;
   }
 
-  if (res.status === 401 || res.status === 403) {
-    return { ok: false, errorCode: "invalid_credentials", message: "We could not connect to your Wix site. Please check your Site ID and API Key." };
-  }
-  if (res.status === 429) {
-    return { ok: false, errorCode: "rate_limit", message: "Too many requests to Wix API. Please try again in a moment." };
-  }
-  if (!res.ok) {
-    return { ok: false, errorCode: "site_unreachable", message: `Unexpected response from Wix API (HTTP ${res.status}).` };
+  function collectTextNodes(node: Node, parentDecs: object[] = []): object[] {
+    const result: object[] = [];
+    node.childNodes.forEach((child) => {
+      if (child.nodeType === 3 /* TEXT_NODE */) {
+        const text = child.textContent ?? "";
+        if (text) {
+          result.push({
+            type: "TEXT",
+            id: "",
+            textData: {
+              text,
+              decorations: parentDecs.length ? parentDecs : [],
+            },
+          });
+        }
+      } else if (child.nodeType === 1 /* ELEMENT_NODE */) {
+        const el = child as Element;
+        const tag = el.tagName.toLowerCase();
+        if (tag === "br") {
+          result.push({ type: "TEXT", id: "", textData: { text: "\n", decorations: [] } });
+        } else if (tag === "img") {
+          // images inside paragraphs — skip here, handled at block level
+        } else {
+          const decs = [...parentDecs, ...textDecorations(el)];
+          result.push(...collectTextNodes(el, decs));
+        }
+      }
+    });
+    return result;
   }
 
-  return { ok: true, siteId: creds.siteId };
+  function processBlock(el: Element): void {
+    const tag = el.tagName.toLowerCase();
+
+    if (tag === "img") {
+      const src = (el as HTMLImageElement).src;
+      const alt = (el as HTMLImageElement).alt ?? "";
+      if (src && src !== "about:blank") {
+        nodes.push({
+          type: "IMAGE",
+          id: genId(),
+          nodes: [],
+          imageData: {
+            containerData: { width: { size: "CONTENT" }, alignment: "CENTER", textWrap: false },
+            image: { src: { url: src }, altText: alt },
+          },
+        });
+      }
+      return;
+    }
+
+    if (tag.match(/^h[1-6]$/)) {
+      const level = parseInt(tag[1]);
+      const textNodes = collectTextNodes(el);
+      if (textNodes.length === 0) return;
+      nodes.push({
+        type: "HEADING",
+        id: genId(),
+        nodes: textNodes,
+        headingData: { level, textStyle: { textAlignment: "AUTO" } },
+      });
+      return;
+    }
+
+    if (tag === "p") {
+      // Check for img children — emit as IMAGE nodes
+      el.querySelectorAll("img").forEach((img) => {
+        const src = img.src;
+        const alt = img.alt ?? "";
+        if (src && src !== "about:blank") {
+          nodes.push({
+            type: "IMAGE",
+            id: genId(),
+            nodes: [],
+            imageData: {
+              containerData: { width: { size: "CONTENT" }, alignment: "CENTER", textWrap: false },
+              image: { src: { url: src }, altText: alt },
+            },
+          });
+        }
+        img.remove();
+      });
+      const textNodes = collectTextNodes(el);
+      if (textNodes.length === 0) {
+        // empty paragraph — emit empty paragraph as spacer
+        nodes.push({
+          type: "PARAGRAPH",
+          id: genId(),
+          nodes: [],
+          paragraphData: { textStyle: { textAlignment: "AUTO" } },
+        });
+        return;
+      }
+      nodes.push({
+        type: "PARAGRAPH",
+        id: genId(),
+        nodes: textNodes,
+        paragraphData: { textStyle: { textAlignment: "AUTO" } },
+      });
+      return;
+    }
+
+    if (tag === "ul" || tag === "ol") {
+      const listType = tag === "ul" ? "BULLETED_LIST" : "ORDERED_LIST";
+      const listItems: object[] = [];
+      el.querySelectorAll(":scope > li").forEach((li) => {
+        const textNodes = collectTextNodes(li);
+        listItems.push({
+          type: "LIST_ITEM",
+          id: genId(),
+          nodes: [
+            {
+              type: "PARAGRAPH",
+              id: genId(),
+              nodes: textNodes,
+              paragraphData: { textStyle: { textAlignment: "AUTO" } },
+            },
+          ],
+        });
+      });
+      if (listItems.length > 0) {
+        nodes.push({ type: listType, id: genId(), nodes: listItems });
+      }
+      return;
+    }
+
+    if (tag === "blockquote") {
+      const textNodes = collectTextNodes(el);
+      if (textNodes.length > 0) {
+        nodes.push({
+          type: "BLOCKQUOTE",
+          id: genId(),
+          nodes: [
+            {
+              type: "PARAGRAPH",
+              id: genId(),
+              nodes: textNodes,
+              paragraphData: { textStyle: { textAlignment: "AUTO" } },
+            },
+          ],
+        });
+      }
+      return;
+    }
+
+    // Fallback: treat as paragraph
+    const textNodes = collectTextNodes(el);
+    if (textNodes.length > 0) {
+      nodes.push({
+        type: "PARAGRAPH",
+        id: genId(),
+        nodes: textNodes,
+        paragraphData: { textStyle: { textAlignment: "AUTO" } },
+      });
+    }
+  }
+
+  body.childNodes.forEach((child) => {
+    if (child.nodeType === 1) {
+      processBlock(child as Element);
+    } else if (child.nodeType === 3) {
+      const text = child.textContent?.trim();
+      if (text) {
+        nodes.push({
+          type: "PARAGRAPH",
+          id: genId(),
+          nodes: [{ type: "TEXT", id: "", textData: { text, decorations: [] } }],
+          paragraphData: { textStyle: { textAlignment: "AUTO" } },
+        });
+      }
+    }
+  });
+
+  // Ensure document ends with an empty paragraph (Wix requirement)
+  if (nodes.length === 0 || (nodes[nodes.length - 1] as any).type !== "PARAGRAPH") {
+    nodes.push({
+      type: "PARAGRAPH",
+      id: genId(),
+      nodes: [],
+      paragraphData: { textStyle: { textAlignment: "AUTO" } },
+    });
+  }
+
+  return { nodes };
+}
+
+// ─── Import helpers ───────────────────────────────────────────────────────────
+
+function parseWixPost(raw: Record<string, unknown>): WpImportedPost {
+  const cmsPostId = raw.id as string;
+  const title = (raw.title as string) ?? "";
+  const status = WIX_STATUS_MAP[(raw.status as string) ?? ""] ?? "draft";
+  const urlBase = (raw.url as Record<string, string>)?.base ?? "";
+  const dateRaw = (raw.firstPublishedDate ?? raw.createdDate) as string | undefined;
+  const publishDate = dateRaw ? new Date(dateRaw) : null;
+
+  // Extract HTML body from richContent nodes
+  let bodyHtml = "";
+  const rc = raw.richContent as Record<string, unknown> | undefined;
+  if (rc?.nodes) {
+    bodyHtml = ricosToHtml(rc.nodes as object[]);
+  }
+
+  // SEO data
+  const seo = raw.seoData as Record<string, unknown> | undefined;
+  let metaTitle: string | null = null;
+  let metaDescription: string | null = null;
+  if (seo?.tags && Array.isArray(seo.tags)) {
+    for (const tag of seo.tags as Record<string, unknown>[]) {
+      if (tag.type === "title") metaTitle = (tag.children as string) ?? null;
+      if (tag.type === "meta" && (tag.props as Record<string, string>)?.name === "description") {
+        metaDescription = (tag.props as Record<string, string>).content ?? null;
+      }
+    }
+  }
+
+  const bodyImageAlts = extractBodyImageAlts(bodyHtml);
+
+  return {
+    cmsPostId,
+    title,
+    status,
+    url: urlBase,
+    publishDate,
+    scheduledDate: null,
+    authorIdCms: "",
+    authorNameCms: "",
+    focusKeyword: null,
+    metaTitle: metaTitle || title,
+    metaDescription,
+    featuredImageUrl: null,
+    featuredImageAlt: null,
+    bodyHtml,
+    bodyImageAlts,
+    categories: [],
+    tags: [],
+  };
+}
+
+/**
+ * Convert Ricos nodes back to HTML for storage and auditing.
+ */
+function ricosToHtml(nodes: object[]): string {
+  let html = "";
+
+  function decorateText(text: string, decs: Record<string, unknown>[]): string {
+    let t = text;
+    for (const d of decs) {
+      if (d.type === "BOLD") t = `<strong>${t}</strong>`;
+      else if (d.type === "ITALIC") t = `<em>${t}</em>`;
+      else if (d.type === "UNDERLINE") t = `<u>${t}</u>`;
+      else if (d.type === "LINK") {
+        const url = ((d.linkData as any)?.link?.url) ?? "";
+        t = `<a href="${url}">${t}</a>`;
+      }
+    }
+    return t;
+  }
+
+  function processTextNodes(children: object[]): string {
+    return children
+      .map((n: any) => {
+        if (n.type === "TEXT") {
+          return decorateText(n.textData?.text ?? "", n.textData?.decorations ?? []);
+        }
+        return "";
+      })
+      .join("");
+  }
+
+  for (const node of nodes as any[]) {
+    switch (node.type) {
+      case "HEADING": {
+        const level = node.headingData?.level ?? 2;
+        html += `<h${level}>${processTextNodes(node.nodes ?? [])}</h${level}>`;
+        break;
+      }
+      case "PARAGRAPH": {
+        const inner = processTextNodes(node.nodes ?? []);
+        html += inner ? `<p>${inner}</p>` : "<p></p>";
+        break;
+      }
+      case "BULLETED_LIST": {
+        const items = (node.nodes ?? []).map((li: any) => {
+          const inner = (li.nodes ?? []).map((p: any) => processTextNodes(p.nodes ?? [])).join("");
+          return `<li>${inner}</li>`;
+        });
+        html += `<ul>${items.join("")}</ul>`;
+        break;
+      }
+      case "ORDERED_LIST": {
+        const items = (node.nodes ?? []).map((li: any) => {
+          const inner = (li.nodes ?? []).map((p: any) => processTextNodes(p.nodes ?? [])).join("");
+          return `<li>${inner}</li>`;
+        });
+        html += `<ol>${items.join("")}</ol>`;
+        break;
+      }
+      case "BLOCKQUOTE": {
+        const inner = (node.nodes ?? []).map((p: any) => processTextNodes(p.nodes ?? [])).join("");
+        html += `<blockquote>${inner}</blockquote>`;
+        break;
+      }
+      case "IMAGE": {
+        const src = node.imageData?.image?.src?.url ?? node.imageData?.image?.src?.id ?? "";
+        const alt = node.imageData?.image?.altText ?? "";
+        if (src) html += `<img src="${src}" alt="${alt}" />`;
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  return html;
 }
 
 // ─── Import ───────────────────────────────────────────────────────────────────
 
-export interface WixImportResult {
-  posts: WpImportedPost[];
-  errors: string[];
+export async function importFromWix(
+  creds: WixCredentials,
+  options: { limit?: number; cursor?: string } = {}
+): Promise<{ posts: WpImportedPost[]; nextCursor: string | null }> {
+  const params = new URLSearchParams({
+    fieldsets: "SEO,RICH_CONTENT",
+    "paging.limit": String(options.limit ?? 100),
+  });
+  if (options.cursor) params.set("paging.cursor", options.cursor);
+
+  const url = `${WIX_BASE}/posts?${params.toString()}`;
+  let res: Response;
+  try {
+    res = await wixFetch(url, creds);
+  } catch (err: any) {
+    throw new WixImportException("site_unreachable", `Could not reach Wix: ${err?.message}`);
+  }
+
+  if (res.status === 401 || res.status === 403) {
+    throw new WixImportException("invalid_credentials", "Invalid Wix API key or insufficient permissions.");
+  }
+  if (!res.ok) {
+    throw new WixImportException("site_unreachable", `Wix API returned HTTP ${res.status}`);
+  }
+
+  const data = await res.json() as Record<string, unknown>;
+  const rawPosts = (data.posts ?? []) as Record<string, unknown>[];
+
+  if (rawPosts.length === 0 && !options.cursor) {
+    throw new WixImportException("zero_posts", "No posts found on this Wix site.");
+  }
+
+  const posts = rawPosts.map(parseWixPost);
+  const nextCursor = (data.metaData as any)?.cursors?.next ?? null;
+
+  return { posts, nextCursor };
 }
 
-/**
- * Imports all blog posts from a Wix site.
- * Paginates through all pages using cursor-based pagination.
- */
+// ─── importWixPosts (wrapper matching WordPress import interface) ────────────
+
 export async function importWixPosts(
   creds: WixCredentials,
   statusFilter: "published" | "scheduled" | "draft" | "all" = "all"
-): Promise<WixImportResult> {
+): Promise<{ posts: WpImportedPost[]; errors: string[] }> {
   const allPosts: WpImportedPost[] = [];
-  const errors: string[] = [];
-  let cursor: string | undefined = undefined;
-  let page = 0;
+  let cursor: string | undefined;
 
   do {
-    page++;
-    // Use POST /v3/posts/query — supports all post types (published, scheduled, draft)
-    // GET /v3/posts only returns published posts
-    const queryBody: any = {
-      fieldsets: ["SEO", "RICH_CONTENT"],
-      paging: { limit: 100 },
-    };
-    if (cursor) queryBody.paging.cursor = cursor;
+    const { posts, nextCursor } = await importFromWix(creds, { limit: 100, cursor });
+    allPosts.push(...posts);
+    cursor = nextCursor ?? undefined;
+  } while (cursor);
 
-    const url = `${WIX_BASE}/posts/query`;
-    const res = await wixFetch(url, creds, {
-      method: "POST",
-      body: JSON.stringify(queryBody),
-    });
+  const filtered =
+    statusFilter === "all"
+      ? allPosts
+      : allPosts.filter((p) => p.status === statusFilter);
 
-    if (res.status === 401 || res.status === 403) {
-      let detail = "";
-      try { const b = await res.json(); detail = JSON.stringify(b); } catch {}
-      throw new WixImportException(
-        "invalid_credentials",
-        `We could not connect to your Wix site. Please check your Site ID and API Key. (HTTP ${res.status}${detail ? ": " + detail : ""})`
-      );
-    }
-    if (res.status === 429) {
-      throw new WixImportException("rate_limit", "Import paused — too many requests to Wix API. Please try again in 60 seconds.");
-    }
-    if (!res.ok) {
-      let detail = "";
-      try { const b = await res.json(); detail = JSON.stringify(b); } catch {}
-      throw new WixImportException("site_unreachable", `Unexpected response from Wix API (HTTP ${res.status}${detail ? ": " + detail : ""}).`);
-    }
-
-    const body = await res.json() as any;
-    console.log(`[Wix Import] Page ${page}: received ${body.posts?.length ?? 0} posts, pagingMetadata:`, JSON.stringify(body.pagingMetadata ?? body.metaData ?? {}));
-    const rawPosts: any[] = body.posts ?? [];
-
-    for (const raw of rawPosts) {
-      try {
-        const rawStatus: string = raw.status ?? "DRAFT";
-        // Never import DELETED posts
-        if (rawStatus === "DELETED") continue;
-        const mappedStatus: WpPostStatus = WIX_STATUS_MAP[rawStatus] ?? "draft";
-
-        // Dates
-        const publishDate =
-          mappedStatus === "published" && raw.firstPublishedDate
-            ? new Date(raw.firstPublishedDate)
-            : null;
-        const scheduledDate =
-          mappedStatus === "scheduled" && raw.scheduledPublishTime
-            ? new Date(raw.scheduledPublishTime)
-            : null;
-
-        // Author
-        const authorIdCms: string = raw.author?.id ?? "";
-        const authorNameCms: string = raw.author?.authorName ?? raw.author?.fullName ?? "Unknown";
-
-        // Focus keyword — from seoData.tags or seoData.keywords
-        let focusKeyword: string | null = null;
-        if (raw.seoData?.tags && Array.isArray(raw.seoData.tags)) {
-          // Look for a meta tag with name "keywords" or a custom keyword tag
-          const kwTag = raw.seoData.tags.find(
-            (t: any) => t.type === "meta" && (t.props?.name === "keywords" || t.props?.name === "focusKeyword")
-          );
-          if (kwTag?.props?.content) {
-            // Take the first keyword if comma-separated
-            focusKeyword = (kwTag.props.content as string).split(",")[0]?.trim() ?? null;
-          }
-        }
-        if (!focusKeyword && raw.seoData?.keywords) {
-          const kw = raw.seoData.keywords;
-          focusKeyword = Array.isArray(kw) ? (kw[0] ?? null) : (typeof kw === "string" ? kw.split(",")[0]?.trim() ?? null : null);
-        }
-
-        // Meta title & description from seoData
-        let metaTitle: string | null = null;
-        let metaDescription: string | null = null;
-        if (raw.seoData?.tags && Array.isArray(raw.seoData.tags)) {
-          for (const tag of raw.seoData.tags) {
-            if (tag.type === "title") metaTitle = tag.children ?? null;
-            if (tag.type === "meta" && tag.props?.name === "description") metaDescription = tag.props.content ?? null;
-          }
-        }
-
-        // Body content — Wix returns rich content; use plainContent or excerpt as fallback
-        const bodyHtml: string = raw.richContent?.nodes
-          ? extractWixBodyHtml(raw.richContent)
-          : (raw.excerpt ?? "");
-
-        // Body image alts
-        const bodyImageAlts = extractBodyImageAlts(bodyHtml);
-
-        // Featured image
-        const featuredImageUrl: string | null = raw.media?.wixMedia?.image?.url ?? raw.coverMedia?.image?.url ?? null;
-        const featuredImageAlt: string | null = raw.media?.wixMedia?.image?.altText ?? null;
-
-        // URL
-        const url: string = raw.url?.base
-          ? `${raw.url.base}${raw.url.path ?? ""}`
-          : (raw.url?.path ?? "");
-
-        // Apply status filter (client-side — Wix API returns all statuses)
-        if (statusFilter !== "all" && mappedStatus !== statusFilter) continue;
-        allPosts.push({
-          cmsPostId: raw.id as string,
-          title: raw.title as string ?? "",
-          bodyHtml,
-          url,
-          status: mappedStatus,
-          publishDate,
-          scheduledDate,
-          authorIdCms,
-          authorNameCms,
-          focusKeyword,
-          metaTitle,
-          metaDescription,
-          featuredImageUrl,
-          featuredImageAlt,
-          bodyImageAlts,
-          categories: [],
-          tags: Array.isArray(raw.tags) ? raw.tags.map((t: any) => (typeof t === "string" ? t : t.label ?? "")) : [],
-        });
-      } catch (err: any) {
-        errors.push(`Post ${raw.id ?? "unknown"}: ${err?.message ?? "Parse error"}`);
-      }
-    }
-
-    // Cursor-based pagination — Wix Query returns pagingMetadata.cursors.next
-    cursor = body.pagingMetadata?.cursors?.next ?? body.metaData?.cursor ?? undefined;
-    // Stop if no more pages
-    if (!cursor || rawPosts.length === 0) break;
-  } while (cursor && page < 50); // Safety cap at 5000 posts
-  // Only throw zero_posts if the site truly has no posts at all (not just filtered out)
-  // We check this by seeing if we got zero raw posts on the first page
-  return { posts: allPosts, errors };
+  return { posts: filtered, errors: [] };
 }
 
-/**
- * Converts Wix rich content nodes to basic HTML.
- * Wix rich content is a structured JSON format — we extract text nodes.
- */
-function extractWixBodyHtml(richContent: any): string {
-  if (!richContent?.nodes) return "";
-  const parts: string[] = [];
+// ─── Connection test ──────────────────────────────────────────────────────────
 
-  function processNode(node: any): void {
-    if (!node) return;
-    switch (node.type) {
-      case "PARAGRAPH":
-      case "HEADING": {
-        const text = (node.nodes ?? [])
-          .filter((n: any) => n.type === "TEXT")
-          .map((n: any) => n.textData?.text ?? "")
-          .join("");
-        if (text.trim()) {
-          const tag = node.type === "HEADING" ? `h${node.headingData?.level ?? 2}` : "p";
-          parts.push(`<${tag}>${text}</${tag}>`);
-        }
-        break;
-      }
-      case "IMAGE": {
-        const src = node.imageData?.image?.src?.url ?? "";
-        const alt = node.imageData?.altText ?? "";
-        if (src) parts.push(`<img src="${src}" alt="${alt}" />`);
-        break;
-      }
-      case "BULLETED_LIST":
-      case "ORDERED_LIST": {
-        const tag = node.type === "ORDERED_LIST" ? "ol" : "ul";
-        const items = (node.nodes ?? [])
-          .filter((n: any) => n.type === "LIST_ITEM")
-          .map((n: any) => {
-            const text = (n.nodes ?? [])
-              .flatMap((p: any) => (p.nodes ?? []))
-              .filter((t: any) => t.type === "TEXT")
-              .map((t: any) => t.textData?.text ?? "")
-              .join("");
-            return `<li>${text}</li>`;
-          })
-          .join("");
-        if (items) parts.push(`<${tag}>${items}</${tag}>`);
-        break;
-      }
-      default:
-        // Recurse into child nodes
-        (node.nodes ?? []).forEach(processNode);
-    }
+export async function testWixConnection(
+  creds: WixCredentials
+): Promise<{ ok: boolean; message: string; siteId: string }> {
+  const url = `${WIX_BASE}/posts?paging.limit=1`;
+  let res: Response;
+  try {
+    res = await wixFetch(url, creds);
+  } catch (err: any) {
+    return { ok: false, message: `Could not reach Wix: ${err?.message}`, siteId: "" };
   }
-
-  (richContent.nodes ?? []).forEach(processNode);
-  return parts.join("\n");
+  if (res.status === 401 || res.status === 403) {
+    return { ok: false, message: "Invalid Wix API key or insufficient permissions.", siteId: "" };
+  }
+  if (!res.ok) {
+    return { ok: false, message: `Wix API returned HTTP ${res.status}`, siteId: "" };
+  }
+  return { ok: true, message: "", siteId: creds.siteId };
 }
 
 // ─── Post-back ────────────────────────────────────────────────────────────────
 
 export interface WixPostBackPayload {
   cmsPostId: string;
-  bodyApproved: string;
-  bodyOriginal: string | null; // Used for image preservation
   metaTitle: string;
   metaDescription: string;
+  bodyApproved: string;
+  bodyOriginal?: string | null;
   bodyImageAlts?: string[];
 }
 
@@ -349,13 +534,14 @@ export interface WixPostBackResult {
 /**
  * Posts back approved content to a Wix blog post.
  *
- * Wix Blog v3 does NOT have a PATCH endpoint for published posts.
+ * Wix Blog v3 uses richContent (Ricos JSON), NOT HTML.
  * The correct flow is:
- *   1. PATCH /blog/v3/draft-posts/{id}  — update the draft (same ID as published post)
- *   2. POST  /blog/v3/draft-posts/{id}/publish — re-publish, updating the live post
+ *   1. Convert HTML body to Ricos richContent document
+ *   2. PATCH /blog/v3/draft-posts/{id}  — update the draft with richContent + seoData
+ *   3. POST  /blog/v3/draft-posts/{id}/publish — re-publish, updating the live post
  *
- * ONLY updates: content, meta title, meta description.
- * NEVER updates: author, date, status, URL, title.
+ * ONLY updates: richContent (body), seoData (meta title + description).
+ * NEVER updates: author, date, status, URL/slug, post title.
  * Schema injection is NOT supported by Wix API — always returns schemaFallbackJson.
  */
 export async function postBackToWix(
@@ -377,19 +563,18 @@ export async function postBackToWix(
     ],
   };
 
-  // Preserve original images in the rewritten body
-  const { preserveImagesInBody } = await import("./postback.service");
-  const bodyWithImages = payload.bodyOriginal
-    ? preserveImagesInBody(payload.bodyOriginal, payload.bodyApproved, payload.bodyImageAlts ?? [])
-    : payload.bodyApproved;
+  // Convert HTML body to Ricos richContent
+  // Images from the original body are preserved because htmlToRicos handles <img> tags,
+  // and the bodyApproved HTML already has images re-injected by preserveImagesInBody.
+  const richContent = htmlToRicos(payload.bodyApproved);
 
-  // Step 1: Update the draft post with new content and SEO data
+  // Step 1: Update the draft post with richContent and SEO data
   const patchBody = {
     draftPost: {
-      content: bodyWithImages,
+      richContent,
       seoData,
     },
-    fieldMask: "content,seoData",
+    fieldMask: "richContent,seoData",
   };
 
   let patchRes: Response;
