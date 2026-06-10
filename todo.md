@@ -603,3 +603,11 @@
 ## Bug Fix — Image Preservation on Post-Back
 
 - [x] Preserve original images in post-back: extract img tags from the original stored body and re-inject them at proportionally equivalent positions in the rewritten body before sending to Wix, WordPress, or Shopify
+
+## Feature — Obfuscate Audit Point Descriptions (Protect Proprietary 16-Point System)
+
+- [x] Replace all verbose mechanical note strings in audit.service.ts with minimal non-revealing labels (no thresholds, no ranges, no targets)
+- [x] Replace AI-generated note instructions so the LLM returns minimal non-revealing notes for P9–P12, P14–P15
+- [x] Remove p.note display from passing points in PostList AuditResultsPanel (just show green tick + name)
+- [x] Remove p.note display from passing points in Audit.tsx public page (just show green tick + name)
+- [x] Remove p.note display from passing points in ReviewEdit SeoScorePanel (already no note shown — verified, notes never rendered for passing points)

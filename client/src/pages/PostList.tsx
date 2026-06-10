@@ -348,9 +348,6 @@ function AuditResultsPanel({
                       </span>
                     )}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    {p.note}
-                  </div>
                 </div>
               </div>
             ))}

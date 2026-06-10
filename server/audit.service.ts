@@ -202,7 +202,7 @@ export function runMechanicalChecks(input: PostAuditInput): AuditPoint[] {
 
   // When no keyword is set, auto-fail all keyword-dependent checks (P1–P7)
   if (!focusKeyword) {
-    const noKwNote = "No focus keyword set. Add a keyword to score this point.";
+    const noKwNote = "No focus keyword set — unable to score.";
     const bodyText = stripHtml(bodyHtml);
     const wc = wordCount(bodyText);
     const md = metaDescription?.trim() ?? "";
@@ -220,16 +220,16 @@ export function runMechanicalChecks(input: PostAuditInput): AuditPoint[] {
       { point: "P1", name: "Keyword Density", status: "fail", note: noKwNote },
       { point: "P2", name: "Keyword in H1", status: "fail", note: noKwNote },
       { point: "P3", name: "Keyword in H2", status: "fail", note: noKwNote },
-      { point: "P4", name: "Keyword in H3", status: "na", note: "No focus keyword set — not applicable." },
+      { point: "P4", name: "Keyword in H3", status: "na", note: "Not applicable." },
       { point: "P5", name: "Keyword in First 100 Words", status: "fail", note: noKwNote },
       { point: "P6", name: "Keyword in URL", status: "fail", note: noKwNote },
       { point: "P7", name: "Meta Title", status: "fail", note: noKwNote },
       {
         point: "P8", name: "Meta Description", status: p8Pass ? "pass" : "fail",
-        note: !p8Present ? "Meta description is missing." : !p8Length ? `Meta description is ${md.length} characters — target is 140–160 characters.` : `Meta description is ${md.length} characters — within the 140–160 character target.`,
+        note: !p8Present ? "Meta description is missing." : !p8Length ? "Meta description does not meet the required length." : "Meta description meets requirements.",
       },
-      { point: "P13", name: "Schema Markup", status: hasSchema ? "pass" : "fail", note: hasSchema ? "JSON-LD Article schema found." : "No Article schema markup found." },
-      { point: "P16", name: "Article Type Structure", status: p16Pass ? "pass" : "fail", note: p16Pass ? `Word count is ${wc} words — within the ${articleType} article target.` : wc < target.min ? `Word count is ${wc} words — below the ${articleType} article minimum of ${target.min} words.` : `Word count is ${wc} words — above the ${articleType} article maximum of ${target.max} words.` },
+      { point: "P13", name: "Schema Markup", status: hasSchema ? "pass" : "fail", note: hasSchema ? "Schema markup detected." : "No article schema found." },
+      { point: "P16", name: "Article Type Structure", status: p16Pass ? "pass" : "fail", note: p16Pass ? "Word count is within the required range." : wc < target.min ? "Word count is below the minimum for this article type." : "Word count is above the maximum for this article type." },
     ];
   }
 
@@ -257,12 +257,12 @@ export function runMechanicalChecks(input: PostAuditInput): AuditPoint[] {
     name: "Keyword Density",
     status: p1Pass ? "pass" : "fail",
     note: p1Pass
-      ? `Keyword appears ${kwCount} times (${density.toFixed(2)}% density) — within the 0.5%–2.5% target range.`
+      ? "Keyword density is within the required range."
       : kwCount < 4
-      ? `Keyword appears only ${kwCount} time${kwCount === 1 ? "" : "s"} — minimum 4 occurrences required.`
+      ? "Keyword appears too infrequently — below the minimum."
       : density > 2.5
-      ? `Keyword density is ${density.toFixed(2)}% — above the 2.5% maximum. Reduce keyword repetition.`
-      : `Keyword density is ${density.toFixed(2)}% — below the 0.5% minimum. Use the keyword more naturally.`,
+      ? "Keyword density is above the maximum — reduce repetition."
+      : "Keyword density is below the minimum for SEO.",
   });
 
   // P2 — Keyword in H1
@@ -275,8 +275,8 @@ export function runMechanicalChecks(input: PostAuditInput): AuditPoint[] {
     name: "Keyword in H1",
     status: p2Pass ? "pass" : "fail",
     note: p2Pass
-      ? `Keyword found in the H1 heading.`
-      : `Keyword missing from H1 heading. Include "${focusKeyword}" in the main heading.`,
+      ? "Keyword found in H1."
+      : "Keyword not found in H1 heading.",
   });
 
   // P3 — Keyword in H2
@@ -288,10 +288,10 @@ export function runMechanicalChecks(input: PostAuditInput): AuditPoint[] {
     status: h2s.length === 0 ? "fail" : p3Pass ? "pass" : "fail",
     note:
       h2s.length === 0
-        ? `No H2 headings found. Add at least one H2 subheading containing the keyword.`
+        ? "No H2 headings found."
         : p3Pass
-        ? `Keyword or close variant found in an H2 heading.`
-        : `Keyword not found in any H2 heading. Include "${focusKeyword}" or a close variant in at least one H2.`,
+        ? "Keyword found in H2."
+        : "Keyword not found in any H2 heading.",
   });
 
   // P4 — Keyword in H3 (only scored if H3s exist)
@@ -301,7 +301,7 @@ export function runMechanicalChecks(input: PostAuditInput): AuditPoint[] {
       point: "P4",
       name: "Keyword in H3",
       status: "na",
-      note: `No H3 headings found — this point is not applicable.`,
+      note: "Not applicable — no H3 headings found.",
     });
   } else {
     const p4Pass = h3s.some((h) => containsKeyword(h, focusKeyword));
@@ -310,8 +310,8 @@ export function runMechanicalChecks(input: PostAuditInput): AuditPoint[] {
       name: "Keyword in H3",
       status: p4Pass ? "pass" : "fail",
       note: p4Pass
-        ? `Keyword or close variant found in an H3 heading.`
-        : `Keyword not found in any H3 heading. Include "${focusKeyword}" or a close variant in at least one H3.`,
+        ? "Keyword found in H3."
+        : "Keyword not found in any H3 heading.",
     });
   }
 
@@ -323,8 +323,8 @@ export function runMechanicalChecks(input: PostAuditInput): AuditPoint[] {
     name: "Keyword in First 100 Words",
     status: p5Pass ? "pass" : "fail",
     note: p5Pass
-      ? `Keyword found in the opening section of the article.`
-      : `Keyword not found in the first 100 words. Introduce "${focusKeyword}" earlier in the article.`,
+      ? "Keyword found in the opening section."
+      : "Keyword not found in the opening section.",
   });
 
   // P6 — Keyword in URL
@@ -334,8 +334,8 @@ export function runMechanicalChecks(input: PostAuditInput): AuditPoint[] {
     name: "Keyword in URL",
     status: p6Pass ? "pass" : "fail",
     note: p6Pass
-      ? `Keyword words found in the URL slug in sequence.`
-      : `Keyword words not found in sequence in the URL slug. The URL should contain "${kwWords.join("-")}".`,
+      ? "Keyword found in URL slug."
+      : "Keyword not found in URL slug.",
   });
 
   // P7 — Meta Title
@@ -349,12 +349,12 @@ export function runMechanicalChecks(input: PostAuditInput): AuditPoint[] {
     name: "Meta Title",
     status: p7Pass ? "pass" : "fail",
     note: !p7Present
-      ? `Meta title is missing. Add a meta title containing "${focusKeyword}" under 60 characters.`
+      ? "Meta title is missing."
       : !p7HasKw
-      ? `Meta title does not contain the keyword. Include "${focusKeyword}" in the meta title.`
+      ? "Meta title does not contain the keyword."
       : !p7Length
-      ? `Meta title is ${mt.length} characters — must be under 60. Current: "${mt}"`
-      : `Meta title is ${mt.length} characters and contains the keyword — within target.`,
+      ? "Meta title does not meet the required length."
+      : "Meta title meets requirements.",
   });
 
   // P8 — Meta Description
@@ -367,10 +367,10 @@ export function runMechanicalChecks(input: PostAuditInput): AuditPoint[] {
     name: "Meta Description",
     status: p8Pass ? "pass" : "fail",
     note: !p8Present
-      ? `Meta description is missing. Add a meta description between 140–160 characters.`
+      ? "Meta description is missing."
       : !p8Length
-      ? `Meta description is ${md.length} characters — target is 140–160 characters.`
-      : `Meta description is ${md.length} characters — within the 140–160 character target.`,
+      ? "Meta description does not meet the required length."
+      : "Meta description meets requirements.",
   });
 
   // P13 — Schema Markup (look for JSON-LD Article schema in the body HTML)
@@ -383,8 +383,8 @@ export function runMechanicalChecks(input: PostAuditInput): AuditPoint[] {
     name: "Schema Markup",
     status: hasSchema ? "pass" : "fail",
     note: hasSchema
-      ? `JSON-LD Article schema found in the page source.`
-      : `No Article schema markup found. Add JSON-LD Article schema to improve search appearance.`,
+      ? "Schema markup detected."
+      : "No article schema found.",
   });
 
   // P16 — Word Count / Article Type
@@ -396,10 +396,10 @@ export function runMechanicalChecks(input: PostAuditInput): AuditPoint[] {
     name: "Article Type Structure",
     status: p16Pass ? "pass" : "fail",
     note: p16Pass
-      ? `Word count is ${wc} words — within the ${articleType} article target (${target.min}–${target.max} words).`
+      ? "Word count is within the required range."
       : wc < target.min
-      ? `Word count is ${wc} words — below the ${articleType} article minimum of ${target.min} words.`
-      : `Word count is ${wc} words — above the ${articleType} article maximum of ${target.max} words.`,
+      ? "Word count is below the minimum for this article type."
+      : "Word count is above the maximum for this article type.",
   });
 
   return points;
@@ -466,7 +466,7 @@ export async function runAiChecks(input: AiAuditInput): Promise<AuditPoint[]> {
 
   const systemPrompt = `You are an expert SEO auditor. You will analyse a blog post and score it on 6 specific criteria. 
 Return ONLY valid JSON matching the exact schema provided. Do not fabricate links, statistics, or credentials.
-Be strict but fair. Each point must have a "status" of "pass" or "fail" and a concise plain-English "note" (1–2 sentences max).`;
+Be strict but fair. Each point must have a "status" of "pass" or "fail" and a brief "note" (one short phrase only — do NOT reveal specific thresholds, counts, character limits, or scoring criteria). Keep notes minimal: for pass use phrases like "Found" or "Detected"; for fail use phrases like "Not found", "Missing", or "Not detected".`;
 
   const userPrompt = `Analyse this blog post and score it on the following 6 points. Return JSON only.
 
@@ -499,14 +499,14 @@ P14 - E-E-A-T Signals: Does the article demonstrate experience, expertise, autho
 
 P15 - Human Authenticity: Does the article avoid AI fingerprint patterns? Look for: hollow transitional phrases ("In today's digital landscape", "It's important to note", "In conclusion"), formulaic structure, excessive hedging, or unnatural repetition.
 
-Return this exact JSON structure:
+Return this exact JSON structure (notes must be very brief — one short phrase, no thresholds or criteria revealed):
 {
-  "P9": {"status": "pass|fail", "note": "plain English explanation"},
-  "P10": {"status": "pass|fail", "note": "plain English explanation"},
-  "P11": {"status": "pass|fail", "note": "plain English explanation"},
-  "P12": {"status": "pass|fail", "note": "plain English explanation"},
-  "P14": {"status": "pass|fail", "note": "plain English explanation"},
-  "P15": {"status": "pass|fail", "note": "plain English explanation"}
+  "P9": {"status": "pass|fail", "note": "e.g. \"Opening answer block found.\" or \"Opening answer block not detected.\""},
+  "P10": {"status": "pass|fail", "note": "e.g. \"External authority link found.\" or \"No external authority link found.\""},
+  "P11": {"status": "pass|fail", "note": "e.g. \"Internal CTA link found.\" or \"No internal CTA link found.\""},
+  "P12": {"status": "pass|fail", "note": "e.g. \"Internal blog link found.\" or \"No internal blog link found.\""},
+  "P14": {"status": "pass|fail", "note": "e.g. \"E-E-A-T signals detected.\" or \"E-E-A-T signals not detected.\""},
+  "P15": {"status": "pass|fail", "note": "e.g. \"Content reads as human-written.\" or \"AI language patterns detected.\""}
 }`;
 
   try {

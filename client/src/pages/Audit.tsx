@@ -611,7 +611,6 @@ function AuditResults({
               <span className="text-base flex-shrink-0">⚠️</span>
               <div>
                 <span className="text-xs font-bold text-white">{p.point} {p.name}</span>
-                <p className="text-xs text-[#8892A4] mt-0.5">{p.note}</p>
               </div>
             </div>
           ))}
@@ -623,7 +622,6 @@ function AuditResults({
               <span className="text-base flex-shrink-0">✅</span>
               <div>
                 <span className="text-xs font-bold text-white">{p.point} {p.name}</span>
-                <p className="text-xs text-[#8892A4] mt-0.5">{p.note}</p>
               </div>
             </div>
           ))}
