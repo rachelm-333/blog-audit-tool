@@ -284,7 +284,18 @@ function htmlToRicos(html: string): object {
 
   body.childNodes.forEach((child) => {
     if (child.nodeType === 1) {
+      const before = nodes.length;
       processBlock(child as Element);
+      // If a new block was added, insert an empty paragraph spacer before it
+      // (except before the very first block)
+      if (nodes.length > before && before > 0) {
+        nodes.splice(before, 0, {
+          type: "PARAGRAPH",
+          id: genId(),
+          nodes: [],
+          paragraphData: { textStyle: { textAlignment: "AUTO" } },
+        });
+      }
     } else if (child.nodeType === 3) {
       const text = child.textContent?.trim();
       if (text) {

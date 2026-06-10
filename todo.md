@@ -650,3 +650,7 @@
 - [x] Fix paragraph spacing in Wix post-back — confirmed this is a Wix theme CSS setting, not controllable via Ricos API; user must adjust paragraph spacing in Wix Editor blog theme settings
 - [x] Stop post title from being overwritten — fixed by stripping H1 from rewritten body before converting to Ricos; Wix blog uses its own title field, H1 in body was appearing as duplicate heading
 - [x] Verify AI citation block is placed in the first paragraph of the rewritten content — confirmed in rewrite.service.ts prompt, PAA question + answer block is injected at the very start of body
+
+## Bug — Wix Ricos Paragraph Spacing
+- [x] Inspect native Wix draft post Ricos node structure to find correct spacing format
+- [x] Update htmlToRicos to produce spacing-correct Ricos nodes matching native Wix format — insert empty PARAGRAPH spacer nodes between every block element
