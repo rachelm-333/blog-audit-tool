@@ -609,10 +609,14 @@ export async function postBackToWix(
     altTexts
   );
 
-  // Step 2: Convert the merged HTML body to Ricos richContent
-  const richContentFromHtml = htmlToRicos(bodyWithImages) as { nodes: object[] };
+  // Step 2: Strip H1 from the body before converting — Wix blog has its own title field;
+  // an H1 in the body would appear as a duplicate/wrong title on the live page.
+  const bodyWithoutH1 = bodyWithImages.replace(/<h1[^>]*>.*?<\/h1>/gi, "");
 
-  // Step 3: If we have original Wix IMAGE nodes (with Wix media IDs), merge them back in
+  // Step 3: Convert the merged HTML body to Ricos richContent
+  const richContentFromHtml = htmlToRicos(bodyWithoutH1) as { nodes: object[] };
+
+  // Step 4: If we have original Wix IMAGE nodes (with Wix media IDs), merge them back in
   // at proportional positions within the converted richContent nodes.
   // This handles Wix-hosted images that have internal media IDs rather than plain URLs.
   let finalNodes: object[] = richContentFromHtml.nodes;

@@ -645,3 +645,8 @@
 ## Safety Gate — Wix Post-Back Image Protection
 - [x] Add pre-flight check in postBackToWix: if original draft has images but final richContent nodes contain zero IMAGE nodes, abort with error_code "image_loss_risk"
 - [x] Show a blocking warning toast in the UI when image_loss_risk fires: "Post-back blocked — images could not be preserved. Please contact support."
+
+## Bug — Wix Post-Back Spacing and Title
+- [x] Fix paragraph spacing in Wix post-back — confirmed this is a Wix theme CSS setting, not controllable via Ricos API; user must adjust paragraph spacing in Wix Editor blog theme settings
+- [x] Stop post title from being overwritten — fixed by stripping H1 from rewritten body before converting to Ricos; Wix blog uses its own title field, H1 in body was appearing as duplicate heading
+- [x] Verify AI citation block is placed in the first paragraph of the rewritten content — confirmed in rewrite.service.ts prompt, PAA question + answer block is injected at the very start of body
