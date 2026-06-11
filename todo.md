@@ -666,3 +666,10 @@
 - [x] Wire preserveFaq/preserveCta through runFullRewrite and Pass 1 prompt: when OFF, allow AI to rewrite that section; when ON (default), extract and pass verbatim as protected zone
 - [x] Fix Wix spacing: the spacer PARAGRAPH is being inserted BETWEEN every block AND empty <p> tags in the HTML are also being converted to PARAGRAPH nodes — resulting in double/triple spacing. Fix: only insert ONE spacer between blocks; skip the spacer if the preceding node is already an empty PARAGRAPH
 - [x] Fix image placement on post-back: instead of scattering images at proportional positions throughout the rewritten body, move ALL preserved images to the TOP of the post body (after the first paragraph), with a visible note in the UI: "Images have been placed at the top of your post — please reposition them in your CMS editor"
+
+## Cross-CMS Post-Back Consistency (June 2026)
+
+- [x] Audit Shopify post-back: confirm preserveImagesInBody (top-of-post placement) is called and spacing is clean — confirmed, already using preserveImagesInBody
+- [x] Audit Zapier/webhook post-back: confirm FAQ/CTA preservation, image placement, and spacing rules apply — added preserveImagesInBody call to postBackViaZapier; bodyOriginal and bodyImageAlts now passed from router
+- [x] Add image-placement notice to post-back success UI: blue notice card shown in PostBackConfirmation when post had images; wording adapts to Wix/Shopify/WordPress/Zapier
+- [x] Confirm spacing rule (one blank line between blocks only) applies to WordPress and Shopify HTML output — WordPress and Shopify use raw HTML (no Ricos nodes); spacing is controlled by the CMS renderer, not by iAudit. Wix spacing fix applied in previous session.

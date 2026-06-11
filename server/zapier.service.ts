@@ -144,6 +144,10 @@ export interface ZapierPostBackPayload {
   postId: string;
   title: string;
   bodyApproved: string;
+  /** Original body HTML — used to preserve images at top of post before sending */
+  bodyOriginal: string | null;
+  /** Updated alt texts for images in the body */
+  bodyImageAlts: string[];
   metaTitle: string;
   metaDescription: string;
   scoreAfter: number;
@@ -160,6 +164,9 @@ export interface ZapierPostBackResult {
 /**
  * Sends approved rewrite data to the user's Zapier outbound webhook.
  * Zapier receives the payload and routes it to the target CMS.
+ *
+ * Images are preserved at the top of the post (after the first paragraph)
+ * using the same strategy as WordPress and Shopify post-back.
  */
 export async function postBackViaZapier(
   creds: ZapierCredentials,
@@ -170,10 +177,16 @@ export async function postBackViaZapier(
     throw new Error("no_outbound_url");
   }
 
+  // Preserve original images at the top of the post before sending
+  const { preserveImagesInBody } = await import("./postback.service");
+  const bodyWithImages = payload.bodyOriginal
+    ? preserveImagesInBody(payload.bodyOriginal, payload.bodyApproved, payload.bodyImageAlts)
+    : payload.bodyApproved;
+
   const body = {
     post_id: payload.postId,
     title: payload.title,
-    body_approved: payload.bodyApproved,
+    body_approved: bodyWithImages,
     meta_title: payload.metaTitle,
     meta_description: payload.metaDescription,
     score_after: payload.scoreAfter,

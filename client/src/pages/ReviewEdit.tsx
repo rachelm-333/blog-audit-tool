@@ -553,6 +553,10 @@ interface PostBackConfirmationProps {
   schemaFallbackJson: string | null;
   showBlogBatcherUpsell: boolean;
   auditPoints?: Array<{ point: string; name: string; status: string; note: string }>;
+  /** True if the original post had images that were preserved */
+  hasImages: boolean;
+  /** CMS platform — used to tailor the image notice wording */
+  cmsPlatform: string;
   onDone: () => void;
 }
 
@@ -564,6 +568,8 @@ function PostBackConfirmation({
   schemaInjected,
   schemaFallbackJson,
   showBlogBatcherUpsell,
+  hasImages,
+  cmsPlatform,
   onDone,
   auditPoints = [],
 }: PostBackConfirmationProps) {
@@ -637,6 +643,20 @@ function PostBackConfirmation({
             </div>
           )}
         </div>
+
+        {/* Image placement notice — shown whenever the post had images */}
+        {hasImages && (
+          <div className="bg-blue-500/5 border border-blue-500/30 rounded-xl p-4 flex items-start gap-3">
+            <div className="mt-0.5 shrink-0 text-blue-400">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            </div>
+            <p className="text-sm text-blue-300">
+              <span className="font-semibold">Images preserved.</span> Your original images have been placed at the top of the post. Please open your{" "}
+              {cmsPlatform === "wix" ? "Wix" : cmsPlatform === "shopify" ? "Shopify" : cmsPlatform === "zapier" ? "CMS" : "WordPress"}{" "}
+              editor and drag them to their preferred positions.
+            </p>
+          </div>
+        )}
 
         {/* Schema fallback — shown if injection failed */}
         {!schemaInjected && schemaFallbackJson && (
@@ -891,6 +911,8 @@ export default function ReviewEdit() {
     schemaFallbackJson: string | null;
     showBlogBatcherUpsell: boolean;
     auditPoints?: Array<{ point: string; name: string; status: string; note: string }>;
+    hasImages: boolean;
+    cmsPlatform: string;
   } | null>(null);
 
   const [partialFailure, setPartialFailure] = useState<{
@@ -1063,6 +1085,9 @@ export default function ReviewEdit() {
         schemaFallbackJson: data.schemaFallbackJson,
         showBlogBatcherUpsell: data.showBlogBatcherUpsell,
         auditPoints: currentAuditPoints,
+        // Detect images from the stored original body
+        hasImages: !!(post?.bodyOriginal && /<img\b/i.test(post.bodyOriginal)),
+        cmsPlatform: (post as any)?.cmsPlatform ?? "wordpress",
       });
     },
     onError: (err) => {

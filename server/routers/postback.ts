@@ -170,7 +170,7 @@ export const postbackRouter = router({
         } else if (post.cmsPlatform === "zapier") {
           result = await postBackViaZapier(
             creds as unknown as ZapierCredentials,
-            { postId: post.id, title: post.title, bodyApproved: post.bodyApproved, metaTitle: post.metaTitleRewritten ?? "", metaDescription: post.metaDescriptionRewritten ?? "", scoreAfter: post.rewriteScore ?? 0, gradeAfter: post.rewriteGrade ?? "", postUrl: post.url ?? "" },
+            { postId: post.id, title: post.title, bodyApproved: post.bodyApproved, bodyOriginal: post.bodyOriginal ?? null, bodyImageAlts: altTexts, metaTitle: post.metaTitleRewritten ?? "", metaDescription: post.metaDescriptionRewritten ?? "", scoreAfter: post.rewriteScore ?? 0, gradeAfter: post.rewriteGrade ?? "", postUrl: post.url ?? "" },
             post.schemaJson ?? null
           );
         } else {
