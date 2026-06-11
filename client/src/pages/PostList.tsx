@@ -1328,19 +1328,22 @@ export default function PostList() {
 
   const allPosts: Post[] = data?.posts ?? [];
   // Apply review-status filter client-side (data already includes rewriteStatus + postBackStatus)
+  // Posts that have been published back to the CMS (postBackStatus === "complete") only appear
+  // in the "Published" tab — they are excluded from All, Awaiting Review, and Approved.
   const posts: Post[] = allPosts.filter((p) => {
-    if (reviewFilter === "all") return true;
-    if (reviewFilter === "awaiting_review") return p.rewriteStatus === "awaiting_review";
-    if (reviewFilter === "approved") return p.rewriteStatus === "approved";
-    if (reviewFilter === "published") return p.postBackStatus === "complete";
+    const isPublishedBack = p.postBackStatus === "complete";
+    if (reviewFilter === "all") return !isPublishedBack;
+    if (reviewFilter === "awaiting_review") return p.rewriteStatus === "awaiting_review" && !isPublishedBack;
+    if (reviewFilter === "approved") return p.rewriteStatus === "approved" && !isPublishedBack;
+    if (reviewFilter === "published") return isPublishedBack;
     return true;
   });
   const postMap = new Map(posts.map((p) => [p.id, p]));
   const postsWithKeyword = posts.filter((p) => p.focusKeyword);
 
   // Counts for filter tabs
-  const awaitingReviewCount = allPosts.filter((p) => p.rewriteStatus === "awaiting_review").length;
-  const approvedCount = allPosts.filter((p) => p.rewriteStatus === "approved").length;
+  const awaitingReviewCount = allPosts.filter((p) => p.rewriteStatus === "awaiting_review" && p.postBackStatus !== "complete").length;
+  const approvedCount = allPosts.filter((p) => p.rewriteStatus === "approved" && p.postBackStatus !== "complete").length;
   const publishedCount = allPosts.filter((p) => p.postBackStatus === "complete").length;
 
   return (

@@ -673,3 +673,7 @@
 - [x] Audit Zapier/webhook post-back: confirm FAQ/CTA preservation, image placement, and spacing rules apply — added preserveImagesInBody call to postBackViaZapier; bodyOriginal and bodyImageAlts now passed from router
 - [x] Add image-placement notice to post-back success UI: blue notice card shown in PostBackConfirmation when post had images; wording adapts to Wix/Shopify/WordPress/Zapier
 - [x] Confirm spacing rule (one blank line between blocks only) applies to WordPress and Shopify HTML output — WordPress and Shopify use raw HTML (no Ricos nodes); spacing is controlled by the CMS renderer, not by iAudit. Wix spacing fix applied in previous session.
+
+## Review Queue Filter Fix (June 2026)
+
+- [x] Fix review queue: posts with postBackStatus === "complete" should only appear in the "Published" tab — exclude them from "All", "Awaiting Review", and "Approved" tabs and their counts
