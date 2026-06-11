@@ -456,6 +456,27 @@ export function runMechanicalEnforcement(
     }
   }
 
+  // --- P4: Keyword in H3 ---
+  const h3EnforceRegex = /<h3[^>]*>(.*?)<\/h3>/gi;
+  const h3s: string[] = [];
+  let h3m: RegExpExecArray | null;
+  while ((h3m = h3EnforceRegex.exec(bodyRewritten)) !== null) {
+    h3s.push(stripHtml(h3m[1]));
+  }
+  if (h3s.length > 0) {
+    const hasKeywordInH3 = h3s.some((h) => containsKeyword(h, focusKeyword));
+    if (!hasKeywordInH3) {
+      // Append keyword phrase to the first H3
+      bodyRewritten = bodyRewritten.replace(
+        /<h3([^>]*)>(.*?)<\/h3>/i,
+        (match, attrs, content) => {
+          const stripped = stripHtml(content);
+          return `<h3${attrs}>${stripped}: ${focusKeyword}</h3>`;
+        }
+      );
+    }
+  }
+
   // --- P3: Keyword in H2 ---
   const h2Regex = /<h2[^>]*>(.*?)<\/h2>/gi;
   const h2s: string[] = [];
@@ -623,12 +644,13 @@ export async function runPass2FingerprintScrub(
         content:
           "You are an expert editor specialising in making AI-generated content sound human. " +
           "Your task is to rewrite ONLY the language patterns — transitions, qualifiers, sentence rhythm. " +
-          "You MUST NOT change: SEO structure, headings, focus keywords, links, facts, statistics, or schema. " +
+          "CRITICAL — You MUST NOT change: SEO structure, headings, focus keywords, links, facts, statistics, or schema. " +
+          "CRITICAL — You MUST preserve ALL E-E-A-T signals VERBATIM: specific statistics with sources, named credentials, years of experience, case examples, industry data points. Do NOT rephrase, soften, or remove any of these. " +
+          "CRITICAL — You MUST NOT introduce any of these banned AI phrases: 'it's important to note', 'in today's world', 'in today's digital landscape', 'dive into', 'leverage', 'game-changer', 'seamlessly', 'delve', 'robust', 'comprehensive guide', 'look no further', 'without further ado', 'in conclusion', 'to summarise', 'it goes without saying', 'at the end of the day', 'moving forward', 'navigating', 'unlock', 'empower', 'transformative'. " +
           "Do not fabricate statistics, quotes, or external links. " +
           "Write in Australian English (use 's' not 'z' for words like 'optimise', 'recognise'). " +
-          "Avoid hollow AI phrases like: 'it's important to note', 'in today's world', 'dive into', " +
-          "'leverage', 'game-changer', 'seamlessly', 'delve', 'robust', 'comprehensive'. " +
-          "Vary sentence length and rhythm. Return ONLY a JSON object — no prose, no markdown fences.",
+          "Vary sentence length — mix short punchy sentences with longer explanatory ones. " +
+          "Return ONLY a JSON object — no prose, no markdown fences.",
       },
       {
         role: "user",

@@ -654,3 +654,8 @@
 ## Bug — Wix Ricos Paragraph Spacing
 - [x] Inspect native Wix draft post Ricos node structure to find correct spacing format
 - [x] Update htmlToRicos to produce spacing-correct Ricos nodes matching native Wix format — insert empty PARAGRAPH spacer nodes between every block element
+
+## Bug — Manual Review Fallback (13/16 after 2 attempts)
+- [x] Diagnose which 3 points consistently fail after two rewrite attempts — P4 (no H3 enforcement), P14 (E-E-A-T stripped by Pass 2), P15 (banned phrases reintroduced by Pass 2)
+- [x] Fix the rewrite prompt or mechanical enforcement so those points reliably pass — added P4 H3 mechanical enforcement; strengthened Pass 2 prompt to preserve E-E-A-T signals and ban AI phrases
+- [x] Ensure the 15/16 threshold is achievable in 2 attempts for typical posts — mechanical enforcement now covers P1, P3, P4, P5, P7, P8, P9, P10, P11, P12, P13 (11 of 16 points guaranteed)
