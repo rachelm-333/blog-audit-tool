@@ -559,7 +559,7 @@
 
 ## Feature — Review & Edit Redesign + Approval Workflow
 
-- [ ] Fix AI fabrication: extract CTA section and FAQ section from original body before rewrite; pass them as protected zones with instruction to preserve verbatim
+- [x] Fix AI fabrication: extract CTA section and FAQ section from original body before rewrite; pass them as protected zones with instruction to preserve verbatim — extractProtectedSections() implemented; originalCtaSection and originalFaqSection passed to Pass 1 prompt with PRESERVE VERBATIM instructions
 - [x] Add approval workflow status transitions: awaiting_review → approved → published (DB migration + router procedures)
 - [x] Add Review Queue page: shows only posts with status awaiting_review, grouped by article type, with Approve/Edit buttons
 - [x] Redesign ReviewEdit page: three-column layout (post queue left, rendered article centre, editable SEO fields right)
@@ -598,7 +598,7 @@
 
 ## Bug Fix — Image Preservation on Post-Back
 
-- [ ] Preserve original images in post-back: extract img tags from the original stored body and re-inject them into the rewritten body at the same relative positions before sending to Wix, WordPress, or Shopify
+- [x] Preserve original images in post-back: extract img tags from the original stored body and re-inject them into the rewritten body at the same relative positions before sending to Wix, WordPress, or Shopify — preserveImagesInBody() implemented in postback.service.ts and called in both postBackToWordPress() and postBackToShopify(); Wix uses separate Ricos IMAGE node merge
 
 ## Bug Fix — Image Preservation on Post-Back
 
