@@ -328,15 +328,16 @@ Write in a natural, direct Australian voice. BANNED PHRASES (never use these):
 "it goes without saying", "at the end of the day", "moving forward".
 Vary sentence length. Mix short punchy sentences with longer explanatory ones.
 
-[META TITLE — P7 MANDATORY]
+[META TITLE — P7 MANDATORY — HARD LIMIT]
 - Must contain "${input.focusKeyword}" or a close variant
-- Maximum 60 characters (count carefully)
+- HARD LIMIT: 40–60 characters TOTAL. Count every character including spaces. If your draft is over 60 characters, shorten it — do NOT write a long title and expect it to be trimmed. A title that exceeds 60 characters FAILS.
 - Must be specific and territory-owning (not generic)
-
-[META DESCRIPTION — P8 MANDATORY]
-- Must be between 140 and 160 characters (count carefully)
+- NEVER end with "..." or any ellipsis
+[META DESCRIPTION — P8 MANDATORY — HARD LIMIT]
+- HARD LIMIT: exactly 140–160 characters TOTAL. Count every character including spaces. If your draft is over 160 characters, shorten it. If under 140, expand it. A description outside this range FAILS.
 - Must include the focus keyword
 - Must be a compelling summary that encourages clicks
+- NEVER end with "..." or any ellipsis
 
 ═══ CRITICAL RULES ═══
 - Do NOT fabricate statistics, quotes, or external URLs. If unsure, omit the link.
@@ -532,23 +533,59 @@ export function runMechanicalEnforcement(
     );
   }
 
-  // --- P7: Meta title — max 60 chars, must contain keyword ---
+    // --- P7: Meta title — must be 40–60 chars, must contain keyword ---
+  // Rule: NEVER truncate with ellipsis. Trim to the last complete word within 60 chars.
   if (!containsKeyword(metaTitleRewritten, focusKeyword)) {
     metaTitleRewritten = `${focusKeyword.charAt(0).toUpperCase() + focusKeyword.slice(1)} | ${metaTitleRewritten}`;
   }
   if (metaTitleRewritten.length > 60) {
-    metaTitleRewritten = metaTitleRewritten.slice(0, 57) + "...";
+    // Trim to last complete word at or before char 60 — no ellipsis
+    const trimmed = metaTitleRewritten.slice(0, 60);
+    const lastSpace = trimmed.lastIndexOf(' ');
+    metaTitleRewritten = lastSpace > 20 ? trimmed.slice(0, lastSpace).trimEnd() : trimmed.trimEnd();
+  }
+  // If trimming removed the keyword, rebuild as "Keyword | shortened phrase"
+  if (!containsKeyword(metaTitleRewritten, focusKeyword)) {
+    const kwPrefix = `${focusKeyword.charAt(0).toUpperCase() + focusKeyword.slice(1)} | `;
+    const remaining = 60 - kwPrefix.length;
+    // Take as many words of the original title as fit after the keyword prefix
+    const words = metaTitleRewritten.split(' ');
+    let suffix = '';
+    for (const w of words) {
+      const candidate = suffix ? `${suffix} ${w}` : w;
+      if (candidate.length <= remaining) suffix = candidate;
+      else break;
+    }
+    metaTitleRewritten = `${kwPrefix}${suffix}`.trimEnd();
   }
 
-  // --- P8: Meta description — 140–160 chars ---
+  // --- P8: Meta description — must be 140–160 chars ---
+  // Rule: NEVER truncate with ellipsis. Trim to last complete sentence/word within 160 chars.
   if (metaDescriptionRewritten.length > 160) {
-    metaDescriptionRewritten = metaDescriptionRewritten.slice(0, 157) + "...";
-  } else if (metaDescriptionRewritten.length < 140) {
-    const padding = ` Learn more about ${focusKeyword} and how we can help you today.`;
-    while (metaDescriptionRewritten.length < 140) {
-      metaDescriptionRewritten += padding;
+    // Trim to last complete word at or before char 160
+    const trimmed = metaDescriptionRewritten.slice(0, 160);
+    // Prefer trimming at sentence boundary (. ! ?)
+    const lastSentence = Math.max(
+      trimmed.lastIndexOf('. '),
+      trimmed.lastIndexOf('! '),
+      trimmed.lastIndexOf('? ')
+    );
+    if (lastSentence > 100) {
+      metaDescriptionRewritten = trimmed.slice(0, lastSentence + 1).trimEnd();
+    } else {
+      const lastSpace = trimmed.lastIndexOf(' ');
+      metaDescriptionRewritten = (lastSpace > 100 ? trimmed.slice(0, lastSpace) : trimmed).trimEnd();
     }
-    metaDescriptionRewritten = metaDescriptionRewritten.slice(0, 160);
+  }
+  if (metaDescriptionRewritten.length < 140) {
+    // Pad with a natural, keyword-relevant sentence to reach the minimum
+    const padding = ` Discover how ${focusKeyword} can work for your business today.`;
+    metaDescriptionRewritten = (metaDescriptionRewritten + padding).slice(0, 160).trimEnd();
+    // If still short, add a second sentence
+    if (metaDescriptionRewritten.length < 140) {
+      const padding2 = ` Get expert guidance and practical tips to get started.`;
+      metaDescriptionRewritten = (metaDescriptionRewritten + padding2).slice(0, 160).trimEnd();
+    }
   }
 
   // --- P9: Opening Answer Block ---

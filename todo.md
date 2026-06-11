@@ -681,3 +681,7 @@
 ## Bug Fix — Rewrite Truncation (June 2026)
 
 - [x] Fix rewrite truncating mid-content: increase max_tokens on Pass 1 LLM call; add post-completion guard that re-appends preserved FAQ/CTA sections if they are missing from the output — max_tokens now explicitly set to 32768 on Pass 1 call; invokeLLM now honours caller-supplied max_tokens; safety net appends CTA/FAQ back if LLM truncated them
+
+## Bug Fix — Meta Title & Description Hard Limits (June 2026)
+
+- [x] Enforce hard character limits on meta title (40–60 chars) and meta description (140–160 chars): (1) Pass 1 prompt now has HARD LIMIT labels with explicit count instructions and NEVER use ellipsis rule; (2) P7 enforcement trims to last complete word within 60 chars, rebuilds with keyword prefix if needed; (3) P8 enforcement trims to last complete sentence within 160 chars, pads naturally if under 140 — ellipsis never produced
