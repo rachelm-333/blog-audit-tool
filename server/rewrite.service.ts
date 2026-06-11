@@ -897,14 +897,18 @@ export async function runFullRewrite(params: {
   paaQuestion: string;
   secondaryKeywords?: string[];
   rewriteMode?: "full_rewrite" | "smart_patch";
+  /** When true (default), extract and preserve the CTA section verbatim — do not rewrite it */
+  preserveCta?: boolean;
+  /** When true (default), extract and preserve the FAQ section verbatim — do not rewrite it */
+  preserveFaq?: boolean;
 }): Promise<RewriteResult> {
-  const { post, businessContext, internalLinks, failingPoints, paaQuestion, secondaryKeywords = [], rewriteMode = "full_rewrite" } = params;
+  const { post, businessContext, internalLinks, failingPoints, paaQuestion, secondaryKeywords = [], rewriteMode = "full_rewrite", preserveCta = true, preserveFaq = true } = params;
 
   const articleType = inferArticleType(post.bodyOriginal);
   const wordCountTarget = ARTICLE_TYPE_TARGETS[articleType];
 
   // --- Extract protected sections (CTA, FAQ) from original body ---
-  // These will be passed to Pass 1 and must be preserved verbatim to prevent AI fabrication
+  // Only pass them as protected zones if the user has opted to preserve them (default: true)
   const { ctaSection, faqSection } = extractProtectedSections(post.bodyOriginal);
 
   // --- Pass 1: Full rewrite or Smart Patch ---
@@ -923,8 +927,8 @@ export async function runFullRewrite(params: {
     url: post.url,
     metaTitleOriginal: post.metaTitleOriginal,
     metaDescriptionOriginal: post.metaDescriptionOriginal,
-    originalCtaSection: ctaSection,
-    originalFaqSection: faqSection,
+    originalCtaSection: preserveCta ? ctaSection : null,
+    originalFaqSection: preserveFaq ? faqSection : null,
   };
 
   let pass1Output = await runPass1Rewrite(pass1Input);

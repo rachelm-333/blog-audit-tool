@@ -624,6 +624,10 @@ function RewriteModal({
   onConfirm,
   onClose,
   rewriteResult,
+  preserveFaq,
+  preserveCta,
+  onPreserveFaqChange,
+  onPreserveCtaChange,
 }: {
   post: Post | null;
   open: boolean;
@@ -635,6 +639,10 @@ function RewriteModal({
   onConfirm: (mode: "full_rewrite" | "smart_patch") => void;
   onClose: () => void;
   rewriteResult?: { rewriteScore: number; rewriteGrade: string; needsManualReview: boolean; message?: string } | null;
+  preserveFaq: boolean;
+  preserveCta: boolean;
+  onPreserveFaqChange: (v: boolean) => void;
+  onPreserveCtaChange: (v: boolean) => void;
 }) {
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -690,6 +698,38 @@ function RewriteModal({
                   />
                 </>
               )}
+            </div>
+            {/* Protected sections toggles */}
+            <div className="space-y-2 pt-1">
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                Protect original sections
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="flex items-start gap-2.5 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={preserveCta}
+                    onChange={(e) => onPreserveCtaChange(e.target.checked)}
+                    className="mt-0.5 accent-primary"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-foreground">Preserve CTA section as-is</span>
+                    <p className="text-xs text-muted-foreground">"What you can do next" or call-to-action section will not be changed.</p>
+                  </div>
+                </label>
+                <label className="flex items-start gap-2.5 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={preserveFaq}
+                    onChange={(e) => onPreserveFaqChange(e.target.checked)}
+                    className="mt-0.5 accent-primary"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-foreground">Preserve FAQ section as-is</span>
+                    <p className="text-xs text-muted-foreground">Frequently Asked Questions section will not be changed.</p>
+                  </div>
+                </label>
+              </div>
             </div>
             <div className="space-y-2 pt-1">
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center mb-1">
@@ -1023,6 +1063,8 @@ export default function PostList() {
   const [paaSuggested, setPaaSuggested] = useState("");
   const [expandedRewritePostId, setExpandedRewritePostId] = useState<string | null>(null);
   const [rewriteMode, setRewriteMode] = useState<"full_rewrite" | "smart_patch">("full_rewrite");
+  const [preserveFaq, setPreserveFaq] = useState(true);
+  const [preserveCta, setPreserveCta] = useState(true);
   // Review-status filter tabs
   const [reviewFilter, setReviewFilter] = useState<"all" | "awaiting_review" | "approved" | "published">("all");
   const { data, isLoading, refetch } = trpc.keyword.listPosts.useQuery(
@@ -1248,7 +1290,7 @@ export default function PostList() {
     setRewriteMode(mode);
     setRewriteStep("running");
     runRewriteMutation.mutate(
-      { postId: rewritePost.id, iauditUserId, paaQuestion: paaQuestion.trim(), rewriteMode: mode },
+      { postId: rewritePost.id, iauditUserId, paaQuestion: paaQuestion.trim(), rewriteMode: mode, preserveFaq, preserveCta },
       {
         onSuccess: (result) => {
           refetch();
@@ -1791,6 +1833,10 @@ export default function PostList() {
         paaLoading={paaLoading}
         onPaaChange={setPaaQuestion}
         onConfirm={handleRunRewrite}
+        preserveFaq={preserveFaq}
+        preserveCta={preserveCta}
+        onPreserveFaqChange={setPreserveFaq}
+        onPreserveCtaChange={setPreserveCta}
         onClose={() => {
           if (rewriteStep !== "running") {
             setRewritePost(null);

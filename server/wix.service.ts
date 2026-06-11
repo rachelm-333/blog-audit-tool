@@ -286,15 +286,22 @@ function htmlToRicos(html: string): object {
     if (child.nodeType === 1) {
       const before = nodes.length;
       processBlock(child as Element);
-      // If a new block was added, insert an empty paragraph spacer before it
-      // (except before the very first block)
+      // If a new block was added, insert ONE empty paragraph spacer before it
+      // (except before the very first block, and only if the previous node is not already an empty PARAGRAPH)
       if (nodes.length > before && before > 0) {
-        nodes.splice(before, 0, {
-          type: "PARAGRAPH",
-          id: genId(),
-          nodes: [],
-          paragraphData: { textStyle: { textAlignment: "AUTO" } },
-        });
+        const prevNode = nodes[before - 1] as any;
+        const prevIsEmptyParagraph =
+          prevNode?.type === "PARAGRAPH" &&
+          Array.isArray(prevNode?.nodes) &&
+          prevNode.nodes.length === 0;
+        if (!prevIsEmptyParagraph) {
+          nodes.splice(before, 0, {
+            type: "PARAGRAPH",
+            id: genId(),
+            nodes: [],
+            paragraphData: { textStyle: { textAlignment: "AUTO" } },
+          });
+        }
       }
     } else if (child.nodeType === 3) {
       const text = child.textContent?.trim();
@@ -627,9 +634,10 @@ export async function postBackToWix(
   // Step 3: Convert the merged HTML body to Ricos richContent
   const richContentFromHtml = htmlToRicos(bodyWithoutH1) as { nodes: object[] };
 
-  // Step 4: If we have original Wix IMAGE nodes (with Wix media IDs), merge them back in
-  // at proportional positions within the converted richContent nodes.
-  // This handles Wix-hosted images that have internal media IDs rather than plain URLs.
+  // Step 4: If we have original Wix IMAGE nodes (with Wix media IDs), place them ALL at the
+  // top of the post (after the first paragraph). This is safer than guessing proportional
+  // positions in a rewritten body — the user can drag images to their preferred location
+  // in the Wix editor after publishing.
   let finalNodes: object[] = richContentFromHtml.nodes;
   if (originalImageNodes.length > 0) {
     // Remove any IMAGE nodes that htmlToRicos produced (they came from <img> tags in the
@@ -637,22 +645,21 @@ export async function postBackToWix(
     const textOnlyNodes = richContentFromHtml.nodes.filter(
       (n) => (n as any).type !== "IMAGE" && (n as any).type !== "GALLERY"
     );
-    const textNodeCount = Math.max(textOnlyNodes.length, 1);
 
-    // Insert each original Wix image node at a proportional position
-    const result: object[] = [...textOnlyNodes];
-    originalImageNodes.forEach((imgNode, idx) => {
-      // Distribute images evenly through the text nodes
-      const relPos = originalRicosNodeCount > 0
-        ? (idx + 1) / (originalImageNodes.length + 1)
-        : (idx + 1) / (originalImageNodes.length + 1);
-      const insertAt = Math.min(
-        Math.round(relPos * textNodeCount),
-        result.length
-      );
-      result.splice(insertAt + idx, 0, imgNode);
-    });
-    finalNodes = result;
+    // Find the insertion point: after the first non-empty PARAGRAPH (i.e. after the intro paragraph)
+    let insertAfter = 0;
+    for (let i = 0; i < textOnlyNodes.length; i++) {
+      const n = textOnlyNodes[i] as any;
+      if (n.type === "PARAGRAPH" && Array.isArray(n.nodes) && n.nodes.length > 0) {
+        insertAfter = i + 1;
+        break;
+      }
+    }
+
+    // Build the final node list: [intro paragraph(s)] + [all images] + [rest of body]
+    const before = textOnlyNodes.slice(0, insertAfter);
+    const after = textOnlyNodes.slice(insertAfter);
+    finalNodes = [...before, ...originalImageNodes, ...after];
   }
 
   // Ensure document ends with an empty paragraph (Wix requirement)

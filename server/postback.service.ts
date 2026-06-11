@@ -100,18 +100,17 @@ function escapeAttr(str: string): string {
 
 /**
  * Preserves images from the original body HTML by re-injecting them into the
- * rewritten body at proportionally equivalent positions.
+ * rewritten body. ALL images are placed at the top of the post (after the first
+ * paragraph) so the user can reposition them in their CMS editor.
+ *
+ * Proportional placement was removed because the rewritten body has different
+ * paragraph counts, causing images to land in wrong positions.
  *
  * Strategy:
  *   1. Extract all <img> tags from the original body (in DOM order).
- *   2. Count block-level elements (p, h1-h6, ul, ol, blockquote) in both bodies.
- *   3. For each image, calculate its relative position in the original (e.g. after
- *      block 3 of 10 = 30%) and insert it after the equivalent block in the rewritten body.
- *   4. Any images that cannot be placed (rewritten body has fewer blocks) are appended
- *      at the end.
- *
- * This is a best-effort approach — images will be near their original position
- * even if the rewritten body has different paragraph counts.
+ *   2. Apply updated alt texts.
+ *   3. Insert all images as <figure> blocks immediately after the first <p> in
+ *      the rewritten body (or at the very top if no <p> exists).
  */
 export function preserveImagesInBody(
   originalHtml: string,
@@ -128,64 +127,46 @@ export function preserveImagesInBody(
     const origImgs = Array.from(origDoc.querySelectorAll("img")) as Element[];
     if (origImgs.length === 0) return rewrittenHtml; // No images to preserve
 
-    // Count block elements in original to determine relative positions
-    const BLOCK_SELECTOR = "p, h1, h2, h3, h4, h5, h6, ul, ol, blockquote, figure";
-    const origBlocks = Array.from(origDoc.querySelectorAll(BLOCK_SELECTOR)) as Element[];
-    const origBlockCount = Math.max(origBlocks.length, 1);
-
-    // For each image, find which block it comes after in the original
-    const imgPositions: Array<{ imgHtml: string; relativePos: number }> = [];
-    origImgs.forEach((img, imgIdx) => {
-      // Apply updated alt text if available
+    // Apply updated alt texts and collect HTML strings
+    const imgHtmlList: string[] = origImgs.map((img, imgIdx) => {
       const altText = updatedAltTexts[imgIdx];
       if (altText !== undefined) {
         img.setAttribute("alt", altText);
       }
-      const imgHtml = img.outerHTML;
-
-      // Find the block index this image appears after
-      let blocksBefore = 0;
-      let node: Node | null = img;
-      while (node && node.parentNode) {
-        const siblings = Array.from(node.parentNode.childNodes);
-        const nodeIdx = siblings.indexOf(node as ChildNode);
-        for (let i = 0; i < nodeIdx; i++) {
-          const sib = siblings[i] as Element;
-          if (sib.nodeType === 1 && sib.matches && sib.matches(BLOCK_SELECTOR)) {
-            blocksBefore++;
-          }
-        }
-        node = node.parentNode;
-        if ((node as Element).tagName === "BODY") break;
-      }
-      const relativePos = blocksBefore / origBlockCount;
-      imgPositions.push({ imgHtml, relativePos });
+      return img.outerHTML;
     });
 
-    // Now work on the rewritten body
+    // Work on the rewritten body
     const rewriteDom = new JSDOM(rewrittenHtml);
     const rewriteDoc = rewriteDom.window.document;
-    const rewriteBlocks = Array.from(rewriteDoc.querySelectorAll(BLOCK_SELECTOR)) as Element[];
-    const rewriteBlockCount = Math.max(rewriteBlocks.length, 1);
+    const body = rewriteDoc.body;
 
-    // Insert each image at the proportionally equivalent position
-    imgPositions.forEach(({ imgHtml, relativePos }) => {
-      const targetBlockIdx = Math.min(
-        Math.round(relativePos * rewriteBlockCount),
-        rewriteBlocks.length - 1
-      );
-      const targetBlock = rewriteBlocks[targetBlockIdx];
-      if (targetBlock) {
-        // Create a wrapper div for the image
-        const wrapper = rewriteDoc.createElement("figure");
-        wrapper.className = "wp-block-image";
-        wrapper.innerHTML = imgHtml;
-        // Insert after the target block
-        targetBlock.parentNode?.insertBefore(wrapper, targetBlock.nextSibling);
-      }
+    // Find the first <p> to insert images after it
+    const firstPara = body.querySelector("p");
+
+    // Build figure elements for all images
+    const figures = imgHtmlList.map((imgHtml) => {
+      const wrapper = rewriteDoc.createElement("figure");
+      wrapper.className = "wp-block-image";
+      wrapper.innerHTML = imgHtml;
+      return wrapper;
     });
 
-    return rewriteDoc.body.innerHTML;
+    if (firstPara && firstPara.parentNode) {
+      // Insert all images right after the first paragraph, in reverse order
+      // so they end up in the correct sequence (first image closest to top)
+      const insertRef = firstPara.nextSibling;
+      figures.reverse().forEach((fig) => {
+        firstPara.parentNode!.insertBefore(fig, insertRef);
+      });
+    } else {
+      // No paragraph found — prepend all images at the very top
+      figures.reverse().forEach((fig) => {
+        body.insertBefore(fig, body.firstChild);
+      });
+    }
+
+    return body.innerHTML;
   } catch {
     // If anything fails, return the rewritten body unchanged rather than crashing
     return rewrittenHtml;

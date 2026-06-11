@@ -110,6 +110,8 @@ export const rewriteRouter = router({
         iauditUserId: z.string().min(1),
         paaQuestion: z.string().min(1), // Confirmed by user in the PAA modal
         rewriteMode: z.enum(["full_rewrite", "smart_patch"]).default("full_rewrite"),
+        preserveFaq: z.boolean().default(true),  // Preserve FAQ section verbatim (user toggle)
+        preserveCta: z.boolean().default(true),  // Preserve CTA section verbatim (user toggle)
       })
     )
     .mutation(async ({ input }) => {
@@ -216,6 +218,8 @@ export const rewriteRouter = router({
           paaQuestion: input.paaQuestion,
           secondaryKeywords,
           rewriteMode: input.rewriteMode,
+          preserveFaq: input.preserveFaq,
+          preserveCta: input.preserveCta,
         });
       } catch (err) {
         await setRewriteStatus(post.id, "failed");
@@ -267,6 +271,8 @@ export const rewriteRouter = router({
             paaQuestion: input.paaQuestion,
             secondaryKeywords,
             rewriteMode: input.rewriteMode,
+            preserveFaq: input.preserveFaq,
+            preserveCta: input.preserveCta,
           });
 
           // Pick the best result between first attempt and retry

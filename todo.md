@@ -659,3 +659,10 @@
 - [x] Diagnose which 3 points consistently fail after two rewrite attempts — P4 (no H3 enforcement), P14 (E-E-A-T stripped by Pass 2), P15 (banned phrases reintroduced by Pass 2)
 - [x] Fix the rewrite prompt or mechanical enforcement so those points reliably pass — added P4 H3 mechanical enforcement; strengthened Pass 2 prompt to preserve E-E-A-T signals and ban AI phrases
 - [x] Ensure the 15/16 threshold is achievable in 2 attempts for typical posts — mechanical enforcement now covers P1, P3, P4, P5, P7, P8, P9, P10, P11, P12, P13 (11 of 16 points guaranteed)
+
+## Critical Bug Fixes — Post-Back Quality (June 2026)
+
+- [x] Add FAQ/CTA preservation toggles to the rewrite modal: two checkboxes "Preserve FAQ section as-is" (default ON) and "Preserve CTA section as-is" (default ON); pass these as preserveFaq and preserveCta booleans through the rewrite router to runFullRewrite
+- [x] Wire preserveFaq/preserveCta through runFullRewrite and Pass 1 prompt: when OFF, allow AI to rewrite that section; when ON (default), extract and pass verbatim as protected zone
+- [x] Fix Wix spacing: the spacer PARAGRAPH is being inserted BETWEEN every block AND empty <p> tags in the HTML are also being converted to PARAGRAPH nodes — resulting in double/triple spacing. Fix: only insert ONE spacer between blocks; skip the spacer if the preceding node is already an empty PARAGRAPH
+- [x] Fix image placement on post-back: instead of scattering images at proportional positions throughout the rewritten body, move ALL preserved images to the TOP of the post body (after the first paragraph), with a visible note in the UI: "Images have been placed at the top of your post — please reposition them in your CMS editor"
