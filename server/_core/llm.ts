@@ -273,6 +273,8 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     tools,
     toolChoice,
     tool_choice,
+    maxTokens,
+    max_tokens,
     outputSchema,
     output_schema,
     responseFormat,
@@ -296,7 +298,8 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.tool_choice = normalizedToolChoice;
   }
 
-  payload.max_tokens = 32768
+  // Honour caller-supplied token limit; default to 32768
+  payload.max_tokens = maxTokens ?? max_tokens ?? 32768;
   payload.thinking = {
     "budget_tokens": 128
   }

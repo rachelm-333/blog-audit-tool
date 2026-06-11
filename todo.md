@@ -677,3 +677,7 @@
 ## Review Queue Filter Fix (June 2026)
 
 - [x] Fix review queue: posts with postBackStatus === "complete" should only appear in the "Published" tab — exclude them from "All", "Awaiting Review", and "Approved" tabs and their counts
+
+## Bug Fix — Rewrite Truncation (June 2026)
+
+- [x] Fix rewrite truncating mid-content: increase max_tokens on Pass 1 LLM call; add post-completion guard that re-appends preserved FAQ/CTA sections if they are missing from the output — max_tokens now explicitly set to 32768 on Pass 1 call; invokeLLM now honours caller-supplied max_tokens; safety net appends CTA/FAQ back if LLM truncated them

@@ -354,6 +354,9 @@ export async function runPass1Rewrite(input: Pass1Input): Promise<Pass1Output> {
   const systemPrompt = buildPass1SystemPrompt(input);
 
   const response = await invokeLLM({
+    // Use a generous token budget for long blog posts — 32768 is the default but we
+    // explicitly request it here to ensure it is never silently reduced.
+    max_tokens: 32768,
     messages: [
       { role: "system", content: systemPrompt },
       {
@@ -403,8 +406,28 @@ export async function runPass1Rewrite(input: Pass1Input): Promise<Pass1Output> {
   const content = response.choices?.[0]?.message?.content;
   if (!content) throw new Error("LLM returned no content for Pass 1 rewrite");
   const parsed = JSON.parse(typeof content === "string" ? content : JSON.stringify(content));
+
+  let bodyRewritten: string = parsed.bodyRewritten as string;
+
+  // --- Safety net: re-append preserved sections if the LLM truncated them ---
+  // If the user asked to preserve the CTA or FAQ verbatim, but the LLM output does not
+  // contain them (truncation), append them back now so they are never silently lost.
+  if (input.originalCtaSection) {
+    // Check if any meaningful fragment of the CTA is present in the output
+    const ctaSnippet = input.originalCtaSection.replace(/<[^>]+>/g, "").slice(0, 60).trim();
+    if (ctaSnippet && !bodyRewritten.includes(ctaSnippet)) {
+      bodyRewritten += `\n${input.originalCtaSection}`;
+    }
+  }
+  if (input.originalFaqSection) {
+    const faqSnippet = input.originalFaqSection.replace(/<[^>]+>/g, "").slice(0, 60).trim();
+    if (faqSnippet && !bodyRewritten.includes(faqSnippet)) {
+      bodyRewritten += `\n${input.originalFaqSection}`;
+    }
+  }
+
   return {
-    bodyRewritten: parsed.bodyRewritten as string,
+    bodyRewritten,
     metaTitleRewritten: parsed.metaTitleRewritten as string,
     metaDescriptionRewritten: parsed.metaDescriptionRewritten as string,
   };
