@@ -697,3 +697,7 @@
 ## Bug Fix — AI Staccato Writing Style (June 2026)
 
 - [x] Fix AI staccato writing: single-sentence paragraphs, orphaned colon-fragments ("They:"), and bare list items must be merged into proper flowing prose. Added PARAGRAPH STRUCTURE block to Pass 1 prompt (min 2–3 sentences per paragraph, no orphaned fragments, no bare list items). Added staccato examples to Pass 2 prompt with concrete before/after examples showing how to merge fragments into prose.
+
+## Bug Fix — Mechanical Staccato Merger (June 2026)
+
+- [x] Add mechanical post-generation staccato merger to runAiPhraseScan: consecutive short <p> paragraphs (< 25 words each) are merged into one paragraph up to a max of 80 words. Skips headings, lists, images, and script blocks. Runs deterministically after Pass 2 — cannot be ignored by the LLM.

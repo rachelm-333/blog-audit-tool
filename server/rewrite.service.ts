@@ -835,7 +835,92 @@ export function runAiPhraseScan(html: string): string {
     text = text.replace(/  +/g, ' ');
     return text;
   });
-  return cleaned.join('');
+  const phraseFixed = cleaned.join('');
+
+  // ---------------------------------------------------------------------------
+  // Mechanical staccato merger
+  // Merge consecutive short <p> paragraphs (< 25 words each) into one paragraph.
+  // This deterministically fixes the AI staccato pattern regardless of LLM output.
+  // Skips headings, images, lists, and schema script blocks.
+  // ---------------------------------------------------------------------------
+  function wordCount(s: string): number {
+    return s.trim().split(/\s+/).filter(Boolean).length;
+  }
+  function stripTagsForCount(s: string): string {
+    return s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  // Split into block-level tokens: each <p>...</p>, heading, list, script, img, or whitespace gap
+  const blockPattern = /(<(?:h[1-6]|ul|ol|li|blockquote|pre|script|figure|div)[^>]*>[\s\S]*?<\/(?:h[1-6]|ul|ol|li|blockquote|pre|script|figure|div)>|<img[^>]*\/?>|<p[^>]*>[\s\S]*?<\/p>)/gi;
+  const tokens: string[] = [];
+  let lastIndex = 0;
+  let bm: RegExpExecArray | null;
+  const bpCopy = new RegExp(blockPattern.source, 'gi');
+  while ((bm = bpCopy.exec(phraseFixed)) !== null) {
+    if (bm.index > lastIndex) tokens.push(phraseFixed.slice(lastIndex, bm.index));
+    tokens.push(bm[0]);
+    lastIndex = bm.index + bm[0].length;
+  }
+  if (lastIndex < phraseFixed.length) tokens.push(phraseFixed.slice(lastIndex));
+
+  // Walk tokens and merge consecutive short <p> blocks
+  const SHORT_WORD_LIMIT = 25; // paragraphs with fewer words than this are candidates for merging
+  const MAX_MERGE_WORDS = 80;  // don't let merged paragraphs exceed this
+  const merged: string[] = [];
+  let i = 0;
+  while (i < tokens.length) {
+    const tok = tokens[i];
+    // Is this a <p> block (not a heading/list/script)?
+    const isPara = /^<p[^>]*>[\s\S]*?<\/p>$/i.test(tok.trim());
+    if (!isPara) {
+      merged.push(tok);
+      i++;
+      continue;
+    }
+    const innerMatch = tok.match(/^<p([^>]*)>([\s\S]*?)<\/p>$/i);
+    if (!innerMatch) { merged.push(tok); i++; continue; }
+    const attrs = innerMatch[1];
+    const innerText = innerMatch[2];
+    const wc = wordCount(stripTagsForCount(innerText));
+    if (wc >= SHORT_WORD_LIMIT) {
+      // Long paragraph — keep as-is
+      merged.push(tok);
+      i++;
+      continue;
+    }
+    // Short paragraph — try to merge with following short paragraphs
+    const parts2: string[] = [innerText];
+    let totalWords = wc;
+    let j = i + 1;
+    while (j < tokens.length) {
+      const next = tokens[j];
+      // Skip pure whitespace tokens between paragraphs
+      if (/^\s*$/.test(next)) { j++; continue; }
+      const nextIsPara = /^<p[^>]*>[\s\S]*?<\/p>$/i.test(next.trim());
+      if (!nextIsPara) break;
+      const nextInner = next.match(/^<p[^>]*>([\s\S]*?)<\/p>$/i);
+      if (!nextInner) break;
+      const nextText = nextInner[1];
+      const nextWc = wordCount(stripTagsForCount(nextText));
+      if (nextWc >= SHORT_WORD_LIMIT) break; // next is a long para — stop merging
+      if (totalWords + nextWc > MAX_MERGE_WORDS) break; // merged would be too long
+      parts2.push(nextText);
+      totalWords += nextWc;
+      j++;
+    }
+    if (parts2.length === 1) {
+      // Only one short para, nothing to merge with — keep as-is
+      merged.push(tok);
+      i++;
+    } else {
+      // Merge all collected short paragraphs into one
+      merged.push(`<p${attrs}>${parts2.join(' ')}</p>`);
+      // Consume the whitespace tokens we skipped
+      i = j;
+    }
+  }
+
+  return merged.join('');
 }
 
 // Pass 2 — Fingerprint Scrub
