@@ -1067,6 +1067,7 @@ export default function PostList() {
   const [preserveCta, setPreserveCta] = useState(true);
   // Review-status filter tabs
   const [reviewFilter, setReviewFilter] = useState<"all" | "awaiting_review" | "approved" | "published">("all");
+  const [titleSearch, setTitleSearch] = useState("");
   const { data, isLoading, refetch } = trpc.keyword.listPosts.useQuery(
     { businessId, iauditUserId: iauditUserId ?? "" },
     { enabled: !!businessId && !!iauditUserId }
@@ -1330,12 +1331,14 @@ export default function PostList() {
   // Apply review-status filter client-side (data already includes rewriteStatus + postBackStatus)
   // Posts that have been published back to the CMS (postBackStatus === "complete") only appear
   // in the "Published" tab — they are excluded from All, Awaiting Review, and Approved.
+  const titleSearchLower = titleSearch.trim().toLowerCase();
   const posts: Post[] = allPosts.filter((p) => {
     const isPublishedBack = p.postBackStatus === "complete";
-    if (reviewFilter === "all") return !isPublishedBack;
-    if (reviewFilter === "awaiting_review") return p.rewriteStatus === "awaiting_review" && !isPublishedBack;
-    if (reviewFilter === "approved") return p.rewriteStatus === "approved" && !isPublishedBack;
-    if (reviewFilter === "published") return isPublishedBack;
+    if (reviewFilter === "all" && isPublishedBack) return false;
+    if (reviewFilter === "awaiting_review" && !(p.rewriteStatus === "awaiting_review" && !isPublishedBack)) return false;
+    if (reviewFilter === "approved" && !(p.rewriteStatus === "approved" && !isPublishedBack)) return false;
+    if (reviewFilter === "published" && !isPublishedBack) return false;
+    if (titleSearchLower && !p.title.toLowerCase().includes(titleSearchLower)) return false;
     return true;
   });
   const postMap = new Map(posts.map((p) => [p.id, p]));
@@ -1465,6 +1468,26 @@ export default function PostList() {
           </div>
         </div>
 
+        {/* Title search */}
+        <div className="relative mb-3">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" /></svg>
+          <input
+            type="text"
+            placeholder="Search post titles..."
+            value={titleSearch}
+            onChange={(e) => setTitleSearch(e.target.value)}
+            className="w-full pl-9 pr-8 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+          />
+          {titleSearch && (
+            <button
+              onClick={() => setTitleSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label="Clear search"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          )}
+        </div>
         {/* Review-status filter tabs */}
         <div className="flex gap-1 mb-4 flex-wrap">
           {([
