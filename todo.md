@@ -721,3 +721,7 @@
 - [x] Diagnose why P1 (keyword density), P2 (keyword in H1), P3 (keyword in H2), P5 (keyword in first 100 words), P6 (keyword in URL), P7 (meta title) are failing when the keyword and content are clearly present
 - [x] Fix the mechanical check logic so it never reports false failures — results must be 100% accurate against the actual stored content
 - [x] Add a debug/test script that runs the audit checks against a real post and prints exactly what each check sees, so failures can be verified
+
+## Bug Fix — Rewrite JSON Truncation (June 2026)
+
+- [x] Fix JSON truncation in Pass 1 and Pass 2: removed response_format json_schema from both passes and replaced with delimited extraction format (<BODY>...</BODY> + META_TITLE/META_DESC/AI_SNIPPET lines). Credits are now auto-refunded on parse errors.

@@ -384,53 +384,29 @@ export async function runPass1Rewrite(input: Pass1Input): Promise<Pass1Output> {
           `BODY (HTML):\n${input.bodyHtml}\n\n` +
           `META TITLE: ${input.metaTitleOriginal ?? "(none)"}\n` +
           `META DESCRIPTION: ${input.metaDescriptionOriginal ?? "(none)"}\n\n` +
-          `Return a JSON object with these fields:\n` +
-          `{\n` +
-          `  "bodyRewritten": "<full rewritten body as HTML — do NOT include the AI citation snippet here>",\n` +
-          `  "metaTitleRewritten": "<meta title — max 60 chars, contains keyword>",\n` +
-          `  "metaDescriptionRewritten": "<meta description — 140–160 chars>",\n` +
-          `  "aiSnippet": "<2–3 sentence AI citation snippet — under 150 words, directly answers the PAA question, contains focus keyword, cites one real fact>"\n` +
-          `}`,
-
+          `Respond using EXACTLY this format — no JSON, no markdown fences:\n\n` +
+          `META_TITLE: <rewritten meta title — max 60 chars, contains keyword>\n` +
+          `META_DESC: <rewritten meta description — 140–160 chars>\n` +
+          `AI_SNIPPET: <2–3 sentence AI citation snippet — under 150 words, directly answers the PAA question, contains focus keyword, cites one real fact>\n` +
+          `<BODY>\n` +
+          `<full rewritten body HTML here — do NOT include the AI citation snippet inside the body>\n` +
+          `</BODY>`,
       },
     ],
-    response_format: {
-      type: "json_schema",
-      json_schema: {
-        name: "rewrite_pass1_result",
-        strict: true,
-        schema: {
-          type: "object",
-          properties: {
-            bodyRewritten: {
-              type: "string",
-              description: "Full rewritten body as HTML",
-            },
-            metaTitleRewritten: {
-              type: "string",
-              description: "Rewritten meta title — max 60 chars, contains keyword",
-            },
-            metaDescriptionRewritten: {
-              type: "string",
-              description: "Rewritten meta description — 140–160 chars",
-            },
-            aiSnippet: {
-              type: "string",
-              description: "2–3 sentence AI citation snippet for the top of the post — under 150 words, directly answers the PAA question, contains focus keyword, cites one real fact or credential",
-            },
-          },
-          required: ["bodyRewritten", "metaTitleRewritten", "metaDescriptionRewritten", "aiSnippet"],
-          additionalProperties: false,
-        },
-      },
-    },
   });
 
   const content = response.choices?.[0]?.message?.content;
   if (!content) throw new Error("LLM returned no content for Pass 1 rewrite");
-  const parsed = JSON.parse(typeof content === "string" ? content : JSON.stringify(content));
 
-  let bodyRewritten: string = parsed.bodyRewritten as string;
+  // --- Parse delimited response ---
+  const metaTitleMatch = content.match(/^META_TITLE:\s*(.+)$/m);
+  const metaDescMatch = content.match(/^META_DESC:\s*(.+)$/m);
+  const aiSnippetMatch = content.match(/^AI_SNIPPET:\s*(.+)$/m);
+  const bodyMatch = content.match(/<BODY>\s*([\s\S]*?)\s*<\/BODY>/i);
+
+  if (!bodyMatch) throw new Error("LLM response missing <BODY> block in Pass 1 rewrite");
+
+  let bodyRewritten: string = bodyMatch[1].trim();
 
   // --- Safety net: re-append preserved sections if the LLM truncated them ---
   // If the user asked to preserve the CTA or FAQ verbatim, but the LLM output does not
@@ -450,15 +426,18 @@ export async function runPass1Rewrite(input: Pass1Input): Promise<Pass1Output> {
   }
 
   // --- Prepend AI citation snippet as the very first paragraph ---
-  const aiSnippet: string | undefined = parsed.aiSnippet as string | undefined;
-  if (aiSnippet && aiSnippet.trim()) {
-    bodyRewritten = `<p data-ai-snippet="true">${aiSnippet.trim()}</p>\n` + bodyRewritten;
+  const aiSnippet: string | undefined = aiSnippetMatch?.[1]?.trim();
+  if (aiSnippet) {
+    bodyRewritten = `<p data-ai-snippet="true">${aiSnippet}</p>\n` + bodyRewritten;
   }
+
+  const metaTitleRewritten = metaTitleMatch?.[1]?.trim() ?? input.metaTitleOriginal ?? input.title;
+  const metaDescriptionRewritten = metaDescMatch?.[1]?.trim() ?? input.metaDescriptionOriginal ?? "";
 
   return {
     bodyRewritten,
-    metaTitleRewritten: parsed.metaTitleRewritten as string,
-    metaDescriptionRewritten: parsed.metaDescriptionRewritten as string,
+    metaTitleRewritten,
+    metaDescriptionRewritten,
     aiSnippet,
   };
 }
@@ -1016,7 +995,7 @@ export async function runPass2FingerprintScrub(
           "- DO NOT rephrase, soften, or remove E-E-A-T signals (specific stats with sources, named credentials, years of experience, case examples)\n" +
           "- DO NOT fabricate statistics, quotes, or external links\n" +
           "- DO NOT introduce any of these banned phrases:\n- " + BANNED_PHRASES + "\n" +
-          "- Return ONLY a JSON object — no prose, no markdown fences.",
+          "- Return ONLY the delimited format specified in the user message — no JSON, no markdown fences.",
     messages: [
       {
         role: "user",
@@ -1026,35 +1005,28 @@ export async function runPass2FingerprintScrub(
           `BODY HTML:\n${output.bodyRewritten}\n\n` +
           `META TITLE: ${output.metaTitleRewritten}\n` +
           `META DESCRIPTION: ${output.metaDescriptionRewritten}\n\n` +
-          `Return: { "bodyRewritten": "...", "metaTitleRewritten": "...", "metaDescriptionRewritten": "..." }`,
+          `Respond using EXACTLY this format — no JSON, no markdown fences:\n\n` +
+          `META_TITLE: <cleaned meta title>\n` +
+          `META_DESC: <cleaned meta description>\n` +
+          `<BODY>\n` +
+          `<cleaned body HTML here>\n` +
+          `</BODY>`,
       },
     ],
-    response_format: {
-      type: "json_schema",
-      json_schema: {
-        name: "rewrite_pass2_result",
-        strict: true,
-        schema: {
-          type: "object",
-          properties: {
-            bodyRewritten: { type: "string" },
-            metaTitleRewritten: { type: "string" },
-            metaDescriptionRewritten: { type: "string" },
-          },
-          required: ["bodyRewritten", "metaTitleRewritten", "metaDescriptionRewritten"],
-          additionalProperties: false,
-        },
-      },
-    },
   });
 
   const content = response.choices?.[0]?.message?.content;
   if (!content) throw new Error("LLM returned no content for Pass 2 scrub");
-  const parsed = JSON.parse(typeof content === "string" ? content : JSON.stringify(content));
+
+  // --- Parse delimited response ---
+  const p2MetaTitleMatch = content.match(/^META_TITLE:\s*(.+)$/m);
+  const p2MetaDescMatch = content.match(/^META_DESC:\s*(.+)$/m);
+  const p2BodyMatch = content.match(/<BODY>\s*([\s\S]*?)\s*<\/BODY>/i);
+
   return {
-    bodyRewritten: parsed.bodyRewritten as string,
-    metaTitleRewritten: parsed.metaTitleRewritten as string,
-    metaDescriptionRewritten: parsed.metaDescriptionRewritten as string,
+    bodyRewritten: p2BodyMatch?.[1]?.trim() ?? output.bodyRewritten,
+    metaTitleRewritten: p2MetaTitleMatch?.[1]?.trim() ?? output.metaTitleRewritten,
+    metaDescriptionRewritten: p2MetaDescMatch?.[1]?.trim() ?? output.metaDescriptionRewritten,
   };
 }
 

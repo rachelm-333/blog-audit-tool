@@ -222,18 +222,32 @@ export const rewriteRouter = router({
           preserveCta: input.preserveCta,
         });
       } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        // JSON parse errors mean the LLM response was truncated — this is a system error,
+        // not a billable attempt. Refund the credit automatically.
+        const isParseError =
+          errMsg.includes("JSON") ||
+          errMsg.includes("position") ||
+          errMsg.includes("Unexpected token") ||
+          errMsg.includes("Unexpected end") ||
+          errMsg.includes("Expected");
+        if (isParseError) {
+          try { await refundCredit(input.iauditUserId, post.id); } catch { /* ignore */ }
+        }
         await setRewriteStatus(post.id, "failed");
         void logError({
           userId: input.iauditUserId,
           businessId: post.businessId,
           postId: post.id,
           errorType: "rewrite_failed",
-          errorMessage: err instanceof Error ? err.message : String(err),
+          errorMessage: errMsg,
           layer: "layer_7_rewrite",
         });
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Rewrite failed. Your credit has not been refunded as the attempt was made.",
+          message: isParseError
+            ? "The rewrite hit a length limit on this post. Your credit has been automatically refunded. Please try again."
+            : "Rewrite failed. Your credit has not been refunded as the attempt was made.",
         });
       }
 
@@ -437,10 +451,30 @@ export const rewriteRouter = router({
           rewriteMode: "full_rewrite",
         });
       } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        const isParseError =
+          errMsg.includes("JSON") ||
+          errMsg.includes("position") ||
+          errMsg.includes("Unexpected token") ||
+          errMsg.includes("Unexpected end") ||
+          errMsg.includes("Expected");
+        if (isParseError) {
+          try { await refundCredit(input.iauditUserId, post.id); } catch { /* ignore */ }
+        }
         await setRewriteStatus(post.id, "failed");
+        void logError({
+          userId: input.iauditUserId,
+          businessId: post.businessId ?? null,
+          postId: post.id,
+          errorType: "rewrite_failed",
+          errorMessage: errMsg,
+          layer: "layer_7_rewrite",
+        });
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Re-run rewrite failed. Your credit has not been refunded.",
+          message: isParseError
+            ? "The rewrite hit a length limit on this post. Your credit has been automatically refunded. Please try again."
+            : "Re-run rewrite failed. Your credit has not been refunded.",
         });
       }
 
