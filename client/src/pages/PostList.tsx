@@ -221,6 +221,9 @@ function AuditResultsPanel({
     { postId, iauditUserId },
     { enabled: !!postId && !!iauditUserId }
   );
+  // Hooks MUST all be called unconditionally before any early returns (Rules of Hooks)
+  const reAuditMutation = trpc.audit.runAudit.useMutation();
+  const utils = trpc.useUtils();
 
   if (isLoading) {
     return (
@@ -253,8 +256,6 @@ function AuditResultsPanel({
     !!focusKeyword &&
     points.some((p) => p.note?.includes("No focus keyword set"));
 
-  const reAuditMutation = trpc.audit.runAudit.useMutation();
-  const utils = trpc.useUtils();
   const handleReAudit = () => {
     if (!iauditUserId) return;
     reAuditMutation.mutate(
