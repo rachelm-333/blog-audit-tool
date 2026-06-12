@@ -687,6 +687,150 @@ export function runMechanicalEnforcement(
 }
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// AI Phrase Scanner — mechanical post-generation cleanup
+// ---------------------------------------------------------------------------
+/**
+ * Mechanically replaces the most common AI-fingerprint phrases in plain text
+ * (outside HTML tags) with natural human alternatives.
+ * Runs AFTER Pass 2 as a deterministic safety net.
+ */
+export function runAiPhraseScan(html: string): string {
+  // Each entry: [regex, replacement]
+  // Replacements use natural Australian English alternatives.
+  // We only replace text nodes (outside < >) to avoid breaking HTML attributes.
+  const replacements: [RegExp, string][] = [
+    // Hollow openers
+    [/\bin today'?s digital landscape\b/gi, 'these days'],
+    [/\bin today'?s fast[- ]paced world\b/gi, 'right now'],
+    [/\bin today'?s world\b/gi, 'today'],
+    [/\bin the modern world\b/gi, 'today'],
+    [/\bin the ever[- ]changing world\b/gi, 'in a changing market'],
+    [/\bin the current landscape\b/gi, 'right now'],
+    [/\bin the digital age\b/gi, 'online'],
+    [/\bwelcome to the world of\b/gi, 'here is what you need to know about'],
+    [/\bare you (looking|ready) to\b/gi, 'want to'],
+    // Filler transitions
+    [/\bit'?s important to note (that )?/gi, ''],
+    [/\bit is important to note (that )?/gi, ''],
+    [/\bit'?s worth noting (that )?/gi, ''],
+    [/\bit is worth noting (that )?/gi, ''],
+    [/\bit goes without saying (that )?/gi, ''],
+    [/\bneedless to say,?\s*/gi, ''],
+    [/\bwithout further ado,?\s*/gi, ''],
+    [/\blook no further\b/gi, 'this is the answer'],
+    [/\bwithout further delay,?\s*/gi, ''],
+    [/\bwithout further hesitation,?\s*/gi, ''],
+    [/\bwithout further introduction,?\s*/gi, ''],
+    [/\bin conclusion,?\s*/gi, 'to wrap up, '],
+    [/\bto summarise,?\s*/gi, 'in short, '],
+    [/\bto summarize,?\s*/gi, 'in short, '],
+    [/\bin summary,?\s*/gi, 'in short, '],
+    [/\bat the end of the day,?\s*/gi, 'ultimately, '],
+    [/\bmoving forward,?\s*/gi, 'from here, '],
+    [/\bgoing forward,?\s*/gi, 'from here, '],
+    [/\bwith that (said|being said),?\s*/gi, ''],
+    [/\bthat (said|being said),?\s*/gi, ''],
+    [/\ball in all,?\s*/gi, 'overall, '],
+    [/\ball things considered,?\s*/gi, 'overall, '],
+    [/\bwhen all is said and done,?\s*/gi, 'ultimately, '],
+    // Corporate buzzwords
+    [/\bleverage\b/gi, 'use'],
+    [/\bleveraging\b/gi, 'using'],
+    [/\bleveraged\b/gi, 'used'],
+    [/\bdelve into\b/gi, 'look at'],
+    [/\bdelve deeper\b/gi, 'dig deeper'],
+    [/\bdive into\b/gi, 'look at'],
+    [/\bdive deeper\b/gi, 'dig deeper'],
+    [/\bseamlessly\b/gi, 'smoothly'],
+    [/\bseamless\b/gi, 'smooth'],
+    [/\brobust\b/gi, 'strong'],
+    [/\bgame[- ]changer\b/gi, 'big shift'],
+    [/\bgame[- ]changing\b/gi, 'significant'],
+    [/\btransformative\b/gi, 'significant'],
+    [/\btransform(ing)? your\b/gi, 'improve your'],
+    [/\bunlock(ing)? (the|your|a)\b/gi, 'access $2'],
+    [/\bempower(ing)? (you|your|businesses|teams)\b/gi, 'help $2'],
+    [/\bnavigate\b/gi, 'handle'],
+    [/\bnavigating\b/gi, 'handling'],
+    [/\bcomprehensive guide\b/gi, 'guide'],
+    [/\bultimate guide\b/gi, 'guide'],
+    [/\bdefinitive guide\b/gi, 'guide'],
+    [/\bbegin your journey\b/gi, 'get started'],
+    [/\bembark on (a|your) journey\b/gi, 'start'],
+    [/\btake your .{0,30} to the next level\b/gi, 'improve your results'],
+    [/\bthink outside the box\b/gi, 'try a different approach'],
+    [/\bsynergy\b/gi, 'collaboration'],
+    [/\bsynergies\b/gi, 'combined benefits'],
+    [/\bparadigm shift\b/gi, 'major change'],
+    [/\bvalue proposition\b/gi, 'what you offer'],
+    [/\bpivot\b(?! on| around)/gi, 'change direction'],
+    [/\bscalable solution\b/gi, 'solution that grows with you'],
+    [/\bscalable\b/gi, 'flexible'],
+    [/\bholistic approach\b/gi, 'complete approach'],
+    [/\bholistic\b/gi, 'complete'],
+    [/\bproactive(ly)?\b/gi, 'ahead of time'],
+    [/\bstrategic(ally)?\b(?! plan| goal| objective)/gi, 'deliberate'],
+    [/\boptimise your potential\b/gi, 'get the most out of your efforts'],
+    [/\boptimize your potential\b/gi, 'get the most out of your efforts'],
+    [/\bfoster(ing)? (a|an|the)\b/gi, 'build $2'],
+    [/\bcultivate (a|an|the)\b/gi, 'build $2'],
+    [/\bspearhead(ing)?\b/gi, 'lead'],
+    [/\bpioneer(ing)?\b(?! in| of)/gi, 'lead the way in'],
+    [/\bcutting[- ]edge\b/gi, 'modern'],
+    [/\bstate[- ]of[- ]the[- ]art\b/gi, 'modern'],
+    [/\bbest[- ]in[- ]class\b/gi, 'top-quality'],
+    [/\bworld[- ]class\b/gi, 'high-quality'],
+    [/\binnovative solution\b/gi, 'new approach'],
+    [/\binnovative approach\b/gi, 'new approach'],
+    [/\binnovative\b/gi, 'new'],
+    [/\bgroundbreaking\b/gi, 'significant'],
+    [/\brevolutionary\b/gi, 'significant'],
+    [/\bdisruptive\b/gi, 'new'],
+    // Hollow qualifiers
+    [/\btruly\b/gi, ''],
+    [/\bactually\b/gi, ''],
+    [/\bbasically\b/gi, ''],
+    [/\bfundamentally\b/gi, ''],
+    [/\bessentially,?\s*/gi, ''],
+    [/\bultimately,?\s*(?!,)/gi, ''],
+    [/\bsimply put,?\s*/gi, ''],
+    [/\bput simply,?\s*/gi, ''],
+    [/\bin other words,?\s*/gi, ''],
+    [/\bto put it (simply|plainly|bluntly),?\s*/gi, ''],
+    // AI-style em-dash overuse: replace " — " used as a filler connector
+    // (keep em-dashes that are part of compound words or genuine parenthetical)
+    // Hollow sentence starters
+    [/^(However,?\s*)/gim, ''],
+    [/^(Furthermore,?\s*)/gim, ''],
+    [/^(Moreover,?\s*)/gim, ''],
+    [/^(Additionally,?\s*)/gim, ''],
+    [/^(In addition,?\s*)/gim, ''],
+    [/^(On the other hand,?\s*)/gim, ''],
+    [/^(In contrast,?\s*)/gim, ''],
+    [/^(As a result,?\s*)/gim, ''],
+    [/^(Consequently,?\s*)/gim, ''],
+    [/^(Therefore,?\s*)/gim, ''],
+    [/^(Thus,?\s*)/gim, ''],
+    [/^(Hence,?\s*)/gim, ''],
+  ];
+
+  // Apply replacements only to text nodes (not inside HTML tags)
+  // Strategy: split on HTML tags, apply to text segments only, rejoin
+  const parts = html.split(/(<[^>]+>)/g);
+  const cleaned = parts.map((part) => {
+    if (part.startsWith('<')) return part; // HTML tag — leave untouched
+    let text = part;
+    for (const [pattern, replacement] of replacements) {
+      text = text.replace(pattern, replacement);
+    }
+    // Collapse multiple spaces left by empty replacements
+    text = text.replace(/  +/g, ' ');
+    return text;
+  });
+  return cleaned.join('');
+}
+
 // Pass 2 — Fingerprint Scrub
 // ---------------------------------------------------------------------------
 /**
@@ -697,25 +841,69 @@ export async function runPass2FingerprintScrub(
   output: Pass1Output,
   focusKeyword: string
 ): Promise<Pass1Output> {
+  const BANNED_PHRASES = [
+    // Hollow openers
+    "in today's digital landscape", "in today's world", "in the modern world",
+    "in the ever-changing world", "in the current landscape", "in the digital age",
+    "welcome to the world of", "are you looking to", "are you ready to",
+    // Filler transitions
+    "it's important to note", "it is important to note", "it's worth noting",
+    "it is worth noting", "it goes without saying", "needless to say",
+    "without further ado", "look no further", "in conclusion", "to summarise",
+    "to summarize", "in summary", "at the end of the day", "moving forward",
+    "going forward", "with that said", "that being said", "all in all",
+    "all things considered", "when all is said and done",
+    // Corporate buzzwords
+    "leverage", "leveraging", "delve into", "dive into", "seamlessly", "robust",
+    "game-changer", "game-changing", "transformative", "unlock the", "empower you",
+    "empower your", "navigate", "navigating", "comprehensive guide", "ultimate guide",
+    "definitive guide", "begin your journey", "embark on a journey", "take it to the next level",
+    "think outside the box", "synergy", "synergies", "paradigm shift", "value proposition",
+    "scalable solution", "holistic approach", "cutting-edge", "state-of-the-art",
+    "best-in-class", "world-class", "innovative solution", "innovative approach",
+    "groundbreaking", "revolutionary", "disruptive",
+    // Hollow qualifiers
+    "truly", "actually", "basically", "fundamentally", "essentially", "simply put",
+    "put simply", "in other words",
+    // Hollow sentence starters (when used as openers)
+    "However,", "Furthermore,", "Moreover,", "Additionally,", "In addition,",
+    "On the other hand,", "In contrast,", "As a result,", "Consequently,",
+    "Therefore,", "Thus,", "Hence,",
+  ].join("\n- ");
+
   const response = await invokeLLM({
     messages: [
       {
         role: "system",
         content:
-          "You are an expert editor specialising in making AI-generated content sound human. " +
-          "Your task is to rewrite ONLY the language patterns — transitions, qualifiers, sentence rhythm. " +
-          "CRITICAL — You MUST NOT change: SEO structure, headings, focus keywords, links, facts, statistics, or schema. " +
-          "CRITICAL — You MUST preserve ALL E-E-A-T signals VERBATIM: specific statistics with sources, named credentials, years of experience, case examples, industry data points. Do NOT rephrase, soften, or remove any of these. " +
-          "CRITICAL — You MUST NOT introduce any of these banned AI phrases: 'it's important to note', 'in today's world', 'in today's digital landscape', 'dive into', 'leverage', 'game-changer', 'seamlessly', 'delve', 'robust', 'comprehensive guide', 'look no further', 'without further ado', 'in conclusion', 'to summarise', 'it goes without saying', 'at the end of the day', 'moving forward', 'navigating', 'unlock', 'empower', 'transformative'. " +
-          "Do not fabricate statistics, quotes, or external links. " +
-          "Write in Australian English (use 's' not 'z' for words like 'optimise', 'recognise'). " +
-          "Vary sentence length — mix short punchy sentences with longer explanatory ones. " +
-          "Return ONLY a JSON object — no prose, no markdown fences.",
+          "You are a ruthless human-voice editor. Your ONLY job is to strip every trace of AI writing from this article. " +
+          "You are NOT rewriting for style — you are surgically removing AI fingerprints. " +
+          "\n\nWHAT AI WRITING LOOKS LIKE (eliminate all of these):\n" +
+          "- Hollow openers: 'In today's digital landscape', 'In today's world', 'Are you looking to...'\n" +
+          "- Filler transitions used as sentence starters: 'However,', 'Furthermore,', 'Moreover,', 'Additionally,', 'In addition,', 'Consequently,', 'Therefore,'\n" +
+          "- Corporate buzzwords: leverage, seamlessly, robust, game-changer, transformative, unlock, empower, navigate, comprehensive guide, cutting-edge, state-of-the-art, innovative, groundbreaking, revolutionary\n" +
+          "- Hollow closers: 'In conclusion,', 'To summarise,', 'At the end of the day,', 'Moving forward,'\n" +
+          "- Hollow qualifiers: truly, actually, basically, essentially, simply put, it's important to note, it goes without saying\n" +
+          "- Formulaic em-dash overuse: sentences like 'X is Y — and that matters' where the em-dash adds nothing\n" +
+          "- Parallel list structures where every bullet starts with the same word pattern\n" +
+          "\n\nWHAT HUMAN WRITING LOOKS LIKE (aim for this):\n" +
+          "- Direct, confident statements without qualifiers\n" +
+          "- Varied sentence length — short punchy sentences mixed with longer explanatory ones\n" +
+          "- Specific, concrete language — not vague generalisations\n" +
+          "- Transitions that are earned, not decorative ('But', 'So', 'That means', 'Here's the thing')\n" +
+          "- Opinions and direct advice ('Do this', 'Avoid that', 'The real issue is...')\n" +
+          "- Australian English: 'optimise' not 'optimize', 'recognise' not 'recognize'\n" +
+          "\n\nCRITICAL RULES — DO NOT BREAK THESE:\n" +
+          "- DO NOT change: headings, focus keywords, links, facts, statistics, schema markup\n" +
+          "- DO NOT rephrase, soften, or remove E-E-A-T signals (specific stats with sources, named credentials, years of experience, case examples)\n" +
+          "- DO NOT fabricate statistics, quotes, or external links\n" +
+          "- DO NOT introduce any of these banned phrases:\n- " + BANNED_PHRASES + "\n" +
+          "- Return ONLY a JSON object — no prose, no markdown fences.",
       },
       {
         role: "user",
         content:
-          `Rewrite the language patterns of this article to sound natural and human. ` +
+          `Strip all AI fingerprints from this article. Make it sound like it was written by a knowledgeable human expert, not an AI. ` +
           `Focus keyword (must remain unchanged): "${focusKeyword}"\n\n` +
           `BODY HTML:\n${output.bodyRewritten}\n\n` +
           `META TITLE: ${output.metaTitleRewritten}\n` +
@@ -1015,7 +1203,14 @@ export async function runFullRewrite(params: {
   });
 
   // --- Pass 2: Fingerprint Scrub ---
-  const pass2Output = await runPass2FingerprintScrub(pass1Output, post.focusKeyword);
+  const pass2Raw = await runPass2FingerprintScrub(pass1Output, post.focusKeyword);
+  // --- Pass 2b: Mechanical AI Phrase Scanner ---
+  // Deterministic safety net — catches any AI phrases the LLM missed in Pass 2
+  const pass2Output: Pass1Output = {
+    bodyRewritten: runAiPhraseScan(pass2Raw.bodyRewritten),
+    metaTitleRewritten: pass2Raw.metaTitleRewritten,
+    metaDescriptionRewritten: pass2Raw.metaDescriptionRewritten,
+  };
 
   // --- Schema Generation ---
   const schemaJson = generateSchema({

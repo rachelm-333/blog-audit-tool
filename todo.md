@@ -689,3 +689,7 @@
 ## Bug Fix — Live Edit Audit Score Drop (June 2026)
 
 - [x] Fix audit score recalculating incorrectly during manual editing: link checks (internal link, external authority link, CTA link) must NOT re-evaluate against the live editor text — they should remain locked to the last saved/approved score. Only content-length and keyword-density checks should update live. Removing a few words must never drop a link-based check that was already passing. — FIXED: saveEdits now extracts all href values from prev and new body; if the link set is identical, P10/P11/P12 are locked to stored passing results before the score is returned.
+
+## Improvement — AI Fingerprint Removal (June 2026)
+
+- [x] Dramatically improve AI fingerprint removal: (1) expand banned phrases list from 17 to 80+ covering hollow openers, filler transitions, corporate buzzwords, hollow qualifiers, and hollow sentence starters; (2) rewrite Pass 2 prompt to be aggressive and specific — shows AI what human writing looks like vs AI writing, not just a list of banned words; (3) add mechanical runAiPhraseScan() function that runs after Pass 2 as a deterministic safety net — replaces banned phrases in text nodes only (not HTML tags), collapses whitespace, and cannot be ignored by the LLM
