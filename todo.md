@@ -710,3 +710,8 @@
 ## Feature — AI Citation Snippet / AEO Block (June 2026)
 
 - [x] Add mandatory AI citation snippet (AEO block) to top of every rewritten post: Pass 1 outputs an aiSnippet field (2–3 sentences, direct answer to focus keyword question, includes keyword, cites a specific fact or credential, under 150 words); injected as the first <p> of bodyRewritten with data-ai-snippet="true" attribute; styled as a highlighted intro block in the ReviewEdit preview
+
+## Bug Fix — Stale Audit Results After Keyword Set (June 2026)
+
+- [x] Auto re-audit when keyword is confirmed: after keyword.confirm mutation succeeds, immediately trigger audit.runAudit in the background so score is always current
+- [x] Add stale audit warning banner: if audit_results contain "No focus keyword set" notes but post.focusKeyword is now set, show a yellow "Results are stale — re-audit" banner with a one-click re-audit button in the expanded audit panel

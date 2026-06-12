@@ -238,7 +238,7 @@ function AuditResultsPanel({
     );
   }
 
-  const { auditResults, auditScore, auditGrade } = data;
+  const { auditResults, auditScore, auditGrade, focusKeyword } = data;
   const points: AuditPoint[] = auditResults.points ?? [];
   const passing = points.filter(
     (p) => p.status === "pass" || p.status === "na"
@@ -247,6 +247,27 @@ function AuditResultsPanel({
   const unscored = points.filter((p) => p.status === "unable_to_score");
 
   const hasAiFailure = unscored.length > 0;
+
+  // Stale detection: audit was run before the focus keyword was set
+  const isStale =
+    !!focusKeyword &&
+    points.some((p) => p.note?.includes("No focus keyword set"));
+
+  const reAuditMutation = trpc.audit.runAudit.useMutation();
+  const utils = trpc.useUtils();
+  const handleReAudit = () => {
+    if (!iauditUserId) return;
+    reAuditMutation.mutate(
+      { postId, iauditUserId },
+      {
+        onSuccess: () => {
+          utils.audit.getPostResults.invalidate({ postId, iauditUserId });
+          toast.success("Audit refreshed with the current keyword.");
+        },
+        onError: () => toast.error("Re-audit failed. Please try again."),
+      }
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -261,6 +282,31 @@ function AuditResultsPanel({
           Potential: {auditResults.potentialScore}/16
         </div>
       </div>
+
+      {/* Stale audit warning — results pre-date keyword being set */}
+      {isStale && (
+        <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2.5 text-xs text-amber-300">
+          <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <span className="font-semibold">Results are out of date.</span>{" "}
+            This audit was run before the focus keyword was set. Re-audit to get an accurate score.
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="shrink-0 h-7 px-2.5 text-xs gap-1 border-amber-500/50 text-amber-300 hover:bg-amber-500/10 bg-transparent"
+            disabled={reAuditMutation.isPending}
+            onClick={handleReAudit}
+          >
+            {reAuditMutation.isPending ? (
+              <Loader2 size={12} className="animate-spin" />
+            ) : (
+              <RefreshCw size={12} />
+            )}
+            Re-audit
+          </Button>
+        </div>
+      )}
 
       {/* AI failure warning */}
       {hasAiFailure && (
@@ -1847,7 +1893,23 @@ export default function PostList() {
         post={modalPost}
         open={!!modalPost}
         onClose={() => setModalPost(null)}
-        onConfirmed={() => refetch()}
+        onConfirmed={() => {
+          refetch();
+          // Auto re-audit in background so results reflect the new keyword
+          if (modalPost && iauditUserId) {
+            auditOneMutation.mutate(
+              { postId: modalPost.id, iauditUserId },
+              {
+                onSuccess: (result) => {
+                  refetch();
+                  toast.success(
+                    `Audit updated — ${result.score}/16 (${GRADE_CONFIG[result.grade]?.label ?? result.grade})`
+                  );
+                },
+              }
+            );
+          }
+        }}
       />
       {/* Rewrite Modal (Layer 7) */}
       <RewriteModal

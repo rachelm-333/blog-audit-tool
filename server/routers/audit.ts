@@ -234,6 +234,7 @@ export const auditRouter = router({
       return {
         postId: post.id,
         title: post.title,
+        focusKeyword: post.focusKeyword,
         auditStatus: post.auditStatus,
         auditScore: post.auditScore,
         auditGrade: post.auditGrade,
