@@ -90,7 +90,11 @@ export async function invokeClaude(options: ClaudeOptions): Promise<ClaudeRespon
     throw new Error(`Anthropic API error: ${data.error.message}`);
   }
 
-  const text = data.content?.find((c) => c.type === "text")?.text ?? "";
+  let text = data.content?.find((c) => c.type === "text")?.text ?? "";
+
+  // Strip markdown code fences that Claude sometimes adds despite instructions
+  // e.g. ```json\n{...}\n``` → {...}
+  text = text.replace(/^```(?:json|html|markdown)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
 
   // Return in OpenAI-compatible shape
   return {
