@@ -168,13 +168,19 @@ function KeywordBadge({
   > = {
     cms_scraped: {
       label: "CMS",
-      className:
-        "text-sky-400 border-sky-400/40 bg-sky-400/5",
+      className: "text-sky-400 border-sky-400/40 bg-sky-400/5",
     },
     user_entered: {
-      label: "Custom",
-      className:
-        "text-emerald-400 border-emerald-400/40 bg-emerald-400/5",
+      label: "Manual",
+      className: "text-emerald-400 border-emerald-400/40 bg-emerald-400/5",
+    },
+    auto_detected: {
+      label: "Auto",
+      className: "text-violet-400 border-violet-400/40 bg-violet-400/5",
+    },
+    ai_suggested: {
+      label: "AI",
+      className: "text-indigo-400 border-indigo-400/40 bg-indigo-400/5",
     },
   };
   const cfg = sourceConfig[source ?? ""] ?? {

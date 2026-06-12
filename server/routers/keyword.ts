@@ -115,7 +115,7 @@ export const keywordRouter = router({
       z.object({
         postId: z.string().min(1),
         keyword: z.string().min(1).max(255),
-        source: z.enum(["cms_scraped", "user_entered"]),
+        source: z.enum(["cms_scraped", "user_entered", "auto_detected", "ai_suggested"]),
         iauditUserId: z.string().min(1),
       })
     )
@@ -223,7 +223,7 @@ export const keywordRouter = router({
             fullPost.id,
             suggestions[0].keyword,
             [],
-            "user_entered", // treat as user_entered so it shows as confirmed
+            "ai_suggested",
             false
           );
           processed++;
@@ -273,7 +273,7 @@ export const keywordRouter = router({
           const metaDesc = fullPost?.metaDescriptionOriginal ?? "";
           const keyword = extractKeywordFromTitle(post.title, bodyHtml, metaTitle, metaDesc);
           if (!keyword) continue;
-          await saveKeyword(post.id, keyword, [], "user_entered", false);
+          await saveKeyword(post.id, keyword, [], "auto_detected", false);
           processed++;
         } catch {
           // skip failed posts silently

@@ -742,3 +742,9 @@
 - [x] Add column header row to the post list: POST, SCORE, GRADE, KEYWORD, ACTIONS
 - [x] Make Score and Grade columns sortable (click to sort asc/desc)
 - [x] Make Post Title column sortable alphabetically
+
+## Feature — Auto-Detect Focus Keyword from Post Content (June 2026)
+
+- [x] Auto-extract focus keyword from post content on import: use title, first 100 words, URL slug, meta title, meta description — find the phrase that appears in the most of those five areas
+- [x] Run auto-detection for all existing posts that have no keyword set (backfillFromTitles tRPC procedure available; auto-detection now also fires on every import)
+- [x] Remove the "Custom" label from the keyword badge — renamed to "Manual"; new labels: CMS (sky), Manual (emerald), Auto (violet), AI (indigo)

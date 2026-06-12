@@ -20,7 +20,7 @@ import { posts } from "../drizzle/schema";
 export async function updatePostKeyword(
   postId: string,
   keyword: string,
-  source: "cms_scraped" | "user_entered"
+  source: "cms_scraped" | "user_entered" | "auto_detected" | "ai_suggested"
 ): Promise<void> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -42,7 +42,7 @@ export async function saveKeyword(
   postId: string,
   focusKeyword: string,
   secondaryKeywords: string[],
-  source: "cms_scraped" | "user_entered",
+  source: "cms_scraped" | "user_entered" | "auto_detected" | "ai_suggested",
   clearAudit: boolean
 ): Promise<void> {
   const db = await getDb();

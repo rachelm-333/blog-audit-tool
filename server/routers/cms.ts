@@ -48,6 +48,8 @@ import { generateZapierToken } from "../zapier.service";
 import type { WordPressCredentials, WixCredentials, ShopifyCredentials, ZapierCredentials } from "../encryption.service";
 import { encryptCredentials } from "../encryption.service";
 import { nanoid } from "nanoid";
+import { extractKeywordFromTitle } from "../keyword.service";
+import { saveKeyword, getPostForKeyword } from "../keyword.db";
 
 // ─── Ownership guard ──────────────────────────────────────────────────────────
 
@@ -530,8 +532,30 @@ export const cmsRouter = router({
         if (s in counts) counts[s] = (counts[s] ?? 0) + 1;
       }
 
+      // Auto-detect focus keywords for newly imported posts that don't have one yet.
+      // Runs in the background — does not block the import response.
+      let keywordsAutoDetected = 0;
+      for (const postId of upsertedIds) {
+        try {
+          const fullPost = await getPostForKeyword(postId);
+          if (!fullPost || fullPost.focusKeyword) continue; // already has keyword
+          const keyword = extractKeywordFromTitle(
+            fullPost.title,
+            fullPost.bodyOriginal ?? "",
+            fullPost.metaTitleOriginal ?? "",
+            fullPost.metaDescriptionOriginal ?? ""
+          );
+          if (keyword) {
+            await saveKeyword(postId, keyword, [], "auto_detected", false);
+            keywordsAutoDetected++;
+          }
+        } catch {
+          // skip silently — keyword auto-detection is best-effort
+        }
+      }
       return {
         totalImported: upsertedIds.length,
+        keywordsAutoDetected,
         counts,
         errors: [...importResult.errors, ...upsertErrors],
       };

@@ -196,6 +196,8 @@ export const posts = mysqlTable(
     keywordSource: mysqlEnum("keyword_source", [
       "cms_scraped",
       "user_entered",
+      "auto_detected",
+      "ai_suggested",
     ]),
     // Secondary keywords — supporting/related terms that reinforce the primary keyword
     // JSON array of strings, nullable. Scraped from CMS where available.

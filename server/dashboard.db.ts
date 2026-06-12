@@ -67,7 +67,7 @@ export interface PostTableRow {
   publishDate: Date | null;
   scheduledDate: Date | null;
   authorNameCms: string;
-  keywordSource: "cms_scraped" | "user_entered" | null;
+  keywordSource: "cms_scraped" | "user_entered" | "auto_detected" | "ai_suggested" | null;
 }
 
 export type GradeFilter =

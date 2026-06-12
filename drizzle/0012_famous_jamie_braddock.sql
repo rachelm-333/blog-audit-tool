@@ -1,0 +1,1 @@
+ALTER TABLE `posts` MODIFY COLUMN `keyword_source` enum('cms_scraped','user_entered','auto_detected','ai_suggested');
