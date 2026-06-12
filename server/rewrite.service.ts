@@ -15,7 +15,7 @@
  * "Do not fabricate statistics, quotes, or external links. If you cannot find
  *  a real external source, omit the link entirely."
  */
-import { invokeLLM } from "./_core/llm";
+import { invokeClaude } from "./_core/claude";
 import { runFullAudit, scoreToGrade } from "./audit.service";
 import type { AuditResult } from "./audit.service";
 
@@ -124,15 +124,12 @@ function containsKeyword(text: string, keyword: string): boolean {
  * for the given focus keyword. Returns the question string.
  */
 export async function lookupPaaQuestion(focusKeyword: string): Promise<string> {
-  const response = await invokeLLM({
+  const response = await invokeClaude({
+    system:
+      "You are an SEO expert. Return only a JSON object — no prose, no markdown fences. " +
+      "Do not fabricate statistics, quotes, or external links. " +
+      "If you cannot find a real external source, omit the link entirely.",
     messages: [
-      {
-        role: "system",
-        content:
-          "You are an SEO expert. Return only a JSON object — no prose, no markdown fences. " +
-          "Do not fabricate statistics, quotes, or external links. " +
-          "If you cannot find a real external source, omit the link entirely.",
-      },
       {
         role: "user",
         content:
@@ -361,12 +358,11 @@ ${input.originalFaqSection ? `- PRESERVE FAQ SECTION VERBATIM: The original post
 export async function runPass1Rewrite(input: Pass1Input): Promise<Pass1Output> {
   const systemPrompt = buildPass1SystemPrompt(input);
 
-  const response = await invokeLLM({
-    // Use a generous token budget for long blog posts — 32768 is the default but we
-    // explicitly request it here to ensure it is never silently reduced.
-    max_tokens: 32768,
+  const response = await invokeClaude({
+    // Use a generous token budget for long blog posts — 32000 is near Claude's max output
+    max_tokens: 32000,
+    system: systemPrompt,
     messages: [
-      { role: "system", content: systemPrompt },
       {
         role: "user",
         content:
@@ -963,11 +959,9 @@ export async function runPass2FingerprintScrub(
     "Therefore,", "Thus,", "Hence,",
   ].join("\n- ");
 
-  const response = await invokeLLM({
-    messages: [
-      {
-        role: "system",
-        content:
+  const response = await invokeClaude({
+    max_tokens: 32000,
+    system:
           "You are a ruthless human-voice editor. Your ONLY job is to strip every trace of AI writing from this article. " +
           "You are NOT rewriting for style — you are surgically removing AI fingerprints. " +
           "\n\nWHAT AI WRITING LOOKS LIKE (eliminate all of these):\n" +
@@ -997,7 +991,7 @@ export async function runPass2FingerprintScrub(
           "- DO NOT fabricate statistics, quotes, or external links\n" +
           "- DO NOT introduce any of these banned phrases:\n- " + BANNED_PHRASES + "\n" +
           "- Return ONLY a JSON object — no prose, no markdown fences.",
-      },
+    messages: [
       {
         role: "user",
         content:

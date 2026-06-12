@@ -24,7 +24,7 @@
  *   P15 Human Authenticity
  */
 
-import { invokeLLM } from "./_core/llm";
+import { invokeClaude } from "./_core/claude";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -510,9 +510,9 @@ Return this exact JSON structure (notes must be very brief — one short phrase,
 }`;
 
   try {
-    const response = await invokeLLM({
+    const response = await invokeClaude({
+      system: systemPrompt,
       messages: [
-        { role: "system" as const, content: systemPrompt },
         { role: "user" as const, content: userPrompt },
       ],
       response_format: {

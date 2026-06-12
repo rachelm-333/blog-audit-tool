@@ -701,3 +701,8 @@
 ## Bug Fix — Mechanical Staccato Merger (June 2026)
 
 - [x] Add mechanical post-generation staccato merger to runAiPhraseScan: consecutive short <p> paragraphs (< 25 words each) are merged into one paragraph up to a max of 80 words. Skips headings, lists, images, and script blocks. Runs deterministically after Pass 2 — cannot be ignored by the LLM.
+
+## Feature — Claude API for All Rewrites (June 2026)
+
+- [x] Wire Claude (Anthropic API) into all rewrite and audit LLM calls — replaced with claude-sonnet-4-5 via invokeClaude helper in server/_core/claude.ts; used in rewrite.service.ts (PAA lookup, Pass 1, Pass 2) and audit.service.ts (AI scoring)
+- [x] Fix review queue showing published posts again — filter logic was already correct; company profile post had null post_back_status from old code; fixed via SQL UPDATE to set post_back_status = 'complete'
