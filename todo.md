@@ -685,3 +685,7 @@
 ## Bug Fix — Meta Title & Description Hard Limits (June 2026)
 
 - [x] Enforce hard character limits on meta title (40–60 chars) and meta description (140–160 chars): (1) Pass 1 prompt now has HARD LIMIT labels with explicit count instructions and NEVER use ellipsis rule; (2) P7 enforcement trims to last complete word within 60 chars, rebuilds with keyword prefix if needed; (3) P8 enforcement trims to last complete sentence within 160 chars, pads naturally if under 140 — ellipsis never produced
+
+## Bug Fix — Live Edit Audit Score Drop (June 2026)
+
+- [x] Fix audit score recalculating incorrectly during manual editing: link checks (internal link, external authority link, CTA link) must NOT re-evaluate against the live editor text — they should remain locked to the last saved/approved score. Only content-length and keyword-density checks should update live. Removing a few words must never drop a link-based check that was already passing. — FIXED: saveEdits now extracts all href values from prev and new body; if the link set is identical, P10/P11/P12 are locked to stored passing results before the score is returned.

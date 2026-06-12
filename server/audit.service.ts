@@ -122,7 +122,7 @@ function inferArticleType(wc: number): "cornerstone" | "pillar" | "cluster" {
 }
 
 /** Extract all external links from HTML as a plain list */
-function extractExternalLinks(html: string, siteUrl?: string): string[] {
+export function extractExternalLinks(html: string, siteUrl?: string): string[] {
   const links: string[] = [];
   const re = /<a[^>]+href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gi;
   let m: RegExpExecArray | null;
@@ -143,7 +143,7 @@ function extractExternalLinks(html: string, siteUrl?: string): string[] {
 }
 
 /** Extract all internal links from HTML (same domain as siteUrl, or relative paths) */
-function extractInternalLinks(html: string, siteUrl: string, currentUrl?: string): { anchor: string; href: string; path: string }[] {
+export function extractInternalLinks(html: string, siteUrl: string, currentUrl?: string): { anchor: string; href: string; path: string }[] {
   const links: { anchor: string; href: string; path: string }[] = [];
   const re = /<a[^>]+href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gi;
   let siteDomain = '';

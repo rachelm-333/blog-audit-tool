@@ -17,7 +17,7 @@ import {
   saveApprovedContent,
   setPostBackStatus,
 } from "../review.db";
-import { runFullAudit, scoreToGrade } from "../audit.service";
+import { runFullAudit, scoreToGrade, extractExternalLinks, extractInternalLinks } from "../audit.service";
 import { invokeLLM } from "../_core/llm";
 
 // ---------------------------------------------------------------------------
@@ -189,6 +189,25 @@ export const reviewRouter = router({
       const business = await getBusinessById(post.businessId);
       const primaryCtaUrl = business?.primaryCtaUrl ?? null;
 
+      // --- Link-preservation guard ---
+      // P10 (external authority link), P11 (internal CTA link), P12 (internal blog link)
+      // are evaluated by an LLM which is non-deterministic. If the user only changed text
+      // (not links), we lock these three points to their previously stored results to prevent
+      // random LLM variance from dropping a passing score.
+      const siteOrigin = post.url ? (() => { try { return new URL(post.url).origin; } catch { return ''; } })() : '';
+      const extractHrefs = (html: string): Set<string> => {
+        const hrefs = new Set<string>();
+        const re = /<a[^>]+href=["']([^"']+)["']/gi;
+        let m: RegExpExecArray | null;
+        while ((m = re.exec(html)) !== null) hrefs.add(m[1].trim());
+        return hrefs;
+      };
+      const prevHrefs = extractHrefs(prevBody);
+      const newHrefs = extractHrefs(input.bodyApproved);
+      const linksChanged = prevHrefs.size !== newHrefs.size ||
+        Array.from(prevHrefs).some(h => !newHrefs.has(h)) ||
+        Array.from(newHrefs).some(h => !prevHrefs.has(h));
+
       // Inject schemaJson into body before re-scoring so P13 can detect it
       let bodyForScoring = input.bodyApproved;
       if (post.schemaJson && !bodyForScoring.includes('application/ld+json')) {
@@ -205,6 +224,25 @@ export const reviewRouter = router({
         metaDescription: input.metaDescriptionRewritten,
         primaryCtaUrl,
       });
+
+      // If links have NOT changed, lock P10/P11/P12 to stored results to prevent LLM variance
+      if (!linksChanged && storedResults?.points) {
+        const linkPoints = ['P10', 'P11', 'P12'];
+        for (const pointId of linkPoints) {
+          const stored = storedResults.points.find((p) => p.point === pointId);
+          const live = auditResult.points.find((p) => p.point === pointId);
+          if (stored && live && stored.status === 'pass' && live.status === 'fail') {
+            // Links didn't change but LLM flipped it — restore stored result
+            live.status = stored.status;
+            live.note = stored.note ?? live.note;
+          }
+        }
+        // Recompute score after restoring locked points
+        const lockedScore = auditResult.points.filter(
+          (p) => p.status === 'pass' || p.status === 'na'
+        ).length;
+        (auditResult as { score: number }).score = lockedScore;
+      }
 
       // Count pass + na (na = not applicable, treated as passing)
       const newScore = auditResult.points.filter(
