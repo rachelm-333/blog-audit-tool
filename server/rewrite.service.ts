@@ -327,6 +327,13 @@ Write in a natural, direct Australian voice. BANNED PHRASES (never use these):
 "look no further", "without further ado", "in conclusion", "to summarise",
 "it goes without saying", "at the end of the day", "moving forward".
 Vary sentence length. Mix short punchy sentences with longer explanatory ones.
+[PARAGRAPH STRUCTURE — MANDATORY]
+- Every paragraph MUST contain at least 2–3 complete sentences. NEVER write a single-sentence paragraph on its own line.
+- NEVER write orphaned colon-fragments like "They:" or "Here's what that looks like:" as a standalone paragraph followed by a list. Rewrite as flowing prose instead.
+- NEVER write bare list items that are sentence fragments (e.g. "learn what makes a homepage effective" on its own line). Combine them into a proper sentence or paragraph.
+- If you use a bullet list, each item must be a complete sentence of at least 8 words.
+- NEVER write 3 or more consecutive single-sentence paragraphs. Merge them.
+- The staccato style (one short sentence per line, every line its own paragraph) is the most obvious AI fingerprint. Avoid it completely.
 
 [META TITLE — P7 MANDATORY — HARD LIMIT]
 - Must contain "${input.focusKeyword}" or a close variant
@@ -885,12 +892,18 @@ export async function runPass2FingerprintScrub(
           "- Hollow closers: 'In conclusion,', 'To summarise,', 'At the end of the day,', 'Moving forward,'\n" +
           "- Hollow qualifiers: truly, actually, basically, essentially, simply put, it's important to note, it goes without saying\n" +
           "- Formulaic em-dash overuse: sentences like 'X is Y — and that matters' where the em-dash adds nothing\n" +
-          "- Parallel list structures where every bullet starts with the same word pattern\n" +
+"- Parallel list structures where every bullet starts with the same word pattern\n" +
+          "- STACCATO STYLE: single-sentence paragraphs stacked one per line (e.g. 'Momentum doesn't come from doing more.' / 'It comes from finishing loops.' / 'Here\'s what that looks like in practice.' — each on its own line as a separate paragraph)\n" +
+          "- Orphaned colon-fragments: a paragraph ending in ':' followed by bare list items (e.g. 'They:' then 'learn what makes a homepage effective' / 'apply one clear change' as separate lines)\n" +
+          "- Bare list items that are sentence fragments (e.g. 'for a services page' / 'for onboarding' / 'for how leads are handled' as separate paragraphs)\n" +
           "\n\nWHAT HUMAN WRITING LOOKS LIKE (aim for this):\n" +
+          "- Paragraphs with 2–4 sentences each. Never a single sentence on its own line as a paragraph.\n" +
+          "- Merge staccato fragments into proper paragraphs: 'Momentum doesn\'t come from doing more. It comes from finishing loops — and each loop you close raises the floor of what your business can do.'\n" +
+          "- Rewrite orphaned colon-fragments as prose: instead of 'They:' + bare items, write 'They learn what makes a homepage effective, apply one clear change, watch how people respond, and adjust based on what works.'\n" +
           "- Direct, confident statements without qualifiers\n" +
           "- Varied sentence length — short punchy sentences mixed with longer explanatory ones\n" +
           "- Specific, concrete language — not vague generalisations\n" +
-          "- Transitions that are earned, not decorative ('But', 'So', 'That means', 'Here's the thing')\n" +
+          "- Transitions that are earned, not decorative ('But', 'So', 'That means', 'Here\'s the thing')\n" +
           "- Opinions and direct advice ('Do this', 'Avoid that', 'The real issue is...')\n" +
           "- Australian English: 'optimise' not 'optimize', 'recognise' not 'recognize'\n" +
           "\n\nCRITICAL RULES — DO NOT BREAK THESE:\n" +

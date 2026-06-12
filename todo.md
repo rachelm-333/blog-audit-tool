@@ -693,3 +693,7 @@
 ## Improvement — AI Fingerprint Removal (June 2026)
 
 - [x] Dramatically improve AI fingerprint removal: (1) expand banned phrases list from 17 to 80+ covering hollow openers, filler transitions, corporate buzzwords, hollow qualifiers, and hollow sentence starters; (2) rewrite Pass 2 prompt to be aggressive and specific — shows AI what human writing looks like vs AI writing, not just a list of banned words; (3) add mechanical runAiPhraseScan() function that runs after Pass 2 as a deterministic safety net — replaces banned phrases in text nodes only (not HTML tags), collapses whitespace, and cannot be ignored by the LLM
+
+## Bug Fix — AI Staccato Writing Style (June 2026)
+
+- [x] Fix AI staccato writing: single-sentence paragraphs, orphaned colon-fragments ("They:"), and bare list items must be merged into proper flowing prose. Added PARAGRAPH STRUCTURE block to Pass 1 prompt (min 2–3 sentences per paragraph, no orphaned fragments, no bare list items). Added staccato examples to Pass 2 prompt with concrete before/after examples showing how to merge fragments into prose.
