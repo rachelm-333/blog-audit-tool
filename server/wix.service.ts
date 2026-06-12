@@ -335,7 +335,13 @@ function parseWixPost(raw: Record<string, unknown>): WpImportedPost {
   const cmsPostId = raw.id as string;
   const title = (raw.title as string) ?? "";
   const status = WIX_STATUS_MAP[(raw.status as string) ?? ""] ?? "draft";
-  const urlBase = (raw.url as Record<string, string>)?.base ?? "";
+  const urlRaw = raw.url as Record<string, string> | undefined;
+  const urlBase = urlRaw?.base ?? "";
+  const urlPath = urlRaw?.path ?? "";
+  // Build the full URL: prefer base+path combo, fall back to whichever is present
+  const fullUrl = urlBase && urlPath
+    ? `${urlBase.replace(/\/$/, "")}${urlPath}`
+    : urlBase || urlPath;
   const dateRaw = (raw.firstPublishedDate ?? raw.createdDate) as string | undefined;
   const publishDate = dateRaw ? new Date(dateRaw) : null;
 
@@ -365,7 +371,7 @@ function parseWixPost(raw: Record<string, unknown>): WpImportedPost {
     cmsPostId,
     title,
     status,
-    url: urlBase,
+    url: fullUrl,
     publishDate,
     scheduledDate: null,
     authorIdCms: "",

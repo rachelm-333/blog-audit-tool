@@ -328,22 +328,36 @@ export function runMechanicalChecks(input: PostAuditInput): AuditPoint[] {
   });
 
   // P6 — Keyword in URL
-  const p6Pass = keywordInSlug(url, focusKeyword);
-  points.push({
-    point: "P6",
-    name: "Keyword in URL",
-    status: p6Pass ? "pass" : "fail",
-    note: p6Pass
-      ? "Keyword found in URL slug."
-      : "Keyword not found in URL slug.",
-  });
+  // If no URL is stored (empty string), mark as na rather than falsely failing
+  const urlTrimmed = url?.trim() ?? "";
+  if (!urlTrimmed) {
+    points.push({
+      point: "P6",
+      name: "Keyword in URL",
+      status: "na",
+      note: "URL not available — unable to check. Re-import the post or update the URL in your CMS.",
+    });
+  } else {
+    const p6Pass = keywordInSlug(urlTrimmed, focusKeyword);
+    points.push({
+      point: "P6",
+      name: "Keyword in URL",
+      status: p6Pass ? "pass" : "fail",
+      note: p6Pass
+        ? "Keyword found in URL slug."
+        : `Keyword not found in URL slug. Current slug: ${urlTrimmed}`,
+    });
+  }
 
   // P7 — Meta Title
   const mt = metaTitle?.trim() ?? "";
   const p7Present = mt.length > 0;
   const p7HasKw = p7Present && containsKeyword(mt, focusKeyword);
-  const p7Length = mt.length <= 60;
-  const p7Pass = p7Present && p7HasKw && p7Length;
+  // Google truncates meta titles at ~60 chars, but 10-char buffer is acceptable
+  const p7TooLong = mt.length > 70;
+  const p7TooShort = mt.length < 10;
+  const p7LengthOk = !p7TooLong && !p7TooShort;
+  const p7Pass = p7Present && p7HasKw && p7LengthOk;
   points.push({
     point: "P7",
     name: "Meta Title",
@@ -351,26 +365,33 @@ export function runMechanicalChecks(input: PostAuditInput): AuditPoint[] {
     note: !p7Present
       ? "Meta title is missing."
       : !p7HasKw
-      ? "Meta title does not contain the keyword."
-      : !p7Length
-      ? "Meta title does not meet the required length."
-      : "Meta title meets requirements.",
+      ? `Meta title does not contain the keyword. Title: "${mt}"`
+      : p7TooLong
+      ? `Meta title is too long (${mt.length} chars, max 70). Shorten it to avoid truncation.`
+      : p7TooShort
+      ? "Meta title is too short."
+      : `Meta title meets requirements (${mt.length} chars).`,
   });
 
   // P8 — Meta Description
   const md = metaDescription?.trim() ?? "";
   const p8Present = md.length > 0;
-  const p8Length = md.length >= 140 && md.length <= 160;
-  const p8Pass = p8Present && p8Length;
+  // Google shows 120–165 chars; accept that range
+  const p8TooShort = md.length < 120;
+  const p8TooLong = md.length > 165;
+  const p8LengthOk = !p8TooShort && !p8TooLong;
+  const p8Pass = p8Present && p8LengthOk;
   points.push({
     point: "P8",
     name: "Meta Description",
     status: p8Pass ? "pass" : "fail",
     note: !p8Present
       ? "Meta description is missing."
-      : !p8Length
-      ? "Meta description does not meet the required length."
-      : "Meta description meets requirements.",
+      : p8TooShort
+      ? `Meta description is too short (${md.length} chars, min 120). Expand it.`
+      : p8TooLong
+      ? `Meta description is too long (${md.length} chars, max 165). Google will truncate it.`
+      : `Meta description meets requirements (${md.length} chars).`,
   });
 
   // P13 — Schema Markup (look for JSON-LD Article schema in the body HTML)

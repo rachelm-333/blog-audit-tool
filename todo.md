@@ -715,3 +715,9 @@
 
 - [x] Auto re-audit when keyword is confirmed: after keyword.confirm mutation succeeds, immediately trigger audit.runAudit in the background so score is always current
 - [x] Add stale audit warning banner: if audit_results contain "No focus keyword set" notes but post.focusKeyword is now set, show a yellow "Results are stale — re-audit" banner with a one-click re-audit button in the expanded audit panel
+
+## Bug Fix — Audit Mechanical Checks Reporting False Failures (June 2026)
+
+- [x] Diagnose why P1 (keyword density), P2 (keyword in H1), P3 (keyword in H2), P5 (keyword in first 100 words), P6 (keyword in URL), P7 (meta title) are failing when the keyword and content are clearly present
+- [x] Fix the mechanical check logic so it never reports false failures — results must be 100% accurate against the actual stored content
+- [x] Add a debug/test script that runs the audit checks against a real post and prints exactly what each check sees, so failures can be verified
