@@ -1097,7 +1097,9 @@ export default function PostList() {
   const [expandedAuditPostId, setExpandedAuditPostId] = useState<string | null>(
     null
   );
-    const [auditingAll, setAuditingAll] = useState(false);
+  const [sortField, setSortField] = useState<"title" | "score" | "grade">("score");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [auditingAll, setAuditingAll] = useState(false);
   const [auditProgress, setAuditProgress] = useState(0);
   // Post content preview panel
   const [previewPost, setPreviewPost] = useState<Post | null>(null);
@@ -1388,6 +1390,19 @@ export default function PostList() {
     if (titleSearchLower && !p.title.toLowerCase().includes(titleSearchLower)) return false;
     return true;
   });
+  // Sort posts by selected field
+  const gradeOrder: Record<string, number> = { critical: 0, poor: 1, needs_work: 2, strong: 3, optimised: 4 };
+  const sortedPosts = [...posts].sort((a, b) => {
+    let cmp = 0;
+    if (sortField === "title") {
+      cmp = a.title.localeCompare(b.title);
+    } else if (sortField === "score") {
+      cmp = (a.auditScore ?? -1) - (b.auditScore ?? -1);
+    } else if (sortField === "grade") {
+      cmp = (gradeOrder[a.auditGrade ?? ""] ?? 0) - (gradeOrder[b.auditGrade ?? ""] ?? 0);
+    }
+    return sortDir === "asc" ? cmp : -cmp;
+  });
   const postMap = new Map(posts.map((p) => [p.id, p]));
   const postsWithKeyword = posts.filter((p) => p.focusKeyword);
 
@@ -1629,7 +1644,36 @@ export default function PostList() {
           </div>
         ) : (
           <div className="space-y-2">
-            {posts.map((post) => {
+            {/* Column headers */}
+            <div className="px-5 py-2 flex items-center gap-4 text-xs font-semibold text-muted-foreground uppercase tracking-wide border-b border-border">
+              <div className="flex-1 min-w-0">
+                <button
+                  className="flex items-center gap-1 hover:text-foreground transition-colors"
+                  onClick={() => { if (sortField === "title") setSortDir(d => d === "asc" ? "desc" : "asc"); else { setSortField("title"); setSortDir("asc"); } }}
+                >
+                  Post {sortField === "title" ? (sortDir === "asc" ? <ChevronUp size={12} /> : <ChevronDown size={12} />) : null}
+                </button>
+              </div>
+              <div className="shrink-0 w-16 text-right">
+                <button
+                  className="flex items-center gap-1 hover:text-foreground transition-colors ml-auto"
+                  onClick={() => { if (sortField === "score") setSortDir(d => d === "asc" ? "desc" : "asc"); else { setSortField("score"); setSortDir("asc"); } }}
+                >
+                  Score {sortField === "score" ? (sortDir === "asc" ? <ChevronUp size={12} /> : <ChevronDown size={12} />) : null}
+                </button>
+              </div>
+              <div className="shrink-0 w-24">
+                <button
+                  className="flex items-center gap-1 hover:text-foreground transition-colors"
+                  onClick={() => { if (sortField === "grade") setSortDir(d => d === "asc" ? "desc" : "asc"); else { setSortField("grade"); setSortDir("asc"); } }}
+                >
+                  Grade {sortField === "grade" ? (sortDir === "asc" ? <ChevronUp size={12} /> : <ChevronDown size={12} />) : null}
+                </button>
+              </div>
+              <div className="shrink-0 w-40">Keyword</div>
+              <div className="shrink-0 w-36 text-right">Actions</div>
+            </div>
+            {sortedPosts.map((post) => {
               const isExpanded = expandedAuditPostId === post.id;
               const isAuditingThis = auditOneMutation.isPending;
 

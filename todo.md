@@ -731,3 +731,14 @@
 - [x] Dashboard shows 8.5/16 health score, Posts page shows 9/16 — root cause: Posts page rounded to whole number, Dashboard rounded to 1 decimal. Fixed: both now use 1 decimal place.
 - [x] Dashboard grade breakdown differed from Posts page — root cause: audits were still running in background, counts converge once all posts are audited. Not a code bug.
 - [x] Fix so both pages use identical calculation logic from the same data source — both now round to 1 decimal place using same formula
+
+## Bug Fix — False Audit Failures P7/P8 (June 2026)
+
+- [x] Investigate why P7 (meta title missing) and P8 (meta description too long) fail when data is present in Wix — root cause: meta_title_original was null for posts where Wix seoData.tags had no title tag. Fixed: cms.db.ts now falls back to post title; backfilled all null rows in DB.
+- [x] Fix the root cause so the audit reads the correct stored values — meta_title_original now always has a value (post title as fallback)
+
+## Feature — Posts Page Column Headers & Sorting (June 2026)
+
+- [x] Add column header row to the post list: POST, SCORE, GRADE, KEYWORD, ACTIONS
+- [x] Make Score and Grade columns sortable (click to sort asc/desc)
+- [x] Make Post Title column sortable alphabetically
