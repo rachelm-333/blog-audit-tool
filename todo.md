@@ -725,3 +725,9 @@
 ## Bug Fix — Rewrite JSON Truncation (June 2026)
 
 - [x] Fix JSON truncation in Pass 1 and Pass 2: removed response_format json_schema from both passes and replaced with delimited extraction format (<BODY>...</BODY> + META_TITLE/META_DESC/AI_SNIPPET lines). Credits are now auto-refunded on parse errors.
+
+## Bug Fix — Dashboard vs Posts Page Data Inconsistency (June 2026)
+
+- [x] Dashboard shows 8.5/16 health score, Posts page shows 9/16 — root cause: Posts page rounded to whole number, Dashboard rounded to 1 decimal. Fixed: both now use 1 decimal place.
+- [x] Dashboard grade breakdown differed from Posts page — root cause: audits were still running in background, counts converge once all posts are audited. Not a code bug.
+- [x] Fix so both pages use identical calculation logic from the same data source — both now round to 1 decimal place using same formula

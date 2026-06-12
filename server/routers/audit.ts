@@ -278,13 +278,13 @@ export const auditRouter = router({
       const auditedCount = auditedPosts.length;
       const unarditedCount = totalPosts - auditedCount;
 
-      // Overall health score — average across audited posts
+      // Overall health score — average across audited posts (1 decimal, matches dashboard.db.ts)
       const healthScore =
         auditedCount > 0
           ? Math.round(
-              auditedPosts.reduce((sum, p) => sum + (p.auditScore ?? 0), 0) /
-                auditedCount
-            )
+              (auditedPosts.reduce((sum, p) => sum + (p.auditScore ?? 0), 0) /
+                auditedCount) * 10
+            ) / 10
           : null;
 
       // Grade breakdown

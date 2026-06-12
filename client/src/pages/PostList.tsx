@@ -186,10 +186,10 @@ function KeywordBadge({
       <TooltipTrigger asChild>
         <Badge
           variant="outline"
-          className={`text-xs gap-1 cursor-default max-w-[160px] ${cfg.className}`}
+          className={`text-xs gap-1 cursor-default ${cfg.className}`}
         >
           <CheckCircle2 size={10} />
-          <span className="truncate">{keyword}</span>
+          <span>{keyword}</span>
           <span className="opacity-60 shrink-0">· {cfg.label}</span>
         </Badge>
       </TooltipTrigger>
