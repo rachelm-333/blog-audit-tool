@@ -220,4 +220,37 @@
   .btn-primary-glow:active {
     transform: scale(0.97);
   }
+
+  /* ── AI Citation Snippet (AEO block) ── */
+  /* Styles the data-ai-snippet="true" paragraph injected at the top of every rewritten post.
+     Visible in the ReviewEdit TipTap preview and in any HTML renderer that preserves data attrs. */
+  [data-ai-snippet="true"] {
+    display: block;
+    background: oklch(0.95 0.02 264);
+    border-left: 4px solid oklch(0.511 0.237 264.1);
+    border-radius: 0.375rem;
+    padding: 0.875rem 1rem;
+    margin-bottom: 1.25rem;
+    font-size: 0.9375rem;
+    line-height: 1.65;
+    color: oklch(0.22 0.04 264);
+    font-style: italic;
+    position: relative;
+  }
+  [data-ai-snippet="true"]::before {
+    content: "AI Citation Snippet";
+    display: block;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: oklch(0.511 0.237 264.1);
+    margin-bottom: 0.375rem;
+    font-style: normal;
+  }
+  /* Dark mode variant */
+  .dark [data-ai-snippet="true"] {
+    background: oklch(0.22 0.03 264);
+    color: oklch(0.88 0.04 264);
+  }
 }

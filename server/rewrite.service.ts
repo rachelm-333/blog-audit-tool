@@ -66,6 +66,7 @@ export interface Pass1Output {
   bodyRewritten: string;
   metaTitleRewritten: string;
   metaDescriptionRewritten: string;
+  aiSnippet?: string;
 }
 
 export interface RewriteResult {
@@ -332,6 +333,18 @@ Vary sentence length. Mix short punchy sentences with longer explanatory ones.
 - NEVER write 3 or more consecutive single-sentence paragraphs. Merge them.
 - The staccato style (one short sentence per line, every line its own paragraph) is the most obvious AI fingerprint. Avoid it completely.
 
+[AI CITATION SNIPPET — MANDATORY — SEPARATE FIELD]
+Write a 2–3 sentence AI citation snippet that will be injected as the very first paragraph of the published post.
+This snippet is designed to be cited verbatim by AI answer engines (Perplexity, ChatGPT, Bing Copilot, Google AI Overviews).
+Rules:
+- Directly answers the PAA question in plain, factual language
+- Contains the focus keyword naturally
+- Cites one specific fact, statistic, or credential (real — do NOT fabricate)
+- Under 150 words total
+- No hollow openers, no "In this article", no "it's important to note" — just a direct, citable answer
+- Written as a single clean paragraph (no sub-sentences, no lists)
+Output this as the "aiSnippet" field in your JSON response. Do NOT include it inside bodyRewritten — it will be prepended automatically.
+
 [META TITLE — P7 MANDATORY — HARD LIMIT]
 - Must contain "${input.focusKeyword}" or a close variant
 - HARD LIMIT: 40–60 characters TOTAL. Count every character including spaces. If your draft is over 60 characters, shorten it — do NOT write a long title and expect it to be trimmed. A title that exceeds 60 characters FAILS.
@@ -373,10 +386,12 @@ export async function runPass1Rewrite(input: Pass1Input): Promise<Pass1Output> {
           `META DESCRIPTION: ${input.metaDescriptionOriginal ?? "(none)"}\n\n` +
           `Return a JSON object with these fields:\n` +
           `{\n` +
-          `  "bodyRewritten": "<full rewritten body as HTML>",\n` +
+          `  "bodyRewritten": "<full rewritten body as HTML — do NOT include the AI citation snippet here>",\n` +
           `  "metaTitleRewritten": "<meta title — max 60 chars, contains keyword>",\n` +
-          `  "metaDescriptionRewritten": "<meta description — 140–160 chars>"\n` +
+          `  "metaDescriptionRewritten": "<meta description — 140–160 chars>",\n` +
+          `  "aiSnippet": "<2–3 sentence AI citation snippet — under 150 words, directly answers the PAA question, contains focus keyword, cites one real fact>"\n` +
           `}`,
+
       },
     ],
     response_format: {
@@ -399,8 +414,12 @@ export async function runPass1Rewrite(input: Pass1Input): Promise<Pass1Output> {
               type: "string",
               description: "Rewritten meta description — 140–160 chars",
             },
+            aiSnippet: {
+              type: "string",
+              description: "2–3 sentence AI citation snippet for the top of the post — under 150 words, directly answers the PAA question, contains focus keyword, cites one real fact or credential",
+            },
           },
-          required: ["bodyRewritten", "metaTitleRewritten", "metaDescriptionRewritten"],
+          required: ["bodyRewritten", "metaTitleRewritten", "metaDescriptionRewritten", "aiSnippet"],
           additionalProperties: false,
         },
       },
@@ -430,10 +449,17 @@ export async function runPass1Rewrite(input: Pass1Input): Promise<Pass1Output> {
     }
   }
 
+  // --- Prepend AI citation snippet as the very first paragraph ---
+  const aiSnippet: string | undefined = parsed.aiSnippet as string | undefined;
+  if (aiSnippet && aiSnippet.trim()) {
+    bodyRewritten = `<p data-ai-snippet="true">${aiSnippet.trim()}</p>\n` + bodyRewritten;
+  }
+
   return {
     bodyRewritten,
     metaTitleRewritten: parsed.metaTitleRewritten as string,
     metaDescriptionRewritten: parsed.metaDescriptionRewritten as string,
+    aiSnippet,
   };
 }
 

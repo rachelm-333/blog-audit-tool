@@ -706,3 +706,7 @@
 
 - [x] Wire Claude (Anthropic API) into all rewrite and audit LLM calls — replaced with claude-sonnet-4-5 via invokeClaude helper in server/_core/claude.ts; used in rewrite.service.ts (PAA lookup, Pass 1, Pass 2) and audit.service.ts (AI scoring)
 - [x] Fix review queue showing published posts again — filter logic was already correct; company profile post had null post_back_status from old code; fixed via SQL UPDATE to set post_back_status = 'complete'
+
+## Feature — AI Citation Snippet / AEO Block (June 2026)
+
+- [x] Add mandatory AI citation snippet (AEO block) to top of every rewritten post: Pass 1 outputs an aiSnippet field (2–3 sentences, direct answer to focus keyword question, includes keyword, cites a specific fact or credential, under 150 words); injected as the first <p> of bodyRewritten with data-ai-snippet="true" attribute; styled as a highlighted intro block in the ReviewEdit preview
