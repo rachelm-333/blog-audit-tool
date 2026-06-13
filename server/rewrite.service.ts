@@ -57,7 +57,7 @@ export interface Pass1Input {
   url: string;
   metaTitleOriginal: string | null;
   metaDescriptionOriginal: string | null;
-  rewriteMode: "full_rewrite" | "smart_patch";
+  rewriteMode: "full_rewrite" | "smart_patch" | "seo_refresh";
   /** Extracted CTA section from original post — must be preserved verbatim */
   originalCtaSection?: string | null;
   /** Extracted FAQ section from original post — must be preserved verbatim */
@@ -83,7 +83,7 @@ export interface RewriteResult {
   auditResult: AuditResult;
   paaQuestion: string;
   articleType: "cornerstone" | "pillar" | "cluster";
-  rewriteMode: "full_rewrite" | "smart_patch";
+  rewriteMode: "full_rewrite" | "smart_patch" | "seo_refresh";
 }
 
 // ---------------------------------------------------------------------------
@@ -246,7 +246,10 @@ function buildPass1SystemPrompt(input: Pass1Input): string {
       : "";
 
   const isSmartPatch = input.rewriteMode === "smart_patch";
-  const modeInstruction = isSmartPatch
+  const isSeoRefresh = input.rewriteMode === "seo_refresh";
+  const modeInstruction = isSeoRefresh
+    ? `REWRITE MODE: SEO REFRESH — READ CAREFULLY\nThis is an SEO Refresh. Do NOT rewrite the body content. Keep every paragraph, fact, example, and sentence as close to the original as possible.\nONLY make these five changes:\n  1. Improve the opening 2 sentences to include the focus keyword naturally.\n  2. Adjust heading tags to follow H1 → H2 → H3 hierarchy.\n  3. Rewrite the meta title to 50–60 characters with the focus keyword.\n  4. Rewrite the meta description to 140–160 characters with the focus keyword.\n  5. Ensure the focus keyword appears naturally in the first 100 words.\nDo not add new paragraphs. Do not remove existing paragraphs. Do not change facts, examples, statistics, or named entities.`
+    : isSmartPatch
     ? `REWRITE MODE: SMART PATCH\nDo NOT rewrite this post. Keep all existing sentences, paragraphs, and the author's voice intact. Make ONLY the minimum changes required to fix the failing points listed below. Weave the primary keyword and secondary keywords into existing sentences naturally where they are absent. Do NOT add new sections unless a failing point specifically requires one.`
     : `REWRITE MODE: FULL REWRITE\nRewrite the entire post from scratch to pass all 16 points. Preserve the URL, author, publish date, and post status.`;
 
@@ -1233,7 +1236,7 @@ export async function runFullRewrite(params: {
   failingPoints: string[];
   paaQuestion: string;
   secondaryKeywords?: string[];
-  rewriteMode?: "full_rewrite" | "smart_patch";
+  rewriteMode?: "full_rewrite" | "smart_patch" | "seo_refresh";
   /** When true (default), extract and preserve the CTA section verbatim — do not rewrite it */
   preserveCta?: boolean;
   /** When true (default), extract and preserve the FAQ section verbatim — do not rewrite it */
@@ -1241,7 +1244,7 @@ export async function runFullRewrite(params: {
   /** Optional free-text instructions from the user to guide the rewrite */
   userInstructions?: string | null;
 }): Promise<RewriteResult> {
-  const { post, businessContext, internalLinks, failingPoints, paaQuestion, secondaryKeywords = [], rewriteMode = "full_rewrite", preserveCta = true, preserveFaq = true, userInstructions } = params;
+  const { post, businessContext, internalLinks, failingPoints, paaQuestion, secondaryKeywords = [], rewriteMode = "seo_refresh", preserveCta = true, preserveFaq = true, userInstructions } = params;
 
   const articleType = inferArticleType(post.bodyOriginal);
   const wordCountTarget = ARTICLE_TYPE_TARGETS[articleType];

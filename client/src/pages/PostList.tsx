@@ -682,6 +682,8 @@ function RewriteModal({
   preserveCta,
   onPreserveFaqChange,
   onPreserveCtaChange,
+  userInstructions,
+  onUserInstructionsChange,
 }: {
   post: Post | null;
   open: boolean;
@@ -690,13 +692,15 @@ function RewriteModal({
   paaSuggested: string;
   paaLoading: boolean;
   onPaaChange: (v: string) => void;
-  onConfirm: (mode: "full_rewrite" | "smart_patch") => void;
+  onConfirm: (mode: "full_rewrite" | "smart_patch" | "seo_refresh") => void;
   onClose: () => void;
   rewriteResult?: { rewriteScore: number; rewriteGrade: string; needsManualReview: boolean; message?: string } | null;
   preserveFaq: boolean;
   preserveCta: boolean;
   onPreserveFaqChange: (v: boolean) => void;
   onPreserveCtaChange: (v: boolean) => void;
+  userInstructions: string;
+  onUserInstructionsChange: (v: string) => void;
 }) {
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -785,26 +789,45 @@ function RewriteModal({
                 </label>
               </div>
             </div>
+            {/* YOUR INSTRUCTIONS */}
+            <div className="space-y-1.5 pt-1">
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                Your instructions for this rewrite
+              </div>
+              <textarea
+                className="w-full rounded-md border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-primary min-h-[72px]"
+                placeholder="e.g. Keep all the main points, just improve the SEO. Don't change the examples used. Focus on the keyword naturally. The stats in paragraph 3 are accurate — don't change them."
+                value={userInstructions}
+                onChange={(e) => onUserInstructionsChange(e.target.value)}
+                maxLength={600}
+              />
+            </div>
             <div className="space-y-2 pt-1">
+              {/* Content protection notice */}
+              <div className="rounded-md border border-yellow-400/40 bg-yellow-400/8 px-3 py-2 text-[11px] text-yellow-700 dark:text-yellow-300 leading-relaxed">
+                ⚠️ The AI will only work with facts and content already in your post. It will not invent new information, statistics, or claims.
+              </div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center mb-1">
                 Choose rewrite mode
-                <HelpTooltip text="Full Rewrite rebuilds the entire post from scratch to fix all 16 SEO points — best for posts scoring below 8/16. Smart Patch makes targeted fixes while keeping your writing style — best for posts scoring 8/16 or above. Both use 1 credit." />
+                <HelpTooltip text="SEO Refresh keeps all your content intact and only improves keyword placement, headings, meta title, and meta description — best for posts that are mostly good. Smart Patch makes targeted fixes while keeping your writing style. Full Rewrite rebuilds the entire post from scratch — best for posts scoring below 8/16. All modes use 1 credit." />
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col gap-2">
+                {/* SEO Refresh — default */}
                 <button
                   type="button"
                   className={`flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors ${
                     !paaQuestion.trim() || paaLoading
                       ? "opacity-50 cursor-not-allowed border-border"
-                      : "border-primary bg-primary/10 hover:bg-primary/20 cursor-pointer"
+                      : "border-sky-400/60 bg-sky-400/8 hover:bg-sky-400/15 cursor-pointer"
                   }`}
                   disabled={!paaQuestion.trim() || paaLoading}
-                  onClick={() => onConfirm("full_rewrite")}
+                  onClick={() => onConfirm("seo_refresh")}
                 >
-                  <span className="text-xs font-semibold text-primary flex items-center gap-1"><Zap size={12} /> Full Rewrite</span>
-                  <span className="text-[11px] text-muted-foreground">AI rewrites the entire post from scratch targeting all 16 points.</span>
+                  <span className="text-xs font-semibold text-sky-400 flex items-center gap-1"><Zap size={12} /> SEO Refresh <span className="ml-1 text-[9px] font-bold uppercase tracking-wide bg-sky-400/20 text-sky-400 rounded px-1 py-0.5">Recommended</span></span>
+                  <span className="text-[11px] text-muted-foreground">Keeps all your content, facts, and structure intact. Only improves keyword placement, headings, meta title, meta description, and opening paragraph. Nothing else changes.</span>
                   <span className="text-[10px] text-muted-foreground mt-0.5">1 Credit</span>
                 </button>
+                {/* Smart Patch */}
                 <button
                   type="button"
                   className={`flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors ${
@@ -817,6 +840,21 @@ function RewriteModal({
                 >
                   <span className="text-xs font-semibold text-violet-400 flex items-center gap-1"><Zap size={12} /> Smart Patch</span>
                   <span className="text-[11px] text-muted-foreground">Keeps your author's voice. Makes only the minimum changes to fix failing points.</span>
+                  <span className="text-[10px] text-muted-foreground mt-0.5">1 Credit</span>
+                </button>
+                {/* Full Rewrite */}
+                <button
+                  type="button"
+                  className={`flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors ${
+                    !paaQuestion.trim() || paaLoading
+                      ? "opacity-50 cursor-not-allowed border-border"
+                      : "border-primary/60 bg-primary/5 hover:bg-primary/10 cursor-pointer"
+                  }`}
+                  disabled={!paaQuestion.trim() || paaLoading}
+                  onClick={() => onConfirm("full_rewrite")}
+                >
+                  <span className="text-xs font-semibold text-primary flex items-center gap-1"><Zap size={12} /> Full Rewrite</span>
+                  <span className="text-[11px] text-muted-foreground">AI rewrites the entire post targeting all 16 points. Use only when the post needs significant work.</span>
                   <span className="text-[10px] text-muted-foreground mt-0.5">1 Credit</span>
                 </button>
               </div>
@@ -1124,7 +1162,8 @@ export default function PostList() {
   const [paaLoading, setPaaLoading] = useState(false);
   const [paaSuggested, setPaaSuggested] = useState("");
   const [expandedRewritePostId, setExpandedRewritePostId] = useState<string | null>(null);
-  const [rewriteMode, setRewriteMode] = useState<"full_rewrite" | "smart_patch">("full_rewrite");
+  const [rewriteMode, setRewriteMode] = useState<"full_rewrite" | "smart_patch" | "seo_refresh">("seo_refresh");
+  const [userInstructions, setUserInstructions] = useState("");
   const [preserveFaq, setPreserveFaq] = useState(true);
   const [preserveCta, setPreserveCta] = useState(true);
   // Review-status filter tabs
@@ -1382,12 +1421,12 @@ export default function PostList() {
   };
 
   /** Run the rewrite after PAA confirmation */
-  const handleRunRewrite = (mode: "full_rewrite" | "smart_patch" = rewriteMode) => {
+  const handleRunRewrite = (mode: "full_rewrite" | "smart_patch" | "seo_refresh" = rewriteMode) => {
     if (!rewritePost || !iauditUserId || !paaQuestion.trim()) return;
     setRewriteMode(mode);
     setRewriteStep("running");
     runRewriteMutation.mutate(
-      { postId: rewritePost.id, iauditUserId, paaQuestion: paaQuestion.trim(), rewriteMode: mode, preserveFaq, preserveCta },
+      { postId: rewritePost.id, iauditUserId, paaQuestion: paaQuestion.trim(), rewriteMode: mode, preserveFaq, preserveCta, userInstructions: userInstructions.trim() || undefined },
       {
         onSuccess: (result) => {
           refetch();
@@ -2058,6 +2097,8 @@ export default function PostList() {
         preserveCta={preserveCta}
         onPreserveFaqChange={setPreserveFaq}
         onPreserveCtaChange={setPreserveCta}
+        userInstructions={userInstructions}
+        onUserInstructionsChange={setUserInstructions}
         onClose={() => {
           if (rewriteStep !== "running") {
             setRewritePost(null);

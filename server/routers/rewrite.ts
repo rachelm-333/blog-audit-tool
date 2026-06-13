@@ -109,7 +109,7 @@ export const rewriteRouter = router({
         postId: z.string().min(1),
         iauditUserId: z.string().min(1),
         paaQuestion: z.string().min(1), // Confirmed by user in the PAA modal
-        rewriteMode: z.enum(["full_rewrite", "smart_patch"]).default("full_rewrite"),
+        rewriteMode: z.enum(["full_rewrite", "smart_patch", "seo_refresh"]).default("seo_refresh"),
         preserveFaq: z.boolean().default(true),  // Preserve FAQ section verbatim (user toggle)
         preserveCta: z.boolean().default(true),  // Preserve CTA section verbatim (user toggle)
         userInstructions: z.string().optional(),  // Optional user instructions to guide the rewrite

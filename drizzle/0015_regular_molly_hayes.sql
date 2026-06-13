@@ -1,0 +1,1 @@
+ALTER TABLE `posts` MODIFY COLUMN `rewrite_mode` enum('full_rewrite','smart_patch','seo_refresh');

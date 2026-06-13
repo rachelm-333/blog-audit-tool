@@ -233,8 +233,8 @@ export const posts = mysqlTable(
       "cluster",
     ]), // Inferred from word count: cornerstone 2000+, pillar 1000-1999, cluster <1000
     schemaJson: json("schema_json"), // Generated Article/Breadcrumb/FAQ schema JSON-LD
-    // Which rewrite mode was used: full_rewrite or smart_patch
-    rewriteMode: mysqlEnum("rewrite_mode", ["full_rewrite", "smart_patch"]),
+    // Which rewrite mode was used: full_rewrite, smart_patch, or seo_refresh
+    rewriteMode: mysqlEnum("rewrite_mode", ["full_rewrite", "smart_patch", "seo_refresh"]),
     rewriteStatus: mysqlEnum("rewrite_status", [
       "pending",
       "running",
