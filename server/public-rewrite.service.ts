@@ -104,7 +104,11 @@ export async function runPublicFreeRewrite(
   // Get PAA question for the keyword
   let paaQuestion: string;
   try {
-    paaQuestion = await lookupPaaQuestion(focusKeyword);
+    paaQuestion = await lookupPaaQuestion(
+      focusKeyword,
+      scrape.title ?? "",
+      scrape.bodyHtml ?? "",
+    );
   } catch {
     // If PAA lookup fails, use a generic question
     paaQuestion = `What do you need to know about ${focusKeyword}?`;

@@ -128,46 +128,91 @@ function containsKeyword(text: string, keyword: string): boolean {
  * Ask the LLM to identify the single most relevant People Also Ask question
  * for the given focus keyword. Returns the question string.
  */
-export async function lookupPaaQuestion(focusKeyword: string): Promise<string> {
-  const response = await invokeClaude({
-    system:
-      "You are an SEO expert. Return only a JSON object — no prose, no markdown fences. " +
-      "Do not fabricate statistics, quotes, or external links. " +
-      "If you cannot find a real external source, omit the link entirely.",
-    messages: [
-      {
-        role: "user",
-        content:
-          `Identify the single most relevant People Also Ask (PAA) question that Google shows ` +
-          `for the search query: "${focusKeyword}". ` +
-          `Return a JSON object with a single field: { "paaQuestion": "<the question>" }. ` +
-          `The question should be a real, commonly asked question that searchers have about this topic.`,
-      },
-    ],
-    response_format: {
-      type: "json_schema",
-      json_schema: {
-        name: "paa_question_result",
-        strict: true,
-        schema: {
-          type: "object",
-          properties: {
-            paaQuestion: {
-              type: "string",
-              description: "The most relevant People Also Ask question for the keyword",
+export async function lookupPaaQuestion(
+  focusKeyword: string,
+  postTitle: string,
+  bodyHtml: string,
+): Promise<string> {
+  // Extract first 200 words of plain text from body
+  const plainText = stripHtml(bodyHtml);
+  const first200Words = plainText.split(/\s+/).slice(0, 200).join(" ");
+
+  const buildPrompt = () =>
+    `You are an SEO expert. A blog post has the following details:
+
+POST TITLE: ${postTitle}
+FOCUS KEYWORD: ${focusKeyword}
+FIRST 200 WORDS OF POST:
+${first200Words}
+
+Generate a single People Also Ask (PAA) question that:
+1. Is DIRECTLY related to this specific post's topic and focus keyword.
+2. Is something a real person would search on Google when looking for information about this exact topic.
+3. Matches the subject matter described in the post title and opening content above.
+4. Do NOT suggest questions about unrelated topics, industries, or subjects.
+
+Return a JSON object: { "paaQuestion": "<the question>" }`;
+
+  const callLLM = async () => {
+    const response = await invokeClaude({
+      system:
+        "You are an SEO expert. Return only a JSON object — no prose, no markdown fences. " +
+        "The PAA question MUST be directly relevant to the post topic provided. " +
+        "Do not fabricate statistics or suggest questions about unrelated industries.",
+      messages: [{ role: "user", content: buildPrompt() }],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "paa_question_result",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              paaQuestion: {
+                type: "string",
+                description: "A People Also Ask question directly related to the post topic and focus keyword",
+              },
             },
+            required: ["paaQuestion"],
+            additionalProperties: false,
           },
-          required: ["paaQuestion"],
-          additionalProperties: false,
         },
       },
-    },
-  });
+    });
+    const content = response.choices?.[0]?.message?.content;
+    if (!content) throw new Error("LLM returned no content for PAA lookup");
+    const parsed = JSON.parse(typeof content === "string" ? content : JSON.stringify(content));
+    return parsed.paaQuestion as string;
+  };
 
-  const content = response.choices?.[0]?.message?.content;
-  if (!content) throw new Error("LLM returned no content for PAA lookup");
-  const parsed = JSON.parse(typeof content === "string" ? content : JSON.stringify(content));
-  return parsed.paaQuestion as string;
+  // Relevance validation: question must contain the focus keyword OR at least 2 words from the title
+  const isRelevant = (question: string): boolean => {
+    const q = question.toLowerCase();
+    if (q.includes(focusKeyword.toLowerCase())) return true;
+    const titleWords = postTitle
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, "")
+      .split(/\s+/)
+      .filter((w) => w.length > 3); // ignore short words like "the", "and", "for"
+    const matches = titleWords.filter((w) => q.includes(w));
+    return matches.length >= 2;
+  };
+
+  // Attempt 1
+  const attempt1 = await callLLM();
+  if (isRelevant(attempt1)) return attempt1;
+
+  console.warn(`[PAA] Attempt 1 failed relevance check: "${attempt1}" — retrying once`);
+
+  // Attempt 2 (retry)
+  try {
+    const attempt2 = await callLLM();
+    if (isRelevant(attempt2)) return attempt2;
+    console.warn(`[PAA] Attempt 2 also failed relevance check: "${attempt2}" — returning empty`);
+    return ""; // Leave blank for user to fill in manually
+  } catch {
+    return ""; // Retry failed — leave blank
+  }
 }
 
 // ---------------------------------------------------------------------------

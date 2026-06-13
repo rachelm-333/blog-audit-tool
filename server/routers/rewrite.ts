@@ -85,7 +85,11 @@ export const rewriteRouter = router({
         });
       }
 
-      const paaQuestion = await lookupPaaQuestion(post.focusKeyword);
+      const paaQuestion = await lookupPaaQuestion(
+        post.focusKeyword,
+        post.title ?? "",
+        post.bodyOriginal ?? "",
+      );
       return { paaQuestion };
     }),
 

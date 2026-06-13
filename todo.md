@@ -766,3 +766,11 @@
 - [x] Rewrite runAuditAll to: create job row, return jobId immediately, process posts in batches of 5 with per-post 30s timeout, log failures without crashing, update job progress after each batch
 - [x] Add getAuditJobStatus tRPC procedure for frontend polling
 - [x] Update frontend Audit All button: show progress bar polling every 3s, display "Auditing X of Y...", show failed post list at end
+
+## Bug Fix — PAA Question Suggestion Irrelevant (June 2026)
+
+- [x] Find PAA generation logic — was in server/rewrite.service.ts lookupPaaQuestion (only received focusKeyword, no post context)
+- [x] Rewrite PAA prompt to include post title, focus keyword, first 200 words of body
+- [x] Add instruction: generate question DIRECTLY related to this post's topic and keyword; do NOT suggest questions about unrelated topics
+- [x] Add relevance validation: question must contain focus keyword OR 2+ words from post title (>3 chars); if not, regenerate once; if second attempt also fails, return empty string for user to fill manually
+- [x] Fix public-rewrite.service.ts to also pass title and body to lookupPaaQuestion
