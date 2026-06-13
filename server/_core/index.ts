@@ -58,6 +58,66 @@ async function startServer() {
 
   // ── Zapier inbound webhook — receives posts from Zapier zaps ──
   app.post("/api/zapier/inbound/:token", handleZapierInbound);
+
+  // ── TEMPORARY DEBUG: Test Wix credentials directly ──────────────────────────
+  app.get("/api/test-wix", async (_req, res) => {
+    try {
+      const { getDb } = await import("../db");
+      const { cmsConnections } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const { decryptCredentials } = await import("../encryption.service");
+
+      const db = await getDb();
+      if (!db) return res.json({ error: "DB not available" });
+
+      // Find the first Wix connection in the database
+      const rows = await db.select().from(cmsConnections).where(eq(cmsConnections.platform, "wix")).limit(1);
+      if (!rows.length) return res.json({ error: "No Wix connection found in database" });
+
+      const conn = rows[0]!;
+      const encrypted = typeof conn.credentialsEncrypted === "string"
+        ? conn.credentialsEncrypted
+        : JSON.stringify(conn.credentialsEncrypted);
+      const creds = decryptCredentials(encrypted) as { apiKey?: string; siteId?: string };
+
+      const apiKey = creds.apiKey ?? "";
+      const siteId = creds.siteId ?? "";
+
+      // Make a direct raw fetch — no helper functions
+      const url = "https://www.wixapis.com/blog/v3/posts?limit=1";
+      const fetchRes = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Authorization": apiKey,
+          "wix-site-id": siteId,
+          "Accept": "application/json",
+        },
+      });
+
+      let body: unknown;
+      const rawText = await fetchRes.text();
+      try { body = JSON.parse(rawText); } catch { body = rawText; }
+
+      return res.json({
+        httpStatus: fetchRes.status,
+        httpStatusText: fetchRes.statusText,
+        wixResponse: body,
+        apiKeyFirst10: apiKey.slice(0, 10),
+        siteIdFirst10: siteId.slice(0, 10),
+        apiKeyLength: apiKey.length,
+        siteIdLength: siteId.length,
+        urlCalled: url,
+        headersUsed: {
+          Authorization: apiKey.slice(0, 10) + "...",
+          "wix-site-id": siteId.slice(0, 10) + "...",
+          Accept: "application/json",
+        },
+      });
+    } catch (err: any) {
+      return res.json({ error: err?.message ?? String(err), stack: err?.stack?.slice(0, 500) });
+    }
+  });
+  // ── END TEMPORARY DEBUG ──────────────────────────────────────────────────────
   // tRPC API
   app.use(
     "/api/trpc",
