@@ -147,8 +147,8 @@ export const rewriteRouter = router({
         });
       }
 
-      // --- Deduct 1 credit ---
-      await deductCredit(input.iauditUserId, post.id);
+      // NOTE: Credit is deducted AFTER a successful rewrite result — not before.
+      // This ensures timeouts and errors never consume a credit.
 
       // --- Set status to running ---
       await setRewriteStatus(post.id, "running");
@@ -226,17 +226,7 @@ export const rewriteRouter = router({
         });
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
-        // JSON parse errors mean the LLM response was truncated — this is a system error,
-        // not a billable attempt. Refund the credit automatically.
-        const isParseError =
-          errMsg.includes("JSON") ||
-          errMsg.includes("position") ||
-          errMsg.includes("Unexpected token") ||
-          errMsg.includes("Unexpected end") ||
-          errMsg.includes("Expected");
-        if (isParseError) {
-          try { await refundCredit(input.iauditUserId, post.id); } catch { /* ignore */ }
-        }
+        // Credit was NOT yet deducted — no refund needed on any error or timeout.
         await setRewriteStatus(post.id, "failed");
         void logError({
           userId: input.iauditUserId,
@@ -248,11 +238,14 @@ export const rewriteRouter = router({
         });
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: isParseError
-            ? "The rewrite hit a length limit on this post. Your credit has been automatically refunded. Please try again."
-            : "Rewrite failed. Your credit has not been refunded as the attempt was made.",
+          message: errMsg.includes("timed out")
+            ? "The rewrite timed out. No credit was charged. Please try again."
+            : "Rewrite failed. No credit was charged.",
         });
       }
+
+      // --- Deduct 1 credit — only after a successful rewrite result ---
+      await deductCredit(input.iauditUserId, post.id);
 
       // --- Auto-retry if score < 14 ---
       if (rewriteResult.rewriteScore < 14) {

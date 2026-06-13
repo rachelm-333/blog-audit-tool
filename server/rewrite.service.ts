@@ -1274,7 +1274,16 @@ export async function runFullRewrite(params: {
     userInstructions: userInstructions ?? null,
   };
 
-  let pass1Output = await runPass1Rewrite(pass1Input);
+  // --- Pass 1: LLM call with 90s hard timeout ---
+  const pass1Start = Date.now();
+  console.log(`[Rewrite] Pass 1 starting — mode: ${rewriteMode}, post: ${post.id}`);
+  let pass1Output = await Promise.race([
+    runPass1Rewrite(pass1Input),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Rewrite timed out after 90 seconds — please try again.")), 90_000)
+    ),
+  ]);
+  console.log(`[Rewrite] Pass 1 complete in ${((Date.now() - pass1Start) / 1000).toFixed(1)}s`);
 
   // --- Mechanical Enforcement Layer (Pass 1) ---
   // Enforce P1, P3, P5, P7, P8, P9, P11, P12 on the Pass 1 output
@@ -1297,8 +1306,16 @@ export async function runFullRewrite(params: {
     externalAuthorityFallback,
   });
 
-  // --- Pass 2: Fingerprint Scrub ---
-  const pass2Raw = await runPass2FingerprintScrub(pass1Output, post.focusKeyword);
+  // --- Pass 2: Fingerprint Scrub (LLM call with 90s hard timeout) ---
+  const pass2Start = Date.now();
+  console.log(`[Rewrite] Pass 2 starting — post: ${post.id}`);
+  const pass2Raw = await Promise.race([
+    runPass2FingerprintScrub(pass1Output, post.focusKeyword),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Rewrite timed out after 90 seconds — please try again.")), 90_000)
+    ),
+  ]);
+  console.log(`[Rewrite] Pass 2 complete in ${((Date.now() - pass2Start) / 1000).toFixed(1)}s`);
   // --- Pass 2b: Mechanical AI Phrase Scanner ---
   // Deterministic safety net — catches any AI phrases the LLM missed in Pass 2
   const pass2Output: Pass1Output = {
@@ -1340,7 +1357,10 @@ export async function runFullRewrite(params: {
     primaryCtaUrl: businessContext.primaryCtaUrl,
     secondaryCtaUrls: businessContext.secondaryCtas?.map((c) => c.url) ?? [],
   };
+  const rescoreStart = Date.now();
+  console.log(`[Rewrite] Re-scoring starting — post: ${post.id}`);
   const auditResult = await runFullAudit(auditInput);
+  console.log(`[Rewrite] Re-scoring complete in ${((Date.now() - rescoreStart) / 1000).toFixed(1)}s — score: ${auditResult.score}`);
   const rewriteScore = auditResult.score;
   const rewriteGrade = scoreToGrade(rewriteScore);
 

@@ -665,6 +665,43 @@ function RewriteResultPanel({
 }
 
 // ---------------------------------------------------------------------------
+// Rewrite Progress Indicator — timed status messages during rewrite
+// ---------------------------------------------------------------------------
+const REWRITE_STEPS = [
+  { at: 0,  label: "Analysing your post…",                   sub: "Reading content, keyword, and audit results." },
+  { at: 10, label: "Running Pass 1 rewrite…",               sub: "AI is rewriting to fix failing SEO points." },
+  { at: 45, label: "Running Pass 2 AI fingerprint scrub…",  sub: "Removing AI-sounding phrases and patterns." },
+  { at: 70, label: "Checking SEO scores…",                  sub: "Re-auditing the rewritten post against all 16 points." },
+  { at: 85, label: "Almost done…",                          sub: "Finalising and saving the result." },
+];
+
+function RewriteProgressIndicator() {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const start = Date.now();
+    const id = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const current = [...REWRITE_STEPS].reverse().find((s) => elapsed >= s.at) ?? REWRITE_STEPS[0];
+  const pct = Math.min(Math.round((elapsed / 90) * 100), 95);
+  return (
+    <div className="space-y-4 py-4">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 size={32} className="animate-spin text-primary" />
+        <div className="text-sm text-foreground font-medium text-center">{current.label}</div>
+        <div className="text-xs text-muted-foreground text-center max-w-xs">{current.sub}</div>
+      </div>
+      <div className="space-y-1.5">
+        <Progress value={pct} className="h-1.5" />
+        <div className="flex justify-between text-[10px] text-muted-foreground">
+          <span>{elapsed}s elapsed</span>
+          <span>Up to 90s</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Rewrite Modal (Layer 7) — PAA confirmation → running → result summary
 // ---------------------------------------------------------------------------
 function RewriteModal({
@@ -871,20 +908,7 @@ function RewriteModal({
         )}
 
         {/* Running step */}
-        {step === "running" && (
-          <div className="space-y-4 py-4">
-            <div className="flex flex-col items-center gap-3">
-              <Loader2 size={32} className="animate-spin text-primary" />
-              <div className="text-sm text-foreground font-medium">
-                Rewriting {post?.title ?? "post"}…
-              </div>
-              <div className="text-xs text-muted-foreground text-center max-w-xs">
-                Running two-pass AI rewrite with SEO enforcement. This usually
-                takes 30–90 seconds.
-              </div>
-            </div>
-          </div>
-        )}
+        {step === "running" && <RewriteProgressIndicator />}
 
         {/* Result step */}
         {step === "result" && rewriteResult && (
