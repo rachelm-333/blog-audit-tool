@@ -543,23 +543,30 @@ export async function importFromWix(
   creds: WixCredentials,
   options: { limit?: number; cursor?: string } = {}
 ): Promise<{ posts: WpImportedPost[]; nextCursor: string | null }> {
-  const params = new URLSearchParams({
-    fieldsets: "SEO,RICH_CONTENT",
-    "paging.limit": String(options.limit ?? 100),
-  });
-  if (options.cursor) params.set("paging.cursor", options.cursor);
+  // IMPORTANT: The Wix Blog API v3 does NOT support `fieldsets` as a GET query parameter.
+  // Sending fieldsets in the query string causes HTTP 400 "Failed to parse JSON or deserialize
+  // protobuf message". The correct approach is to use POST /query with fieldsets in the body.
+  const url = `${WIX_BASE}/posts/query`;
 
-  const url = `${WIX_BASE}/posts?${params.toString()}`;
+  const requestBody: Record<string, unknown> = {
+    fieldsets: ["SEO", "RICH_CONTENT"],
+    paging: { limit: options.limit ?? 100 },
+  };
+  if (options.cursor) {
+    (requestBody.paging as Record<string, unknown>).cursor = options.cursor;
+  }
 
-  // ── Diagnostic logging ──────────────────────────────────────────────────────
-  console.log("[Wix Import] Requesting URL:", url);
+  // ── Diagnostic logging ──────────────────────────────────────────
+  console.log("[Wix Import] POST", url, "body:", JSON.stringify(requestBody));
   console.log("[Wix Import] siteId present:", !!creds.siteId, "| apiKey length:", creds.apiKey?.length ?? 0);
-  console.log("[Wix Import] Authorization header (raw key, no Bearer):", creds.apiKey?.slice(0, 8) + "...");
-  console.log("[Wix Import] wix-site-id header:", creds.siteId?.slice(0, 8) + "...");
 
   let res: Response;
   try {
-    res = await wixFetch(url, creds);
+    res = await wixFetch(url, creds, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestBody),
+    });
   } catch (err: any) {
     console.error("[Wix Import] Network error:", err?.message);
     throw new WixImportException("site_unreachable", `Could not reach Wix: ${err?.message}`);
@@ -588,6 +595,7 @@ export async function importFromWix(
   }
 
   const posts = rawPosts.map(parseWixPost);
+  // POST /query uses metaData.cursors.next for pagination
   const nextCursor = (data.metaData as any)?.cursors?.next ?? null;
 
   return { posts, nextCursor };

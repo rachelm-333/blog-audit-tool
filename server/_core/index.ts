@@ -83,35 +83,52 @@ async function startServer() {
       const apiKey = creds.apiKey ?? "";
       const siteId = creds.siteId ?? "";
 
-      // Make a direct raw fetch — no helper functions
-      const url = "https://www.wixapis.com/blog/v3/posts?limit=1";
-      const fetchRes = await fetch(url, {
-        method: "GET",
-        headers: {
-          "Authorization": apiKey,
-          "wix-site-id": siteId,
-          "Accept": "application/json",
-        },
-      });
+      // Test 1: simple URL (same as before)
+      const url1 = "https://www.wixapis.com/blog/v3/posts?limit=1";
+      const res1 = await fetch(url1, { method: "GET", headers: { "Authorization": apiKey, "wix-site-id": siteId, "Accept": "application/json" } });
+      const raw1 = await res1.text();
+      let body1: unknown; try { body1 = JSON.parse(raw1); } catch { body1 = raw1; }
 
-      let body: unknown;
-      const rawText = await fetchRes.text();
-      try { body = JSON.parse(rawText); } catch { body = rawText; }
+      // Test 2: exact URL that importFromWix uses (URLSearchParams encoded)
+      const params = new URLSearchParams({ fieldsets: "SEO,RICH_CONTENT", "paging.limit": "1" });
+      const url2 = `https://www.wixapis.com/blog/v3/posts?${params.toString()}`;
+      const res2 = await fetch(url2, { method: "GET", headers: { "Authorization": apiKey, "wix-site-id": siteId, "Accept": "application/json" } });
+      const raw2 = await res2.text();
+      let body2: unknown; try { body2 = JSON.parse(raw2); } catch { body2 = raw2; }
+
+      // Test 3: GET single post by ID (first post from test1)
+      const firstPostId = (body1 as any)?.posts?.[0]?.id ?? "";
+      const url3 = `https://www.wixapis.com/blog/v3/posts/${firstPostId}`;
+      const res3 = await fetch(url3, { method: "GET", headers: { "Authorization": apiKey, "wix-site-id": siteId, "Accept": "application/json" } });
+      const raw3 = await res3.text();
+      let body3: unknown; try { body3 = JSON.parse(raw3); } catch { body3 = raw3; }
+
+      // Test 4: GET single post with fieldsets as query param
+      const url4 = `https://www.wixapis.com/blog/v3/posts/${firstPostId}?fieldsets=SEO,RICH_CONTENT`;
+      const res4 = await fetch(url4, { method: "GET", headers: { "Authorization": apiKey, "wix-site-id": siteId, "Accept": "application/json" } });
+      const raw4 = await res4.text();
+      let body4: unknown; try { body4 = JSON.parse(raw4); } catch { body4 = raw4; }
+
+      // Test 5: POST /query with fieldsets in body (correct Wix v3 approach)
+      const url5 = `https://www.wixapis.com/blog/v3/posts/query`;
+      const res5 = await fetch(url5, {
+        method: "POST",
+        headers: { "Authorization": apiKey, "wix-site-id": siteId, "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify({ fieldsets: ["SEO", "RICH_CONTENT"], paging: { limit: 1 } }),
+      });
+      const raw5 = await res5.text();
+      let body5: unknown; try { body5 = JSON.parse(raw5); } catch { body5 = raw5; }
 
       return res.json({
-        httpStatus: fetchRes.status,
-        httpStatusText: fetchRes.statusText,
-        wixResponse: body,
         apiKeyFirst10: apiKey.slice(0, 10),
         siteIdFirst10: siteId.slice(0, 10),
         apiKeyLength: apiKey.length,
-        siteIdLength: siteId.length,
-        urlCalled: url,
-        headersUsed: {
-          Authorization: apiKey.slice(0, 10) + "...",
-          "wix-site-id": siteId.slice(0, 10) + "...",
-          Accept: "application/json",
-        },
+        firstPostId,
+        test1_listNoFieldsets: { url: url1, status: res1.status, fieldsReturned: Object.keys((body1 as any)?.posts?.[0] ?? {}) },
+        test2_listFieldsetsEncoded: { url: url2, status: res2.status, error: (body2 as any)?.message },
+        test3_singlePostNoFieldsets: { url: url3, status: res3.status, fieldsReturned: Object.keys((body3 as any)?.post ?? {}), hasSeoData: !!(body3 as any)?.post?.seoData, hasRichContent: !!(body3 as any)?.post?.richContent },
+        test4_singlePostFieldsetsRaw: { url: url4, status: res4.status, error: (body4 as any)?.message, fieldsReturned: Object.keys((body4 as any)?.post ?? {}), hasSeoData: !!(body4 as any)?.post?.seoData, hasRichContent: !!(body4 as any)?.post?.richContent },
+        test5_postQueryWithFieldsets: { url: url5, status: res5.status, error: (body5 as any)?.message, fieldsReturned: Object.keys((body5 as any)?.posts?.[0] ?? {}), hasSeoData: !!(body5 as any)?.posts?.[0]?.seoData, hasRichContent: !!(body5 as any)?.posts?.[0]?.richContent, postCount: (body5 as any)?.posts?.length ?? 0 },
       });
     } catch (err: any) {
       return res.json({ error: err?.message ?? String(err), stack: err?.stack?.slice(0, 500) });
