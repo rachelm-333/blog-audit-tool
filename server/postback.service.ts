@@ -100,17 +100,16 @@ function escapeAttr(str: string): string {
 
 /**
  * Preserves images from the original body HTML by re-injecting them into the
- * rewritten body. ALL images are placed at the top of the post (after the first
- * paragraph) so the user can reposition them in their CMS editor.
- *
- * Proportional placement was removed because the rewritten body has different
- * paragraph counts, causing images to land in wrong positions.
+ * rewritten body, distributed proportionally based on their original position.
  *
  * Strategy:
  *   1. Extract all <img> tags from the original body (in DOM order).
- *   2. Apply updated alt texts.
- *   3. Insert all images as <figure> blocks immediately after the first <p> in
- *      the rewritten body (or at the very top if no <p> exists).
+ *   2. Record each image's position as a ratio: (paragraph index) / (total paragraphs).
+ *   3. Apply updated alt texts.
+ *   4. In the rewritten body, multiply each ratio by the new paragraph count to find
+ *      the insertion point, then insert the image after that paragraph.
+ *   5. If only 1 paragraph, insert all images after it.
+ *   6. If no paragraphs, prepend all images at the top.
  */
 export function preserveImagesInBody(
   originalHtml: string,
@@ -127,6 +126,20 @@ export function preserveImagesInBody(
     const origImgs = Array.from(origDoc.querySelectorAll("img")) as Element[];
     if (origImgs.length === 0) return rewrittenHtml; // No images to preserve
 
+    // --- Record each image's position as a ratio of total paragraphs in the original ---
+    const origParas = Array.from(origDoc.querySelectorAll("p")) as Element[];
+    const origParaCount = origParas.length;
+    const imgRatios: number[] = origImgs.map((img) => {
+      if (origParaCount === 0) return 0;
+      // Walk up to find the nearest top-level ancestor of <body>
+      let node: Element | null = img;
+      while (node && node.parentElement && node.parentElement !== origDoc.body) {
+        node = node.parentElement;
+      }
+      const idx = node ? origParas.indexOf(node as Element) : -1;
+      return idx >= 0 ? idx / origParaCount : 0;
+    });
+
     // Apply updated alt texts and collect HTML strings
     const imgHtmlList: string[] = origImgs.map((img, imgIdx) => {
       const altText = updatedAltTexts[imgIdx];
@@ -140,9 +153,8 @@ export function preserveImagesInBody(
     const rewriteDom = new JSDOM(rewrittenHtml);
     const rewriteDoc = rewriteDom.window.document;
     const body = rewriteDoc.body;
-
-    // Find the first <p> to insert images after it
-    const firstPara = body.querySelector("p");
+    const rewriteParas = Array.from(body.querySelectorAll("p")) as Element[];
+    const rewriteParaCount = rewriteParas.length;
 
     // Build figure elements for all images
     const figures = imgHtmlList.map((imgHtml) => {
@@ -152,17 +164,34 @@ export function preserveImagesInBody(
       return wrapper;
     });
 
-    if (firstPara && firstPara.parentNode) {
-      // Insert all images right after the first paragraph, in reverse order
-      // so they end up in the correct sequence (first image closest to top)
-      const insertRef = firstPara.nextSibling;
-      figures.reverse().forEach((fig) => {
-        firstPara.parentNode!.insertBefore(fig, insertRef);
-      });
-    } else {
-      // No paragraph found — prepend all images at the very top
+    if (rewriteParaCount === 0) {
+      // No paragraphs — prepend all images at the very top
       figures.reverse().forEach((fig) => {
         body.insertBefore(fig, body.firstChild);
+      });
+    } else if (rewriteParaCount === 1) {
+      // Only 1 paragraph — insert all images after it
+      const onlyPara = rewriteParas[0];
+      const insertRef = onlyPara.nextSibling;
+      figures.reverse().forEach((fig) => {
+        onlyPara.parentNode!.insertBefore(fig, insertRef);
+      });
+    } else {
+      // Distribute images proportionally:
+      // Multiply each image's original ratio by the new paragraph count to find insertion point.
+      // Sort by targetIdx descending so we insert from bottom to top (stable DOM positions).
+      const insertions = figures.map((fig, i) => {
+        const targetIdx = Math.min(
+          Math.round(imgRatios[i] * rewriteParaCount),
+          rewriteParaCount - 1
+        );
+        return { fig, targetIdx };
+      });
+      insertions.sort((a, b) => b.targetIdx - a.targetIdx);
+      insertions.forEach(({ fig, targetIdx }) => {
+        const afterPara = rewriteParas[targetIdx];
+        const insertRef = afterPara.nextSibling;
+        afterPara.parentNode!.insertBefore(fig, insertRef);
       });
     }
 

@@ -748,3 +748,13 @@
 - [x] Auto-extract focus keyword from post content on import: use title, first 100 words, URL slug, meta title, meta description — find the phrase that appears in the most of those five areas
 - [x] Run auto-detection for all existing posts that have no keyword set (backfillFromTitles tRPC procedure available; auto-detection now also fires on every import)
 - [x] Remove the "Custom" label from the keyword badge — renamed to "Manual"; new labels: CMS (sky), Manual (emerald), Auto (violet), AI (indigo)
+
+## Fixes from Claude Analysis — All 7 Applied (June 2026)
+
+- [x] FIX 1 — Standardise meta description length: audit.service.ts with-keyword path changed from 120–165 to 140–160; rewrite.service.ts already correct
+- [x] FIX 2 — Remove broken keyword injection sentences: removed "contact us today" and "can work for your business today" auto-append blocks from rewrite.service.ts
+- [x] FIX 3 — Fix keyword detection: removed broken @graph and root-level rank_math fallbacks in wordpress.service.ts; P5 in audit.service.ts now checks exactly first 100 words (was 150)
+- [x] FIX 4 — Rewrite engine: added userInstructions param to runFullRewrite + router; added STRICT RULES section to Pass 1 prompt; auto-retry now uses fresh audit of attempt 1 output
+- [x] FIX 5 — Wix image preservation: preserveImagesInBody now distributes images proportionally across paragraphs (ratio-based) instead of all after paragraph 1
+- [x] FIX 6 — Business profile: added targetAudienceProblems + brandVoiceAnalysis columns (schema + migration + API + scraping + rewrite prompt + UI form fields "Problems You Solve" and "Brand Voice Analysis")
+- [x] FIX 7 — Dashboard score display: PostTableRow now returns displayScore/displayGrade (rewriteScore if exists, else auditScore) + isRewriteScore boolean; Dashboard shows "Post-Rewrite" (violet) or "Original Audit" (muted) label under each score bar

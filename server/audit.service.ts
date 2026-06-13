@@ -315,9 +315,9 @@ export function runMechanicalChecks(input: PostAuditInput): AuditPoint[] {
     });
   }
 
-  // P5 — Keyword in First 100 Words (check first 150 for flexibility)
-  const first150Words = bodyText.split(/\s+/).slice(0, 150).join(" ");
-  const p5Pass = containsKeyword(first150Words, focusKeyword);
+  // P5 — Keyword in First 100 Words (exact 100 words)
+  const first100Words = bodyText.split(/\s+/).slice(0, 100).join(" ");
+  const p5Pass = containsKeyword(first100Words, focusKeyword);
   points.push({
     point: "P5",
     name: "Keyword in First 100 Words",
@@ -376,9 +376,9 @@ export function runMechanicalChecks(input: PostAuditInput): AuditPoint[] {
   // P8 — Meta Description
   const md = metaDescription?.trim() ?? "";
   const p8Present = md.length > 0;
-  // Google shows 120–165 chars; accept that range
-  const p8TooShort = md.length < 120;
-  const p8TooLong = md.length > 165;
+  // Standard: 140–160 chars
+  const p8TooShort = md.length < 140;
+  const p8TooLong = md.length > 160;
   const p8LengthOk = !p8TooShort && !p8TooLong;
   const p8Pass = p8Present && p8LengthOk;
   points.push({
@@ -388,9 +388,9 @@ export function runMechanicalChecks(input: PostAuditInput): AuditPoint[] {
     note: !p8Present
       ? "Meta description is missing."
       : p8TooShort
-      ? `Meta description is too short (${md.length} chars, min 120). Expand it.`
+      ? `Meta description is too short (${md.length} chars, min 140). Expand it.`
       : p8TooLong
-      ? `Meta description is too long (${md.length} chars, max 165). Google will truncate it.`
+      ? `Meta description is too long (${md.length} chars, max 160). Google will truncate it.`
       : `Meta description meets requirements (${md.length} chars).`,
   });
 

@@ -112,6 +112,7 @@ export const rewriteRouter = router({
         rewriteMode: z.enum(["full_rewrite", "smart_patch"]).default("full_rewrite"),
         preserveFaq: z.boolean().default(true),  // Preserve FAQ section verbatim (user toggle)
         preserveCta: z.boolean().default(true),  // Preserve CTA section verbatim (user toggle)
+        userInstructions: z.string().optional(),  // Optional user instructions to guide the rewrite
       })
     )
     .mutation(async ({ input }) => {
@@ -159,6 +160,8 @@ export const rewriteRouter = router({
         brandVoice: business.brandVoice,
         tone: business.tone,
         targetAudience: business.targetAudience,
+        targetAudienceProblems: business.targetAudienceProblems ?? null,
+        brandVoiceAnalysis: business.brandVoiceAnalysis ?? null,
         uvp: business.uvp,
         services: (business.services as Array<{ name: string; description?: string }>) ?? [],
         primaryCtaUrl: business.primaryCtaUrl,
@@ -167,7 +170,6 @@ export const rewriteRouter = router({
           (business.secondaryCtas as Array<{ url: string; label: string }>) ?? [],
         awardsCredentials: business.awardsCredentials,
       };
-
       // --- Build internal link map ---
       const allPosts = await listPostsForBusiness(post.businessId);
       const internalLinks = buildInternalLinkMap(
@@ -220,6 +222,7 @@ export const rewriteRouter = router({
           rewriteMode: input.rewriteMode,
           preserveFaq: input.preserveFaq,
           preserveCta: input.preserveCta,
+          userInstructions: input.userInstructions,
         });
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
@@ -254,8 +257,8 @@ export const rewriteRouter = router({
       // --- Auto-retry if score < 14 ---
       if (rewriteResult.rewriteScore < 14) {
         try {
-          // CRITICAL: Use the failing points from the FIRST REWRITE result, not the original audit.
-          // The original audit may have different failures than the rewrite output.
+          // CRITICAL: Use the failing points from the FIRST REWRITE audit result (fresh, not original).
+          // The original pre-rewrite audit may have different failures than the rewrite output.
           const retryFailingPoints: string[] = [];
           if (rewriteResult.auditResult?.points) {
             for (const p of rewriteResult.auditResult.points) {
@@ -264,12 +267,14 @@ export const rewriteRouter = router({
               }
             }
           }
+          // Always use the fresh failing points from attempt 1 — never fall back to pre-rewrite list
+          const retryFailing = retryFailingPoints.length > 0 ? retryFailingPoints : failingPoints;
 
           const retryResult = await runFullRewrite({
             post: {
               id: post.id,
               title: post.title,
-              // Use the first rewrite as input for the retry
+              // Use the first rewrite output as input for the retry
               bodyOriginal: rewriteResult.bodyRewritten,
               url: post.url,
               focusKeyword: post.focusKeyword,
@@ -281,12 +286,13 @@ export const rewriteRouter = router({
             },
             businessContext,
             internalLinks,
-            failingPoints: retryFailingPoints.length > 0 ? retryFailingPoints : failingPoints,
+            failingPoints: retryFailing,
             paaQuestion: input.paaQuestion,
             secondaryKeywords,
             rewriteMode: input.rewriteMode,
             preserveFaq: input.preserveFaq,
             preserveCta: input.preserveCta,
+            userInstructions: input.userInstructions,
           });
 
           // Pick the best result between first attempt and retry
@@ -403,6 +409,8 @@ export const rewriteRouter = router({
         brandVoice: business.brandVoice,
         tone: business.tone,
         targetAudience: business.targetAudience,
+        targetAudienceProblems: business.targetAudienceProblems ?? null,
+        brandVoiceAnalysis: business.brandVoiceAnalysis ?? null,
         uvp: business.uvp,
         services: (business.services as Array<{ name: string; description?: string }>) ?? [],
         primaryCtaUrl: business.primaryCtaUrl,
@@ -410,7 +418,6 @@ export const rewriteRouter = router({
         secondaryCtas: (business.secondaryCtas as Array<{ url: string; label: string }>) ?? [],
         awardsCredentials: business.awardsCredentials,
       };
-
       const allPosts = await listPostsForBusiness(post.businessId);
       const internalLinks = buildInternalLinkMap(allPosts, post.id, post.publishDate);
 

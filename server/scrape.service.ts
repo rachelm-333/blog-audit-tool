@@ -48,6 +48,8 @@ export type ScrapeResult = {
   brandVoice: ScrapedField;
   tone: ScrapedField;
   targetAudience: ScrapedField;
+  targetAudienceProblems: ScrapedField;
+  brandVoiceAnalysis: ScrapedField;
   languageStyle: ScrapedField;
   primaryCtaUrl: ScrapedField;
   primaryCtaLabel: ScrapedField;
@@ -234,6 +236,8 @@ export async function inferBusinessProfile(
   brandVoice: string | null;
   tone: string | null;
   targetAudience: string | null;
+  targetAudienceProblems: string | null;
+  brandVoiceAnalysis: string | null;
   languageStyle: string | null;
   primaryCtaUrl: string | null;
   primaryCtaLabel: string | null;
@@ -263,6 +267,8 @@ Return a JSON object with these exact fields:
 - brandVoice: string | null — A 2-3 sentence paragraph describing the brand voice based on the tone and language used in the copy
 - tone: string | null — One of: "Professional", "Friendly", "Bold", "Conversational"
 - targetAudience: string | null — Who the business serves in plain English (e.g. "Sydney homeowners planning a renovation")
+- targetAudienceProblems: string | null — The main problems, pain points, or challenges this business solves for its customers (2-4 sentences)
+- brandVoiceAnalysis: string | null — A 2-4 sentence analysis of the brand's writing style, vocabulary, and tone based on the website copy
 - languageStyle: string | null — Language style observed (e.g. "Australian English, plain language" or "Formal British English")
 - primaryCtaUrl: string | null — The most prominent call-to-action URL (booking, contact, shop, etc.)
 - primaryCtaLabel: string | null — The label text of the primary CTA button
@@ -314,6 +320,8 @@ Return a JSON object with these exact fields:
               brandVoice: { type: ["string", "null"] },
               tone: { type: ["string", "null"] },
               targetAudience: { type: ["string", "null"] },
+              targetAudienceProblems: { type: ["string", "null"] },
+              brandVoiceAnalysis: { type: ["string", "null"] },
               languageStyle: { type: ["string", "null"] },
               primaryCtaUrl: { type: ["string", "null"] },
               primaryCtaLabel: { type: ["string", "null"] },
@@ -332,6 +340,8 @@ Return a JSON object with these exact fields:
               "brandVoice",
               "tone",
               "targetAudience",
+              "targetAudienceProblems",
+              "brandVoiceAnalysis",
               "languageStyle",
               "primaryCtaUrl",
               "primaryCtaLabel",
@@ -367,6 +377,8 @@ Return a JSON object with these exact fields:
       brandVoice: null,
       tone: null,
       targetAudience: null,
+      targetAudienceProblems: null,
+      brandVoiceAnalysis: null,
       languageStyle: null,
       primaryCtaUrl: null,
       primaryCtaLabel: null,
@@ -408,6 +420,8 @@ export async function scrapeBusinessWebsite(websiteUrl: string): Promise<ScrapeR
     brandVoice: field(null, "empty"),
     tone: field(null, "empty"),
     targetAudience: field(null, "empty"),
+    targetAudienceProblems: field(null, "empty"),
+    brandVoiceAnalysis: field(null, "empty"),
     languageStyle: field(null, "empty"),
     primaryCtaUrl: field(null, "empty"),
     primaryCtaLabel: field(null, "empty"),
@@ -582,6 +596,8 @@ export async function scrapeBusinessWebsite(websiteUrl: string): Promise<ScrapeR
     brandVoice: makeField(ai.brandVoice),
     tone: makeField(ai.tone),
     targetAudience: makeField(ai.targetAudience),
+    targetAudienceProblems: makeField(ai.targetAudienceProblems),
+    brandVoiceAnalysis: makeField(ai.brandVoiceAnalysis),
     languageStyle: makeField(ai.languageStyle),
     primaryCtaUrl: makeField(primaryCtaUrl),
     primaryCtaLabel: makeField(primaryCtaLabel),

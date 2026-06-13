@@ -34,6 +34,8 @@ interface BusinessForm {
   brandVoice: string;
   tone: string;
   targetAudience: string;
+  targetAudienceProblems: string;
+  brandVoiceAnalysis: string;
   languageStyle: string;
   uvp: string;
   services: string;
@@ -45,7 +47,7 @@ interface BusinessForm {
 const EMPTY_FORM: BusinessForm = {
   businessName: "", websiteUrl: "", industry: "", location: "",
   yearsInBusiness: "", clientsServed: "", awardsCredentials: "",
-  brandVoice: "", tone: "", targetAudience: "", languageStyle: "",
+  brandVoice: "", tone: "", targetAudience: "", targetAudienceProblems: "", brandVoiceAnalysis: "", languageStyle: "",
   uvp: "", services: "", primaryCtaUrl: "", primaryCtaLabel: "", competitors: "",
 };
 
@@ -134,6 +136,8 @@ export default function BusinessSetup() {
           brandVoice: business.brandVoice ?? "",
           tone: business.tone ?? "",
           targetAudience: business.targetAudience ?? "",
+          targetAudienceProblems: business.targetAudienceProblems ?? "",
+          brandVoiceAnalysis: business.brandVoiceAnalysis ?? "",
           languageStyle: business.languageStyle ?? "",
           uvp: business.uvp ?? "",
           services: Array.isArray(business.services)
@@ -345,6 +349,8 @@ export default function BusinessSetup() {
           />
           <FormField label="Tone" required value={form.tone} onChange={(v) => handleFieldChange("tone", v)} placeholder="Professional but conversational" />
           <FormField label="Target Audience" required value={form.targetAudience} onChange={(v) => handleFieldChange("targetAudience", v)} placeholder="Australian SMEs in professional services" textarea />
+          <FormField label="Problems You Solve" value={form.targetAudienceProblems} onChange={(v) => handleFieldChange("targetAudienceProblems", v)} placeholder="Businesses struggling to get found on Google, wasting budget on ads that don't convert..." textarea tooltip="Describe the main pain points, challenges, or problems your customers have before they find you. iAudit uses this to make rewritten posts more relevant to your audience." />
+          <FormField label="Brand Voice Analysis" value={form.brandVoiceAnalysis} onChange={(v) => handleFieldChange("brandVoiceAnalysis", v)} placeholder="Uses short, punchy sentences. Avoids jargon. Speaks directly to the reader..." textarea tooltip="A more detailed description of how your brand writes — sentence length, vocabulary, what to avoid. Auto-filled from your website if available." />
           <FormField label="Language Style" value={form.languageStyle} onChange={(v) => handleFieldChange("languageStyle", v)} placeholder="Australian English, plain language" />
         </FormSection>
 

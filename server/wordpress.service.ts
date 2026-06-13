@@ -348,22 +348,14 @@ export async function importWordPressPosts(
           authorName = await fetchAuthorName(baseUrl, authHeader, authorId, authorCache);
         }
 
-        // Focus keyword — Yoast first, then RankMath (top-level or meta), then null
+        // Focus keyword — Yoast first, then RankMath (meta namespace only), then null
+        // Note: raw.rank_math_focus_keyword at root level reads post tags, not the focus keyword — removed.
+        // The @graph fallback also reads tags, not the focus keyword — removed.
         let focusKeyword: string | null = null;
         if (raw.meta?.["_yoast_wpseo_focuskw"]) {
           focusKeyword = raw.meta["_yoast_wpseo_focuskw"] as string;
-        } else if (raw.rank_math_focus_keyword) {
-          focusKeyword = raw.rank_math_focus_keyword as string;
         } else if (raw.meta?.["rank_math_focus_keyword"]) {
           focusKeyword = raw.meta["rank_math_focus_keyword"] as string;
-        } else if (raw.yoast_head_json?.schema?.["@graph"]) {
-          // Fallback: try to extract from Yoast head JSON schema
-          const graph = raw.yoast_head_json.schema["@graph"] as any[];
-          const article = graph.find((n: any) => n["@type"] === "Article");
-          if (article?.keywords) {
-            const kw = Array.isArray(article.keywords) ? article.keywords[0] : article.keywords;
-            focusKeyword = typeof kw === "string" ? kw : null;
-          }
         }
 
         // Meta title & description from Yoast

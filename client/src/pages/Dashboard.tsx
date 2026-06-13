@@ -870,20 +870,30 @@ export default function Dashboard() {
 
                         {/* Score bar */}
                         <td className="px-3 py-3">
-                          <ScoreBar
-                            score={row.auditScore}
-                            grade={row.auditGrade as GradeKey | null}
-                          />
+                          <div className="space-y-0.5">
+                            <ScoreBar
+                              score={row.displayScore}
+                              grade={row.displayGrade as GradeKey | null}
+                            />
+                            {row.displayScore !== null && (
+                              <span className={cn(
+                                "text-[10px] font-medium",
+                                row.isRewriteScore ? "text-violet-400" : "text-muted-foreground/60"
+                              )}>
+                                {row.isRewriteScore ? "Post-Rewrite" : "Original Audit"}
+                              </span>
+                            )}
+                          </div>
                         </td>
 
                         {/* Grade badge */}
                         <td className="px-3 py-3">
-                          <GradeBadge grade={row.auditGrade as GradeKey | null} />
+                          <GradeBadge grade={row.displayGrade as GradeKey | null} />
                         </td>
 
                         {/* Issues count */}
                         <td className="px-3 py-3">
-                          {row.auditScore === null ? (
+                          {row.displayScore === null ? (
                             <span className="text-xs text-muted-foreground">
                               Not audited
                             </span>

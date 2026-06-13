@@ -64,6 +64,11 @@ export interface PostTableRow {
   issueCount: number | null;
   cannibalizationFlag: boolean;
   rewriteStatus: "pending" | "running" | "complete" | "failed" | "needs_manual_review" | "awaiting_review" | "approved" | null;
+  rewriteScore: number | null;
+  rewriteGrade: "optimised" | "strong" | "needs_work" | "poor" | "critical" | null;
+  displayScore: number | null;
+  displayGrade: "optimised" | "strong" | "needs_work" | "poor" | "critical" | null;
+  isRewriteScore: boolean;
   publishDate: Date | null;
   scheduledDate: Date | null;
   authorNameCms: string;
@@ -317,6 +322,8 @@ export async function getPostTableRows(
       auditResults: posts.auditResults,
       cannibalizationFlag: posts.cannibalizationFlag,
       rewriteStatus: posts.rewriteStatus,
+      rewriteScore: posts.rewriteScore,
+      rewriteGrade: posts.rewriteGrade,
       publishDate: posts.publishDate,
       scheduledDate: posts.scheduledDate,
       authorNameCms: posts.authorNameCms,
@@ -350,6 +357,11 @@ export async function getPostTableRows(
       issueCount,
       cannibalizationFlag: row.cannibalizationFlag,
       rewriteStatus: row.rewriteStatus ?? null,
+      rewriteScore: row.rewriteScore ?? null,
+      rewriteGrade: (row.rewriteGrade ?? null) as PostTableRow["rewriteGrade"],
+      displayScore: row.rewriteScore ?? row.auditScore ?? null,
+      displayGrade: (row.rewriteGrade ?? row.auditGrade ?? null) as PostTableRow["displayGrade"],
+      isRewriteScore: row.rewriteScore !== null && row.rewriteScore !== undefined,
       publishDate: row.publishDate ?? null,
       scheduledDate: row.scheduledDate ?? null,
       authorNameCms: row.authorNameCms,
@@ -369,8 +381,8 @@ export async function getPostTableRows(
   mapped.sort((a, b) => {
     let cmp = 0;
     if (sortField === "score") {
-      const aScore = a.auditScore ?? -1;
-      const bScore = b.auditScore ?? -1;
+      const aScore = a.displayScore ?? -1;
+      const bScore = b.displayScore ?? -1;
       cmp = aScore - bScore;
     } else if (sortField === "grade") {
       const aGrade = gradeOrder[a.auditGrade ?? ""] ?? -1;

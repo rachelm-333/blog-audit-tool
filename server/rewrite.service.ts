@@ -33,6 +33,8 @@ export interface BusinessContext {
   brandVoice: string;
   tone: string;
   targetAudience: string;
+  targetAudienceProblems?: string | null;
+  brandVoiceAnalysis?: string | null;
   uvp: string;
   services: Array<{ name: string; description?: string }>;
   primaryCtaUrl: string;
@@ -60,6 +62,8 @@ export interface Pass1Input {
   originalCtaSection?: string | null;
   /** Extracted FAQ section from original post — must be preserved verbatim */
   originalFaqSection?: string | null;
+  /** Optional free-text instructions from the user to guide the rewrite */
+  userInstructions?: string | null;
 }
 
 export interface Pass1Output {
@@ -254,15 +258,19 @@ function buildPass1SystemPrompt(input: Pass1Input): string {
     ? `INTERNAL BLOG LINKS (P12 — you MUST include at least one of these as a hyperlink in the body):\n${internalLinksText}`
     : 'No internal blog posts available yet — skip P12.';
 
-  return `You are an expert SEO content writer producing a fully optimised blog post for an Australian business. Your output MUST pass all 16 points of the Authority Standard below.
+  const userInstructionsBlock = input.userInstructions?.trim()
+    ? `USER INSTRUCTIONS: ${input.userInstructions.trim()}\n\n`
+    : '';
+
+  return `${userInstructionsBlock}You are an expert SEO content writer producing a fully optimised blog post for an Australian business. Your output MUST pass all 16 points of the Authority Standard below.
 
 BUSINESS CONTEXT:
 - Business: ${input.businessContext.businessName}
 - Website: ${input.businessContext.websiteUrl}
 - Brand Voice: ${input.businessContext.brandVoice}
 - Tone: ${input.businessContext.tone}
-- Target Audience: ${input.businessContext.targetAudience}
-- UVP: ${input.businessContext.uvp}
+- Target Audience: ${input.businessContext.targetAudience}${input.businessContext.targetAudienceProblems ? `\n- Problems This Business Solves: ${input.businessContext.targetAudienceProblems}` : ''}
+- UVP: ${input.businessContext.uvp}${input.businessContext.brandVoiceAnalysis ? `\n- Brand Voice Analysis: ${input.businessContext.brandVoiceAnalysis}` : ''}
 - Services: ${input.businessContext.services.map((s) => s.name).join(", ")}
 ${input.businessContext.awardsCredentials ? `- Credentials / Awards: ${input.businessContext.awardsCredentials}` : ""}
 
@@ -278,6 +286,14 @@ ${secondaryKeywordsText ? secondaryKeywordsText + "\n" : ""}PAA QUESTION: "${inp
 ${modeInstruction}
 
 ${failingPointsText}
+
+═══ STRICT RULES — YOU MUST FOLLOW THESE ═══
+
+1. You MUST work with the existing content. Do not invent facts, statistics, quotes, or claims not present in the original article.
+2. Plan the entire article structure BEFORE writing. Total word count must be between ${input.wordCountTarget.min} and ${input.wordCountTarget.max}. Do not exceed the upper limit.
+3. Meta title must be composed at 50–60 characters from the start. Do not write long and truncate.
+4. Meta description must be composed at 140–160 characters from the start. Do not write long and truncate.
+5. Preserve the core message, main points, and factual content of the original article. You are improving the writing, not replacing the substance.
 
 ═══ MANDATORY STRUCTURE — FOLLOW EXACTLY ═══
 
@@ -478,15 +494,7 @@ export function runMechanicalEnforcement(
   }
   const density = wc > 0 ? (kwCount / wc) * 100 : 0;
 
-  // If keyword appears fewer than 4 times, inject it naturally into the text
-  if (kwCount < 4 || density < 0.5) {
-    const needed = Math.max(4 - kwCount, 0);
-    for (let i = 0; i < needed; i++) {
-      // Append a natural sentence with the keyword before the closing paragraph
-      const injection = ` For more information about ${focusKeyword}, contact us today.`;
-      bodyRewritten = bodyRewritten.replace(/<\/p>/, injection + "</p>");
-    }
-  }
+  // Keyword density is informational only — do not auto-inject text.
 
   // --- P4: Keyword in H3 ---
   const h3EnforceRegex = /<h3[^>]*>(.*?)<\/h3>/gi;
@@ -585,16 +593,7 @@ export function runMechanicalEnforcement(
       metaDescriptionRewritten = (lastSpace > 100 ? trimmed.slice(0, lastSpace) : trimmed).trimEnd();
     }
   }
-  if (metaDescriptionRewritten.length < 140) {
-    // Pad with a natural, keyword-relevant sentence to reach the minimum
-    const padding = ` Discover how ${focusKeyword} can work for your business today.`;
-    metaDescriptionRewritten = (metaDescriptionRewritten + padding).slice(0, 160).trimEnd();
-    // If still short, add a second sentence
-    if (metaDescriptionRewritten.length < 140) {
-      const padding2 = ` Get expert guidance and practical tips to get started.`;
-      metaDescriptionRewritten = (metaDescriptionRewritten + padding2).slice(0, 160).trimEnd();
-    }
-  }
+  // If meta description is too short, leave it as-is for manual correction.
 
   // --- P9: Opening Answer Block ---
   // Strictly require a STANDALONE bold-only paragraph as the very first non-heading element.
@@ -1239,8 +1238,10 @@ export async function runFullRewrite(params: {
   preserveCta?: boolean;
   /** When true (default), extract and preserve the FAQ section verbatim — do not rewrite it */
   preserveFaq?: boolean;
+  /** Optional free-text instructions from the user to guide the rewrite */
+  userInstructions?: string | null;
 }): Promise<RewriteResult> {
-  const { post, businessContext, internalLinks, failingPoints, paaQuestion, secondaryKeywords = [], rewriteMode = "full_rewrite", preserveCta = true, preserveFaq = true } = params;
+  const { post, businessContext, internalLinks, failingPoints, paaQuestion, secondaryKeywords = [], rewriteMode = "full_rewrite", preserveCta = true, preserveFaq = true, userInstructions } = params;
 
   const articleType = inferArticleType(post.bodyOriginal);
   const wordCountTarget = ARTICLE_TYPE_TARGETS[articleType];
@@ -1267,6 +1268,7 @@ export async function runFullRewrite(params: {
     metaDescriptionOriginal: post.metaDescriptionOriginal,
     originalCtaSection: preserveCta ? ctaSection : null,
     originalFaqSection: preserveFaq ? faqSection : null,
+    userInstructions: userInstructions ?? null,
   };
 
   let pass1Output = await runPass1Rewrite(pass1Input);

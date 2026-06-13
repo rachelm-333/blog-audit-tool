@@ -97,6 +97,8 @@ export const businesses = mysqlTable(
     brandVoice: text("brand_voice").notNull(),
     tone: text("tone").notNull(),
     targetAudience: text("target_audience").notNull(),
+    targetAudienceProblems: text("target_audience_problems"),
+    brandVoiceAnalysis: text("brand_voice_analysis"),
     languageStyle: text("language_style"),
     uvp: text("uvp").notNull(),
     // JSONB: Array of {name, description}
