@@ -58,10 +58,13 @@ const WIX_STATUS_MAP: Record<string, WpPostStatus> = {
 function buildHeaders(creds: WixCredentials): Record<string, string> {
   // Wix Blog API v3 requires the raw API key in Authorization — NO "Bearer" prefix.
   // See: https://dev.wix.com/docs/api-reference/articles/authentication/api-keys/make-api-calls-with-an-api-key
+  //
+  // IMPORTANT: Do NOT send Content-Type on GET requests. Wix v3 interprets any
+  // Content-Type header as a signal that there is a request body and attempts to
+  // deserialise it, throwing "Failed to parse JSON or deserialize protobuf message".
   return {
     "Authorization": creds.apiKey,
     "wix-site-id": creds.siteId,
-    "Content-Type": "application/json",
     "Accept": "application/json",
   };
 }
