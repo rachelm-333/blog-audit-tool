@@ -774,3 +774,10 @@
 - [x] Add instruction: generate question DIRECTLY related to this post's topic and keyword; do NOT suggest questions about unrelated topics
 - [x] Add relevance validation: question must contain focus keyword OR 2+ words from post title (>3 chars); if not, regenerate once; if second attempt also fails, return empty string for user to fill manually
 - [x] Fix public-rewrite.service.ts to also pass title and body to lookupPaaQuestion
+
+## Bug Fix — Wix Keyword Detection & Post Status (June 2026)
+
+- [ ] FIX 1: Rewrite Wix keyword detection to use priority-order sources: Wix SEO metafield → URL slug (strip hyphens, ignore stop words) → post title (extract 2-3 word phrase) → first 100 words of body
+- [ ] FIX 2: Validate detected keyword before saving: must be 2+ words, must not be only stop words, must be specific enough; if validation fails leave blank
+- [ ] FIX 3: Show full post title on hover as tooltip in dashboard post list (title column currently truncates)
+- [ ] FIX 4: Fix Wix post status — all 249 posts show "Draft · Unknown" even though published; fix import to read published/draft status from Wix API response

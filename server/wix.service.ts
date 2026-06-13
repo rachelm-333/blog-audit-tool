@@ -20,6 +20,7 @@ import type { WixCredentials } from "./encryption.service";
 import { extractBodyImageAlts } from "./wordpress.service";
 import type { WpImportedPost, WpPostStatus } from "./wordpress.service";
 import { PostBackException, preserveImagesInBody } from "./postback.service";
+import { extractKeywordFromTitle } from "./keyword.service";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -367,16 +368,77 @@ function parseWixPost(raw: Record<string, unknown>): WpImportedPost {
 
   const bodyImageAlts = extractBodyImageAlts(bodyHtml);
 
+  // ── FIX 1+2: Keyword detection with priority-order sources and validation ──
+  const WIX_STOP_WORDS = new Set([
+    "how", "to", "a", "the", "for", "in", "with", "that", "is", "are",
+    "your", "and", "or", "of", "on", "at", "by", "an", "be", "do",
+    "it", "as", "up", "if", "no", "so", "we", "my", "our", "you",
+    "was", "has", "had", "not", "but", "can", "get", "all", "from",
+  ]);
+
+  function isValidKeyword(kw: string | null | undefined): kw is string {
+    if (!kw || kw.trim().length === 0) return false;
+    const words = kw.trim().toLowerCase().split(/\s+/);
+    if (words.length < 2) return false;
+    // Must not be ONLY stop words
+    const hasNonStop = words.some((w) => !WIX_STOP_WORDS.has(w));
+    if (!hasNonStop) return false;
+    // Must not start AND end with stop words (catches fragments like "how setup phone")
+    if (WIX_STOP_WORDS.has(words[0]) && WIX_STOP_WORDS.has(words[words.length - 1])) return false;
+    return true;
+  }
+
+  function extractFromSlug(slug: string): string | null {
+    const words = slug
+      .replace(/^\/|\/$|^blog\/|^posts\//g, "")
+      .split(/[-/]+/)
+      .map((w) => w.toLowerCase())
+      .filter((w) => w.length > 1 && !WIX_STOP_WORDS.has(w));
+    if (words.length < 2) return null;
+    return words.slice(0, 3).join(" ");
+  }
+
+  // Priority 1: Wix SEO metafield (not exposed in standard Wix Blog API — skip)
+  // Priority 2: URL slug
+  let detectedKeyword: string | null = null;
+  if (urlPath) {
+    const slugKw = extractFromSlug(urlPath);
+    if (isValidKeyword(slugKw)) detectedKeyword = slugKw;
+  }
+  // Priority 3+4+5: extractKeywordFromTitle (title + body + metaTitle + metaDesc — 5-zone scoring)
+  if (!detectedKeyword) {
+    const titleKw = extractKeywordFromTitle(
+      title,
+      bodyHtml,
+      metaTitle ?? "",
+      metaDescription ?? "",
+    );
+    if (isValidKeyword(titleKw)) detectedKeyword = titleKw;
+  }
+  // If still invalid, leave null — user fills manually
+  const focusKeyword = detectedKeyword;
+
+  // ── FIX 4: Correctly read published/draft status from Wix API ──
+  // The Wix Blog API returns status on the top-level post object.
+  // When fetching published posts via /posts endpoint, status is always PUBLISHED.
+  // When fetching draft posts via /draft-posts endpoint, status may be DRAFT.
+  // WIX_STATUS_MAP already handles this correctly — the bug was that some Wix
+  // sites return a nested status inside a `publishingStatus` field.
+  const rawStatus = (raw.status as string)
+    ?? (raw.publishingStatus as string)
+    ?? "";
+  const resolvedStatus: WpPostStatus = WIX_STATUS_MAP[rawStatus] ?? "published";
+
   return {
     cmsPostId,
     title,
-    status,
+    status: resolvedStatus,
     url: fullUrl,
     publishDate,
     scheduledDate: null,
     authorIdCms: "",
     authorNameCms: "",
-    focusKeyword: null,
+    focusKeyword,
     metaTitle: metaTitle || title,
     metaDescription,
     featuredImageUrl: null,

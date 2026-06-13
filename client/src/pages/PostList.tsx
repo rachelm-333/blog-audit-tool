@@ -1847,6 +1847,7 @@ export default function PostList() {
                     <div className="flex-1 min-w-0">
                       <button
                         onClick={() => setPreviewPost(post)}
+                        title={post.title}
                         className="text-sm font-medium text-foreground hover:text-primary truncate block text-left w-full"
                       >
                         {post.title}
