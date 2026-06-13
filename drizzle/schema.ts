@@ -449,3 +449,34 @@ export const errorLog = mysqlTable(
 
 export type ErrorLog = typeof errorLog.$inferSelect;
 export type InsertErrorLog = typeof errorLog.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// audit_jobs — tracks progress of a batch "Audit All" run
+// Created when runAuditAll is called; polled by the frontend every 3 seconds.
+// ---------------------------------------------------------------------------
+export const auditJobs = mysqlTable(
+  "audit_jobs",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(), // UUID
+    businessId: varchar("business_id", { length: 36 })
+      .notNull()
+      .references(() => businesses.id),
+    status: mysqlEnum("status", ["running", "complete", "failed"])
+      .notNull()
+      .default("running"),
+    total: int("total").notNull().default(0),
+    completed: int("completed").notNull().default(0),
+    failed: int("failed").notNull().default(0),
+    // JSON array of { postId: string, title: string, error: string }
+    failedPosts: json("failed_posts"),
+    startedAt: timestamp("started_at").defaultNow().notNull(),
+    finishedAt: timestamp("finished_at"),
+  },
+  (table) => [
+    index("audit_jobs_business_id_idx").on(table.businessId),
+    index("audit_jobs_status_idx").on(table.status),
+  ]
+);
+
+export type AuditJob = typeof auditJobs.$inferSelect;
+export type InsertAuditJob = typeof auditJobs.$inferInsert;

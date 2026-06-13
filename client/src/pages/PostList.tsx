@@ -11,7 +11,7 @@
  * - Dashboard overview (health score, grade breakdown, score potential) (Layer 6)
  * - Fix This Post rewrite flow: PAA modal → progress → result panel (Layer 7)
  */
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useIauditAuth, getIauditUserId } from "@/hooks/useIauditAuth";
@@ -1107,6 +1107,12 @@ export default function PostList() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [auditingAll, setAuditingAll] = useState(false);
   const [auditProgress, setAuditProgress] = useState(0);
+  const [auditJobId, setAuditJobId] = useState<string | null>(null);
+  const [auditJobTotal, setAuditJobTotal] = useState(0);
+  const [auditJobCompleted, setAuditJobCompleted] = useState(0);
+  const [auditJobFailed, setAuditJobFailed] = useState(0);
+  const [auditJobFailedPosts, setAuditJobFailedPosts] = useState<Array<{ postId: string; title: string; error: string }>>([]);
+  const auditPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Post content preview panel
   const [previewPost, setPreviewPost] = useState<Post | null>(null);
 
@@ -1260,41 +1266,75 @@ export default function PostList() {
     );
   };
 
+  const trpcUtils = trpc.useUtils();
+
   const handleAuditAll = () => {
     if (!businessId || !iauditUserId) return;
     setAuditingAll(true);
-    setAuditProgress(10);
+    setAuditProgress(2);
+    setAuditJobCompleted(0);
+    setAuditJobFailed(0);
+    setAuditJobFailedPosts([]);
     auditAllMutation.mutate(
       { businessId, iauditUserId },
       {
         onSuccess: (result) => {
-          setAuditProgress(100);
-          setTimeout(() => {
+          if (!result.jobId) {
+            // No posts to audit
             setAuditingAll(false);
             setAuditProgress(0);
-            refetch();
-            toast.success(
-              `Audit complete — ${result.audited} post${result.audited !== 1 ? "s" : ""} scored.${result.skipped > 0 ? ` ${result.skipped} skipped (no keyword).` : ""}`
-            );
-          }, 600);
+            toast.info("No posts to audit.");
+            return;
+          }
+          const jobId = result.jobId;
+          const total = result.total;
+          setAuditJobId(jobId);
+          setAuditJobTotal(total);
+
+          // Poll every 3 seconds for job status
+          auditPollRef.current = setInterval(async () => {
+            try {
+              const status = await trpcUtils.audit.getAuditJobStatus.fetch({
+                jobId,
+                iauditUserId: iauditUserId ?? "",
+              });
+              setAuditJobCompleted(status.completed);
+              setAuditJobFailed(status.failed);
+              setAuditJobFailedPosts(status.failedPosts);
+              const pct = total > 0 ? Math.round(((status.completed + status.failed) / total) * 100) : 0;
+              setAuditProgress(Math.max(pct, 2));
+
+              if (status.status === "complete" || status.status === "failed") {
+                if (auditPollRef.current) clearInterval(auditPollRef.current);
+                setAuditProgress(100);
+                setTimeout(() => {
+                  setAuditingAll(false);
+                  setAuditProgress(0);
+                  setAuditJobId(null);
+                  refetch();
+                  if (status.failed > 0) {
+                    toast.warning(
+                      `Audit complete — ${status.completed} scored, ${status.failed} failed.`
+                    );
+                  } else {
+                    toast.success(
+                      `Audit complete — ${status.completed} post${status.completed !== 1 ? "s" : ""} scored.`
+                    );
+                  }
+                }, 600);
+              }
+            } catch {
+              // Polling error — keep trying
+            }
+          }, 3000);
         },
         onError: () => {
           setAuditingAll(false);
           setAuditProgress(0);
-          toast.error("Audit failed. Please try again.");
+          toast.error("Audit failed to start. Please try again.");
         },
       }
     );
-    // Animate progress while running
-    const interval = setInterval(() => {
-      setAuditProgress((prev) => {
-        if (prev >= 90) {
-          clearInterval(interval);
-          return prev;
-        }
-        return prev + 5;
-      });
-    }, 800);
   };
 
     const handleAuditOne = (post: Post) => {
@@ -1600,13 +1640,42 @@ export default function PostList() {
 
         {/* Audit progress bar */}
         {auditingAll && (
-          <div className="mb-4">
-            <Progress value={auditProgress} className="h-1.5" />
-            <p className="text-xs text-muted-foreground mt-1.5">
-              Auditing {posts.length} post
-              {posts.length !== 1 ? "s" : ""}… this may take a
-              moment.
+          <div className="mb-4 rounded-lg border border-border bg-card p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium">
+                {auditJobTotal > 0
+                  ? `Auditing ${auditJobCompleted + auditJobFailed} of ${auditJobTotal}…`
+                  : "Starting audit…"}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {auditJobTotal > 0 ? `${auditProgress}%` : ""}
+              </span>
+            </div>
+            <Progress value={auditProgress} className="h-2" />
+            {auditJobFailed > 0 && (
+              <p className="text-xs text-amber-500 mt-1.5">
+                {auditJobFailed} post{auditJobFailed !== 1 ? "s" : ""} failed — will be skipped.
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground mt-1">
+              Processing in batches of 5. Do not close this page.
             </p>
+          </div>
+        )}
+        {/* Failed posts list after audit */}
+        {!auditingAll && auditJobFailedPosts.length > 0 && (
+          <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+            <p className="text-xs font-medium text-amber-600 mb-1">
+              {auditJobFailedPosts.length} post{auditJobFailedPosts.length !== 1 ? "s" : ""} could not be audited:
+            </p>
+            <ul className="text-xs text-muted-foreground space-y-0.5">
+              {auditJobFailedPosts.slice(0, 5).map((fp) => (
+                <li key={fp.postId} className="truncate">• {fp.title || fp.postId}</li>
+              ))}
+              {auditJobFailedPosts.length > 5 && (
+                <li className="text-muted-foreground">…and {auditJobFailedPosts.length - 5} more</li>
+              )}
+            </ul>
           </div>
         )}
 

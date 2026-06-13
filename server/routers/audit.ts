@@ -20,6 +20,10 @@ import {
   listPostsForDashboard,
   saveAuditResults,
   setAuditStatus,
+  createAuditJob,
+  updateAuditJobProgress,
+  finishAuditJob,
+  getAuditJob,
 } from "../audit.db";
 import { runFullAudit, scoreToGrade } from "../audit.service";
 
@@ -125,11 +129,12 @@ export const auditRouter = router({
       }
     }),
 
-  /**
+    /**
    * audit.runAuditAll
-   * Run the audit on all posts for a business that have a focus keyword.
-   * Posts without a keyword are skipped. Free — no credits consumed.
-   * Returns a summary of results.
+   * Starts an async batch audit job and returns a jobId immediately.
+   * The frontend polls audit.getAuditJobStatus every 3 seconds.
+   * Posts are processed in batches of 5 with a 30-second per-post timeout.
+   * A single post failure does NOT crash the batch — it is logged and skipped.
    */
   runAuditAll: publicProcedure
     .input(
@@ -143,15 +148,9 @@ export const auditRouter = router({
         input.businessId,
         input.iauditUserId
       );
-
       const allPosts = await listPostsForDashboard(input.businessId);
-
       if (allPosts.length === 0) {
-        return {
-          audited: 0,
-          skipped: 0,
-          results: [],
-        };
+        return { jobId: null, total: 0 };
       }
 
       const secondaryCtas = (
@@ -159,59 +158,100 @@ export const auditRouter = router({
       ) ?? [];
       const secondaryCtaUrls = secondaryCtas.map((c) => c.url);
 
-      const results: Array<{
-        postId: string;
-        title: string;
-        score: number;
-        grade: string;
-        status: "complete" | "failed";
-      }> = [];
+      // Create the job row immediately so the frontend can start polling
+      const jobId = await createAuditJob(input.businessId, allPosts.length);
 
-      for (const p of allPosts) {
-        await setAuditStatus(p.id, "running");
-        try {
-          const fullPost = await getPostForAudit(p.id);
-          if (!fullPost) continue;
+      // Run the batch asynchronously — do NOT await so we return the jobId right away
+      (async () => {
+        const BATCH_SIZE = 5;
+        const POST_TIMEOUT_MS = 30_000;
 
-          const result = await runFullAudit({
-            title: fullPost.title,
-            bodyHtml: fullPost.bodyOriginal,
-            url: fullPost.url,
-            focusKeyword: fullPost.focusKeyword,
-            metaTitle: fullPost.metaTitleOriginal,
-            metaDescription: fullPost.metaDescriptionOriginal,
-            primaryCtaUrl: business.primaryCtaUrl,
-            secondaryCtaUrls,
-          });
+        for (let i = 0; i < allPosts.length; i += BATCH_SIZE) {
+          const batch = allPosts.slice(i, i + BATCH_SIZE);
 
-          await saveAuditResults(fullPost.id, result.score, result.grade, {
-            points: result.points,
-            potentialScore: result.potentialScore,
-          });
+          await Promise.all(
+            batch.map(async (p) => {
+              await setAuditStatus(p.id, "running");
+              try {
+                // Wrap each audit in a race against a 30-second timeout
+                const result = await Promise.race([
+                  (async () => {
+                    const fullPost = await getPostForAudit(p.id);
+                    if (!fullPost) throw new Error("Post not found");
+                    return runFullAudit({
+                      title: fullPost.title,
+                      bodyHtml: fullPost.bodyOriginal,
+                      url: fullPost.url,
+                      focusKeyword: fullPost.focusKeyword,
+                      metaTitle: fullPost.metaTitleOriginal,
+                      metaDescription: fullPost.metaDescriptionOriginal,
+                      primaryCtaUrl: business.primaryCtaUrl,
+                      secondaryCtaUrls,
+                    });
+                  })(),
+                  new Promise<never>((_, reject) =>
+                    setTimeout(() => reject(new Error("Audit timed out after 30s")), POST_TIMEOUT_MS)
+                  ),
+                ]);
 
-          results.push({
-            postId: fullPost.id,
-            title: fullPost.title,
-            score: result.score,
-            grade: result.grade,
-            status: "complete",
-          });
-        } catch {
-          await setAuditStatus(p.id, "failed");
-          results.push({
-            postId: p.id,
-            title: p.title,
-            score: 0,
-            grade: "critical",
-            status: "failed",
-          });
+                const fullPost = await getPostForAudit(p.id);
+                if (fullPost) {
+                  await saveAuditResults(fullPost.id, result.score, result.grade, {
+                    points: result.points,
+                    potentialScore: result.potentialScore,
+                  });
+                }
+                await updateAuditJobProgress(jobId, { completedDelta: 1 });
+              } catch (err) {
+                await setAuditStatus(p.id, "failed");
+                const errMsg = err instanceof Error ? err.message : String(err);
+                await updateAuditJobProgress(jobId, {
+                  failedPost: { postId: p.id, title: p.title ?? "", error: errMsg },
+                });
+              }
+            })
+          );
         }
-      }
 
+        await finishAuditJob(jobId, "complete");
+      })().catch(async (err) => {
+        console.error("[runAuditAll] Unexpected batch error:", err);
+        await finishAuditJob(jobId, "failed");
+      });
+
+      return { jobId, total: allPosts.length };
+    }),
+
+  /**
+   * audit.getAuditJobStatus
+   * Poll this every 3 seconds from the frontend to track batch audit progress.
+   */
+  getAuditJobStatus: publicProcedure
+    .input(
+      z.object({
+        jobId: z.string().min(1),
+        iauditUserId: z.string().min(1),
+      })
+    )
+    .query(async ({ input }) => {
+      const job = await getAuditJob(input.jobId);
+      if (!job) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Audit job not found." });
+      }
+      // Verify ownership via the business
+      const business = await getBusinessById(job.businessId);
+      if (!business || business.userId !== input.iauditUserId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Access denied." });
+      }
       return {
-        audited: results.filter((r) => r.status === "complete").length,
-        skipped: 0,
-        results,
+        jobId: job.id,
+        status: job.status,
+        total: job.total,
+        completed: job.completed,
+        failed: job.failed,
+        failedPosts: (job.failedPosts as Array<{ postId: string; title: string; error: string }> | null) ?? [],
+        startedAt: job.startedAt,
+        finishedAt: job.finishedAt ?? null,
       };
     }),
 

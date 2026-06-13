@@ -758,3 +758,11 @@
 - [x] FIX 5 — Wix image preservation: preserveImagesInBody now distributes images proportionally across paragraphs (ratio-based) instead of all after paragraph 1
 - [x] FIX 6 — Business profile: added targetAudienceProblems + brandVoiceAnalysis columns (schema + migration + API + scraping + rewrite prompt + UI form fields "Problems You Solve" and "Brand Voice Analysis")
 - [x] FIX 7 — Dashboard score display: PostTableRow now returns displayScore/displayGrade (rewriteScore if exists, else auditScore) + isRewriteScore boolean; Dashboard shows "Post-Rewrite" (violet) or "Original Audit" (muted) label under each score bar
+
+## Bug Fix — Batch Audit Crash on 250+ Posts (June 2026)
+
+- [x] Add `audit_jobs` table to schema: id, business_id, status, total, completed, failed, failed_posts (JSON), started_at, finished_at
+- [x] Apply migration for audit_jobs table
+- [x] Rewrite runAuditAll to: create job row, return jobId immediately, process posts in batches of 5 with per-post 30s timeout, log failures without crashing, update job progress after each batch
+- [x] Add getAuditJobStatus tRPC procedure for frontend polling
+- [x] Update frontend Audit All button: show progress bar polling every 3s, display "Auditing X of Y...", show failed post list at end
