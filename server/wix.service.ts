@@ -20,7 +20,7 @@ import type { WixCredentials } from "./encryption.service";
 import { extractBodyImageAlts } from "./wordpress.service";
 import type { WpImportedPost, WpPostStatus } from "./wordpress.service";
 import { PostBackException, preserveImagesInBody } from "./postback.service";
-import { extractKeywordFromTitle } from "./keyword.service";
+import { extractKeywordFromTitle, validateKeyword } from "./keyword.service";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -368,44 +368,48 @@ function parseWixPost(raw: Record<string, unknown>): WpImportedPost {
 
   const bodyImageAlts = extractBodyImageAlts(bodyHtml);
 
-  // ── FIX 1+2: Keyword detection with priority-order sources and validation ──
-  const WIX_STOP_WORDS = new Set([
-    "how", "to", "a", "the", "for", "in", "with", "that", "is", "are",
-    "your", "and", "or", "of", "on", "at", "by", "an", "be", "do",
-    "it", "as", "up", "if", "no", "so", "we", "my", "our", "you",
-    "was", "has", "had", "not", "but", "can", "get", "all", "from",
-  ]);
-
-  function isValidKeyword(kw: string | null | undefined): kw is string {
-    if (!kw || kw.trim().length === 0) return false;
-    const words = kw.trim().toLowerCase().split(/\s+/);
-    if (words.length < 2) return false;
-    // Must not be ONLY stop words
-    const hasNonStop = words.some((w) => !WIX_STOP_WORDS.has(w));
-    if (!hasNonStop) return false;
-    // Must not start AND end with stop words (catches fragments like "how setup phone")
-    if (WIX_STOP_WORDS.has(words[0]) && WIX_STOP_WORDS.has(words[words.length - 1])) return false;
-    return true;
-  }
+  // ── Keyword detection with priority-order sources and shared validateKeyword ──
+  // Uses the centralised validateKeyword from keyword.service (2–5 words, not all stop words).
 
   function extractFromSlug(slug: string): string | null {
+    // Strip common URL prefixes and split on hyphens/slashes
     const words = slug
       .replace(/^\/|\/$|^blog\/|^posts\//g, "")
       .split(/[-/]+/)
       .map((w) => w.toLowerCase())
-      .filter((w) => w.length > 1 && !WIX_STOP_WORDS.has(w));
-    if (words.length < 2) return null;
-    return words.slice(0, 3).join(" ");
+      .filter((w) => w.length > 1);
+    const phrase = words.slice(0, 4).join(" ");
+    return validateKeyword(phrase) ? phrase : null;
   }
 
-  // Priority 1: Wix SEO metafield (not exposed in standard Wix Blog API — skip)
-  // Priority 2: URL slug
+  // Priority 1: seoData.settings.keywords (Wix SEO app)
   let detectedKeyword: string | null = null;
-  if (urlPath) {
-    const slugKw = extractFromSlug(urlPath);
-    if (isValidKeyword(slugKw)) detectedKeyword = slugKw;
+  const seoSettings = seo?.settings as Record<string, unknown> | undefined;
+  const seoKeywordsRaw = seoSettings?.keywords as string | string[] | undefined;
+  if (seoKeywordsRaw) {
+    const first = Array.isArray(seoKeywordsRaw)
+      ? seoKeywordsRaw[0]
+      : seoKeywordsRaw.split(",")[0];
+    const trimmed = first?.trim().toLowerCase() ?? "";
+    if (trimmed && validateKeyword(trimmed)) detectedKeyword = trimmed;
   }
-  // Priority 3+4+5: extractKeywordFromTitle (title + body + metaTitle + metaDesc — 5-zone scoring)
+
+  // Priority 2: seoData.tags keyword meta tag
+  if (!detectedKeyword && seo?.tags && Array.isArray(seo.tags)) {
+    for (const tag of seo.tags as Record<string, unknown>[]) {
+      if (tag.type === "meta" && (tag.props as Record<string, string>)?.name === "keywords") {
+        const kw = ((tag.props as Record<string, string>).content ?? "").split(",")[0].trim().toLowerCase();
+        if (kw && validateKeyword(kw)) { detectedKeyword = kw; break; }
+      }
+    }
+  }
+
+  // Priority 3: URL slug
+  if (!detectedKeyword && urlPath) {
+    const slugKw = extractFromSlug(urlPath);
+    if (slugKw) detectedKeyword = slugKw;
+  }
+  // Priority 4: extractKeywordFromTitle (title + body + metaTitle + metaDesc — 5-zone scoring)
   if (!detectedKeyword) {
     const titleKw = extractKeywordFromTitle(
       title,
@@ -413,7 +417,7 @@ function parseWixPost(raw: Record<string, unknown>): WpImportedPost {
       metaTitle ?? "",
       metaDescription ?? "",
     );
-    if (isValidKeyword(titleKw)) detectedKeyword = titleKw;
+    if (titleKw && validateKeyword(titleKw)) detectedKeyword = titleKw;
   }
   // If still invalid, leave null — user fills manually
   const focusKeyword = detectedKeyword;

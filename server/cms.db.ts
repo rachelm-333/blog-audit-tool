@@ -18,7 +18,7 @@ import type { WpImportedPost } from "./wordpress.service";
 
 export interface CreateConnectionInput {
   businessId: string;
-  platform: "wordpress" | "wix" | "shopify" | "zapier";
+  platform: "wordpress" | "wix" | "shopify" | "webflow" | "zapier";
   siteUrl: string;
   credentials: CmsCredentials;
 }
@@ -108,7 +108,7 @@ export function decryptConnectionCredentials(
 
 export interface UpsertPostInput extends WpImportedPost {
   businessId: string;
-  cmsPlatform: "wordpress" | "wix" | "shopify" | "zapier";
+  cmsPlatform: "wordpress" | "wix" | "shopify" | "webflow" | "zapier";
 }
 
 /**

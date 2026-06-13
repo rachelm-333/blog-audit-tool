@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 const benefits = [
   "16-point SEO audit on every post",
   "Two-pass AI rewrite engine",
-  "Direct CMS push-back (WordPress, Wix, Shopify)",
+  "Direct CMS push-back (WordPress, Wix, Shopify, Webflow)",
   "Free audit on any URL — no account needed",
 ];
 

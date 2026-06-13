@@ -777,7 +777,26 @@
 
 ## Bug Fix — Wix Keyword Detection & Post Status (June 2026)
 
-- [ ] FIX 1: Rewrite Wix keyword detection to use priority-order sources: Wix SEO metafield → URL slug (strip hyphens, ignore stop words) → post title (extract 2-3 word phrase) → first 100 words of body
-- [ ] FIX 2: Validate detected keyword before saving: must be 2+ words, must not be only stop words, must be specific enough; if validation fails leave blank
-- [ ] FIX 3: Show full post title on hover as tooltip in dashboard post list (title column currently truncates)
-- [ ] FIX 4: Fix Wix post status — all 249 posts show "Draft · Unknown" even though published; fix import to read published/draft status from Wix API response
+- [x] FIX 1: Rewrite Wix keyword detection to use priority-order sources: Wix SEO metafield → URL slug (strip hyphens, ignore stop words) → post title (extract 2-3 word phrase) → first 100 words of body
+- [x] FIX 2: Validate detected keyword before saving: must be 2+ words, must not be only stop words, must be specific enough; if validation fails leave blank
+- [x] FIX 3: Show full post title on hover as tooltip in dashboard post list (title column currently truncates)
+- [x] FIX 4: Fix Wix post status — all 249 posts show "Draft · Unknown" even though published; fix import to read published/draft status from Wix API response
+
+## CMS Upgrade — Webflow + Keyword Validation + UI Cards (June 2026)
+
+- [x] Schema: add `webflow` to `platform` enum in `cms_connections` and `cms_platform` enum in `posts`
+- [x] Run migration for updated platform enums
+- [x] Add `WebflowCredentials` interface to `encryption.service.ts`
+- [x] Build `webflow.service.ts` — test connection, import posts (API key + collection ID), keyword from seo-keywords/focus-keyword field → slug → title, status from isDraft, meta title/description from fieldData
+- [x] Add `connectWebflow` tRPC procedure to `cms.ts` router
+- [x] Add Webflow to `testConnection` and `importPosts` procedures in `cms.ts`
+- [x] Add Webflow error mapping to `cms.ts`
+- [x] Centralise keyword validation in `keyword.service.ts`: `validateKeyword(kw)` — must be 2–5 words, not all stop words, not start AND end with stop word
+- [x] Apply `validateKeyword` in WordPress, Wix, Shopify, and Webflow importers
+- [x] Update CMS connection UI (`CmsConnect.tsx`): show all 5 platform cards (WordPress, Wix, Shopify, Webflow, Zapier) with logo/icon, Connected/Not Connected status, Connect/Disconnect button on the connections landing page
+- [x] Add Webflow connection form to `CmsConnect.tsx` (API Key + Collection ID with help tooltips)
+- [x] Update `Platform` type in `CmsConnect.tsx` to include `webflow`
+- [x] Fix post status mapping: WordPress `publish→published`, `future→scheduled`, `draft→draft`; Wix `PUBLISHED→published`, `DRAFT→draft`, `SCHEDULED→scheduled`; Shopify `published_at` null→draft, future→scheduled, past→published; Webflow `isDraft false→published`, `isDraft true→draft`
+- [x] Fix `ReviewEdit.tsx` platform label to include Webflow case
+- [x] Update `cms.db.ts` `CreateConnectionInput.platform` and `UpsertPostInput.cmsPlatform` types to include `webflow`
+- [x] Update `drizzle/schema.ts` `CmsConnection` and `Post` TypeScript types to include `webflow`

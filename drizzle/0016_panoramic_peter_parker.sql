@@ -1,0 +1,2 @@
+ALTER TABLE `cms_connections` MODIFY COLUMN `platform` enum('wordpress','wix','shopify','webflow','zapier') NOT NULL;--> statement-breakpoint
+ALTER TABLE `posts` MODIFY COLUMN `cms_platform` enum('wordpress','wix','shopify','webflow','zapier') NOT NULL;

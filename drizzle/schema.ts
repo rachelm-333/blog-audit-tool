@@ -138,7 +138,7 @@ export const cmsConnections = mysqlTable(
     businessId: varchar("business_id", { length: 36 })
       .notNull()
       .references(() => businesses.id),
-    platform: mysqlEnum("platform", ["wordpress", "wix", "shopify", "zapier"])
+    platform: mysqlEnum("platform", ["wordpress", "wix", "shopify", "webflow", "zapier"])
       .notNull(),
     siteUrl: text("site_url").notNull(),
     // JSONB: Encrypted credentials — NEVER store plain text API keys or passwords here.
@@ -178,6 +178,7 @@ export const posts = mysqlTable(
       "wordpress",
       "wix",
       "shopify",
+      "webflow",
       "zapier",
     ]).notNull(),
     title: text("title").notNull(),

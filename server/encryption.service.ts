@@ -94,8 +94,14 @@ export interface ZapierCredentials {
   outboundWebhookUrl?: string; // User-configured URL for post-back
 }
 
+export interface WebflowCredentials {
+  apiKey: string;       // Webflow API key (Account Settings → API Access)
+  collectionId: string; // CMS Collection ID for blog posts
+}
+
 export type CmsCredentials =
   | WordPressCredentials
   | WixCredentials
   | ShopifyCredentials
+  | WebflowCredentials
   | ZapierCredentials;

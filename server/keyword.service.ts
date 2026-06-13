@@ -181,6 +181,37 @@ export function extractKeywordFromTitle(
 }
 
 // ---------------------------------------------------------------------------
+// Keyword Validation (applies to all CMS importers)
+// ---------------------------------------------------------------------------
+
+/**
+ * Validate a detected keyword before saving to the database.
+ * Rules (from spec):
+ *   - Must be at least 2 words
+ *   - Must not consist only of stop words
+ *   - Must be between 2 and 5 words total
+ *   - Must not start AND end with a stop word
+ *
+ * Returns true if valid, false if the keyword should be discarded.
+ */
+export function validateKeyword(keyword: string | null | undefined): boolean {
+  if (!keyword?.trim()) return false;
+
+  const words = tokenise(keyword);
+
+  // Must be 2–5 words
+  if (words.length < 2 || words.length > 5) return false;
+
+  // Must not consist entirely of stop words
+  if (words.every((w) => STOP_WORDS.has(w))) return false;
+
+  // Must not start AND end with a stop word
+  if (STOP_WORDS.has(words[0]) && STOP_WORDS.has(words[words.length - 1])) return false;
+
+  return true;
+}
+
+// ---------------------------------------------------------------------------
 // AI Keyword Suggestion
 // ---------------------------------------------------------------------------
 

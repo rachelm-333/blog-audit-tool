@@ -18,6 +18,7 @@ import type { ShopifyCredentials } from "./encryption.service";
 import { extractBodyImageAlts } from "./wordpress.service";
 import type { WpImportedPost, WpPostStatus } from "./wordpress.service";
 import { PostBackException } from "./postback.service";
+import { validateKeyword } from "./keyword.service";
 
 // ─── Error types ──────────────────────────────────────────────────────────────
 
@@ -206,7 +207,8 @@ export async function importShopifyPosts(
               const metafields: any[] = metaBody.metafields ?? [];
               for (const mf of metafields) {
                 if (mf.namespace === "seo" && mf.key === "focus_keyword") {
-                  focusKeyword = mf.value ?? null;
+                  const rawKw = mf.value as string | null | undefined;
+                  focusKeyword = rawKw && validateKeyword(rawKw) ? rawKw.trim().toLowerCase() : null;
                 }
                 if (mf.namespace === "global" && mf.key === "title_tag") {
                   metaTitle = mf.value ?? null;

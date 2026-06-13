@@ -219,7 +219,7 @@ function StepCms({ onNext }: { onNext: () => void }) {
               <div>
                 <div className="text-sm font-semibold text-foreground mb-1">Connect your CMS</div>
                 <div className="text-xs text-muted-foreground">
-                  Supports WordPress, Wix, Shopify, and Zapier. You'll need your site URL and an application password.
+                  Supports WordPress, Wix, Shopify, Webflow, and Zapier. You'll need your site URL and API credentials.
                 </div>
               </div>
             </div>

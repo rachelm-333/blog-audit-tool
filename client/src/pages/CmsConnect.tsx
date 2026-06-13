@@ -36,13 +36,14 @@ import {
   ShoppingBag,
   Trash2,
   Zap,
+  Layers,
 } from "lucide-react";
 import { toast } from "sonner";
 import { HelpTooltip } from "@/components/HelpTooltip";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Platform = "wordpress" | "wix" | "shopify" | "zapier";
+type Platform = "wordpress" | "wix" | "shopify" | "webflow" | "zapier";
 type StatusFilter = "published" | "scheduled" | "draft" | "all";
 type View = "connections" | "add-platform" | "connect" | "import-options" | "importing" | "results";
 
@@ -83,6 +84,11 @@ const PLATFORM_META: Record<Platform, { name: string; description: string; icon:
     name: "Shopify",
     description: "Connect via Custom App API",
     icon: <ShoppingBag className="w-8 h-8" />,
+  },
+  webflow: {
+    name: "Webflow",
+    description: "Connect via Webflow Data API v2",
+    icon: <Layers className="w-8 h-8" />,
   },
   zapier: {
     name: "Zapier / Other",
@@ -174,6 +180,10 @@ export default function CmsConnect() {
   const [shopifyShop, setShopifyShop] = useState("");
   const [shopifyAccessToken, setShopifyAccessToken] = useState("");
 
+  // Webflow form
+  const [webflowApiKey, setWebflowApiKey] = useState("");
+  const [webflowCollectionId, setWebflowCollectionId] = useState("");
+
   // Zapier form
   const [zapierOutboundUrl, setZapierOutboundUrl] = useState("");
   const [zapierInboundUrl, setZapierInboundUrl] = useState<string | null>(null);
@@ -198,6 +208,7 @@ export default function CmsConnect() {
   const connectMutation = trpc.cms.connect.useMutation();
   const connectWixMutation = trpc.cms.connectWix.useMutation();
   const connectShopifyMutation = trpc.cms.connectShopify.useMutation();
+  const connectWebflowMutation = trpc.cms.connectWebflow.useMutation();
   const connectZapierMutation = trpc.cms.connectZapier.useMutation();
   const disconnectMutation = trpc.cms.disconnect.useMutation();
   const importMutation = trpc.cms.importPosts.useMutation();
@@ -607,6 +618,90 @@ export default function CmsConnect() {
       );
     }
 
+    // ── Webflow ──
+    if (selectedPlatform === "webflow") {
+      const handleConnect = async () => {
+        if (!iauditUserId) return;
+        setError(null);
+        try {
+          const result = await connectWebflowMutation.mutateAsync({
+            iauditUserId,
+            businessId,
+            apiKey: webflowApiKey,
+            collectionId: webflowCollectionId,
+          });
+          setActiveConnectionId(result.connectionId);
+          await refetchConnections();
+          setJustConnected(result.reconnected ? "Webflow (credentials updated)" : "Webflow");
+          setView("connections");
+        } catch (err: any) {
+          const msg: string = err?.message ?? "Connection failed.";
+          const code = Object.entries(ERROR_MESSAGES).find(([, v]) => v === msg)?.[0] ?? "unknown";
+          setError({ code, message: msg });
+        }
+      };
+
+      return (
+        <div className="max-w-2xl mx-auto px-4 py-6">
+          <div className="max-w-lg mx-auto">
+            <button onClick={goBack} className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm mb-8 transition-colors">
+              <ArrowLeft className="w-4 h-4" /> Back
+            </button>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Connect Webflow</h1>
+            <p className="text-gray-500 mb-6">Connect your Webflow CMS collection using the Webflow Data API v2. Your credentials are encrypted at rest.</p>
+            {error && <ErrorBanner error={error} onDismiss={() => setError(null)} />}
+            <div className="space-y-5 mt-6">
+              <div>
+                <Label className="text-gray-700 mb-1.5 flex items-center gap-1">
+                  Webflow API Key
+                  <HelpTooltip text="Generate a Webflow API key in your Webflow Account Settings → Integrations → API Access → Generate API Token. Give it CMS read access." />
+                </Label>
+                <Input
+                  type="password"
+                  placeholder="Your Webflow API token"
+                  value={webflowApiKey}
+                  onChange={(e) => setWebflowApiKey(e.target.value)}
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Generate in Webflow Account Settings → Integrations → API Access.
+                </p>
+              </div>
+              <div>
+                <Label className="text-gray-700 mb-1.5 flex items-center gap-1">
+                  CMS Collection ID
+                  <HelpTooltip text="The Collection ID for your blog posts collection. Find it in Webflow Designer → CMS → select your Blog Posts collection → the ID appears in the URL or in Collection Settings." />
+                </Label>
+                <Input
+                  type="text"
+                  placeholder="xxxxxxxxxxxxxxxxxxxxxxxx"
+                  value={webflowCollectionId}
+                  onChange={(e) => setWebflowCollectionId(e.target.value)}
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Find in Webflow Designer → CMS → your blog collection → Collection Settings.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-gray-50 border border-gray-200">
+                <Lock className="w-4 h-4 text-emerald-500 shrink-0" />
+                <p className="text-xs text-gray-500">Your credentials are encrypted with AES-256-GCM before being stored.</p>
+              </div>
+              <Button
+                onClick={handleConnect}
+                disabled={!webflowApiKey || !webflowCollectionId || connectWebflowMutation.isPending}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+              >
+                {connectWebflowMutation.isPending ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Connecting…</>
+                ) : (
+                  "Connect Webflow"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     // ── Zapier ──
     if (selectedPlatform === "zapier") {
       const handleConnect = async () => {
@@ -638,9 +733,30 @@ export default function CmsConnect() {
               <ArrowLeft className="w-4 h-4" /> Back
             </button>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Connect via Zapier</h1>
-            <p className="text-gray-500 mb-6">Use Zapier to connect any CMS platform.</p>
+            <p className="text-gray-500 mb-4">Use Zapier as a universal fallback to connect any CMS platform — including platforms not listed above, or when direct API access is restricted.</p>
+
+            {/* Platform-specific setup instructions */}
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 mb-6">
+              <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide mb-3">How to connect your platform via Zapier</p>
+              <ol className="space-y-2 text-xs text-gray-700 list-decimal list-inside">
+                <li>Create a free account at <a href="https://zapier.com" target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline">zapier.com</a> if you don’t have one.</li>
+                <li>Create a new Zap. Choose your CMS as the <strong>Trigger</strong> (e.g. “New Blog Post in WordPress”, “New Post in Wix”, “New Article in Shopify”).</li>
+                <li>Add a <strong>Webhooks by Zapier</strong> action step. Select <em>POST</em> as the method.</li>
+                <li>Paste your iAudit inbound webhook URL (generated below) as the destination URL.</li>
+                <li>Map these fields from your CMS to the webhook payload:
+                  <ul className="ml-4 mt-1 space-y-0.5 list-disc list-inside text-gray-600">
+                    <li><code className="bg-white px-1 rounded">title</code> — post title (required)</li>
+                    <li><code className="bg-white px-1 rounded">body</code> — full post body HTML (required)</li>
+                    <li><code className="bg-white px-1 rounded">focusKeyword</code>, <code className="bg-white px-1 rounded">metaTitle</code>, <code className="bg-white px-1 rounded">metaDescription</code> (optional)</li>
+                    <li><code className="bg-white px-1 rounded">slug</code>, <code className="bg-white px-1 rounded">status</code>, <code className="bg-white px-1 rounded">platform</code>, <code className="bg-white px-1 rounded">postId</code> (optional)</li>
+                  </ul>
+                </li>
+                <li>Turn on your Zap. New posts will appear in iAudit automatically.</li>
+              </ol>
+            </div>
+
             {error && <ErrorBanner error={error} onDismiss={() => setError(null)} />}
-            <div className="space-y-5 mt-6">
+            <div className="space-y-5">
               <div>
                 <Label className="text-gray-700 mb-1.5 block">Inbound Webhook URL</Label>
                 <p className="text-xs text-gray-500 mb-2">Copy this URL into your Zapier zap as the webhook destination.</p>

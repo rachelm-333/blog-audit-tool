@@ -14,7 +14,7 @@ import { Loader2, Eye, EyeOff, Zap, CheckCircle2 } from "lucide-react";
 const benefits = [
   "16-point SEO audit on every post",
   "Two-pass AI rewrite engine",
-  "Direct CMS push-back (WordPress, Wix, Shopify)",
+  "Direct CMS push-back (WordPress, Wix, Shopify, Webflow)",
   "Free audit on any URL — no account needed",
 ];
 

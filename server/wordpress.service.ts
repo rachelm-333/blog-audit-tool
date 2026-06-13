@@ -17,6 +17,7 @@
 
 import { JSDOM } from "jsdom";
 import type { WordPressCredentials } from "./encryption.service";
+import { validateKeyword } from "./keyword.service";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -348,14 +349,14 @@ export async function importWordPressPosts(
           authorName = await fetchAuthorName(baseUrl, authHeader, authorId, authorCache);
         }
 
-        // Focus keyword — Yoast first, then RankMath (meta namespace only), then null
-        // Note: raw.rank_math_focus_keyword at root level reads post tags, not the focus keyword — removed.
-        // The @graph fallback also reads tags, not the focus keyword — removed.
+        // Focus keyword — Yoast first, then RankMath (meta namespace only), then null.
+        // Validated with shared validateKeyword before saving (2–5 words, not all stop words).
         let focusKeyword: string | null = null;
-        if (raw.meta?.["_yoast_wpseo_focuskw"]) {
-          focusKeyword = raw.meta["_yoast_wpseo_focuskw"] as string;
-        } else if (raw.meta?.["rank_math_focus_keyword"]) {
-          focusKeyword = raw.meta["rank_math_focus_keyword"] as string;
+        const rawYoastKw = raw.meta?.["_yoast_wpseo_focuskw"] as string | undefined;
+        const rawRankMathKw = raw.meta?.["rank_math_focus_keyword"] as string | undefined;
+        const rawCmsKw = rawYoastKw || rawRankMathKw || null;
+        if (rawCmsKw && validateKeyword(rawCmsKw)) {
+          focusKeyword = rawCmsKw.trim().toLowerCase();
         }
 
         // Meta title & description from Yoast

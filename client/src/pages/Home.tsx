@@ -31,7 +31,7 @@ const features = [
     icon: Plug,
     title: "Direct CMS Integration",
     description:
-      "Connect WordPress, Wix, or Shopify and push optimised posts back with one click — no copy-paste required.",
+      "Connect WordPress, Wix, Shopify, or Webflow and push optimised posts back with one click — no copy-paste required.",
   },
   {
     icon: Globe,
@@ -56,7 +56,7 @@ const features = [
 const stats = [
   { value: "16", label: "SEO checkpoints" },
   { value: "2×", label: "AI rewrite passes" },
-  { value: "3", label: "CMS integrations" },
+  { value: "4", label: "CMS integrations" },
   { value: "< 60s", label: "per audit" },
 ];
 
@@ -215,7 +215,7 @@ export default function Home() {
           </div>
           <div className="grid md:grid-cols-4 gap-8">
             {[
-              { step: "01", title: "Connect your CMS", desc: "Link WordPress, Wix, or Shopify in under 2 minutes." },
+              { step: "01", title: "Connect your CMS", desc: "Link WordPress, Wix, Shopify, or Webflow in under 2 minutes." },
               { step: "02", title: "Run the audit", desc: "iAudit scores every post against 16 SEO checkpoints instantly." },
               { step: "03", title: "Rewrite failing posts", desc: "One click triggers a two-pass AI rewrite that fixes every issue." },
               { step: "04", title: "Push back live", desc: "Approve the result and post it back to your CMS — done." },

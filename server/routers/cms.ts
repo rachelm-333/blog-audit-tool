@@ -45,10 +45,15 @@ import {
   ShopifyImportException,
 } from "../shopify.service";
 import { generateZapierToken } from "../zapier.service";
-import type { WordPressCredentials, WixCredentials, ShopifyCredentials, ZapierCredentials } from "../encryption.service";
+import {
+  testWebflowConnection,
+  importWebflowPosts,
+  WebflowImportException,
+} from "../webflow.service";
+import type { WordPressCredentials, WixCredentials, ShopifyCredentials, ZapierCredentials, WebflowCredentials } from "../encryption.service";
 import { encryptCredentials } from "../encryption.service";
 import { nanoid } from "nanoid";
-import { extractKeywordFromTitle } from "../keyword.service";
+import { extractKeywordFromTitle, validateKeyword } from "../keyword.service";
 import { saveKeyword, getPostForKeyword } from "../keyword.db";
 
 // ─── Ownership guard ──────────────────────────────────────────────────────────
@@ -123,6 +128,22 @@ function mapShopifyError(err: ShopifyImportException): TRPCError {
     rate_limit: "Import paused — too many requests. We will continue automatically in 60 seconds.",
     zero_posts: "No blog articles were found on your Shopify store.",
     no_blogs: "No blogs were found on your Shopify store. Please create a blog first.",
+  };
+  return new TRPCError({
+    code: err.code === "insufficient_permissions" ? "FORBIDDEN" : "BAD_REQUEST",
+    message: messages[err.code] ?? err.message,
+    cause: err,
+  });
+}
+
+function mapWebflowError(err: WebflowImportException): TRPCError {
+  const messages: Record<string, string> = {
+    invalid_credentials: "Invalid Webflow API key. Please check your key in Account Settings → API Access.",
+    insufficient_permissions: "Your Webflow API key does not have permission to read this collection.",
+    site_unreachable: "We could not reach the Webflow API. Please try again.",
+    rate_limit: "Import paused — too many requests. Please wait a moment and try again.",
+    zero_posts: "No items were found in this Webflow collection.",
+    invalid_collection: "Webflow collection not found. Please check the Collection ID.",
   };
   return new TRPCError({
     code: err.code === "insufficient_permissions" ? "FORBIDDEN" : "BAD_REQUEST",
@@ -378,6 +399,66 @@ export const cmsRouter = router({
     }),
 
   /**
+   * Connect a Webflow site via API key + CMS Collection ID.
+   */
+  connectWebflow: publicProcedure
+    .input(
+      z.object({
+        iauditUserId: z.string().min(1),
+        businessId: z.string().min(1),
+        apiKey: z.string().min(1, "API key is required."),
+        collectionId: z.string().min(1, "Collection ID is required."),
+      })
+    )
+    .mutation(async ({ input }) => {
+      await assertBusinessOwnership(input.businessId, input.iauditUserId);
+
+      const creds: WebflowCredentials = {
+        apiKey: input.apiKey,
+        collectionId: input.collectionId,
+      };
+
+      let collectionName: string;
+      try {
+        const result = await testWebflowConnection(creds);
+        collectionName = result.collectionName ?? input.collectionId;
+      } catch (err) {
+        if (err instanceof WebflowImportException) throw mapWebflowError(err);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "An unexpected error occurred while connecting to Webflow.",
+        });
+      }
+
+      const existing = await getCmsConnectionsByBusinessId(input.businessId);
+      const existingWebflow = existing.find((c) => c.platform === "webflow");
+
+      if (existingWebflow) {
+        const db = (await import("../db")).getDb();
+        const { cmsConnections } = await import("../../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const dbInstance = await db;
+        if (dbInstance) {
+          await dbInstance.update(cmsConnections).set({
+            siteUrl: `https://webflow.com/collections/${input.collectionId}`,
+            credentialsEncrypted: encryptCredentials(creds as unknown as Record<string, string>),
+            connectionStatus: "connected",
+            lastSyncAt: new Date(),
+          }).where(eq(cmsConnections.id, existingWebflow.id));
+        }
+        return { connectionId: existingWebflow.id, collectionName, reconnected: true };
+      }
+
+      const connectionId = await createCmsConnection({
+        businessId: input.businessId,
+        platform: "webflow",
+        siteUrl: `https://webflow.com/collections/${input.collectionId}`,
+        credentials: creds,
+      });
+      return { connectionId, collectionName, reconnected: false };
+    }),
+
+  /**
    * Test an existing connection by re-validating credentials.
    */
   testConnection: publicProcedure
@@ -420,6 +501,14 @@ export const cmsRouter = router({
           }
           await updateCmsConnectionStatus(connection.id, "connected", new Date());
           return { success: true, displayName: shopifyResult.shop };
+        } else if (connection.platform === "webflow") {
+          const creds: WebflowCredentials = {
+            apiKey: rawCreds["apiKey"] ?? "",
+            collectionId: rawCreds["collectionId"] ?? "",
+          };
+          const wfResult = await testWebflowConnection(creds);
+          await updateCmsConnectionStatus(connection.id, "connected", new Date());
+          return { success: true, displayName: wfResult.collectionName ?? "Webflow" };
         } else {
           // Zapier — no active test possible
           return { success: true, displayName: "Zapier Webhook" };
@@ -429,13 +518,15 @@ export const cmsRouter = router({
         const isAuthFailure =
           (err instanceof WpImportException && err.code === "invalid_credentials") ||
           (err instanceof WixImportException && err.code === "invalid_credentials") ||
-          (err instanceof ShopifyImportException && err.code === "invalid_credentials");
+          (err instanceof ShopifyImportException && err.code === "invalid_credentials") ||
+          (err instanceof WebflowImportException && err.code === "invalid_credentials");
         if (isAuthFailure) {
           await updateCmsConnectionStatus(connection.id, "error");
         }
         if (err instanceof WpImportException) throw mapWpError(err);
         if (err instanceof WixImportException) throw mapWixError(err);
         if (err instanceof ShopifyImportException) throw mapShopifyError(err);
+        if (err instanceof WebflowImportException) throw mapWebflowError(err);
         if (err instanceof TRPCError) throw err;
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Connection test failed." });
       }
@@ -475,6 +566,12 @@ export const cmsRouter = router({
             accessToken: rawCreds["accessToken"] ?? "",
           };
           importResult = await importShopifyPosts(creds);
+        } else if (connection.platform === "webflow") {
+          const creds: WebflowCredentials = {
+            apiKey: rawCreds["apiKey"] ?? "",
+            collectionId: rawCreds["collectionId"] ?? "",
+          };
+          importResult = await importWebflowPosts(creds, input.statusFilter);
         } else {
           throw new TRPCError({
             code: "BAD_REQUEST",
@@ -486,17 +583,15 @@ export const cmsRouter = router({
         const isAuthFailure =
           (err instanceof WpImportException && err.code === "invalid_credentials") ||
           (err instanceof WixImportException && err.code === "invalid_credentials") ||
-          (err instanceof ShopifyImportException && err.code === "invalid_credentials");
+          (err instanceof ShopifyImportException && err.code === "invalid_credentials") ||
+          (err instanceof WebflowImportException && err.code === "invalid_credentials");
         if (isAuthFailure) {
           await updateCmsConnectionStatus(connection.id, "error");
         }
         if (err instanceof WpImportException) throw mapWpError(err);
-        if (err instanceof WixImportException) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: err.message });
-        }
-        if (err instanceof ShopifyImportException) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: err.message });
-        }
+        if (err instanceof WixImportException) throw mapWixError(err);
+        if (err instanceof ShopifyImportException) throw mapShopifyError(err);
+        if (err instanceof WebflowImportException) throw mapWebflowError(err);
         if (err instanceof TRPCError) throw err;
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
@@ -507,7 +602,7 @@ export const cmsRouter = router({
       // Upsert all imported posts
       const upsertedIds: string[] = [];
       const upsertErrors: string[] = [];
-      const platform = connection.platform as "wordpress" | "wix" | "shopify" | "zapier";
+      const platform = connection.platform as "wordpress" | "wix" | "shopify" | "webflow" | "zapier";
 
       for (const post of importResult.posts) {
         try {
@@ -545,7 +640,7 @@ export const cmsRouter = router({
             fullPost.metaTitleOriginal ?? "",
             fullPost.metaDescriptionOriginal ?? ""
           );
-          if (keyword) {
+          if (keyword && validateKeyword(keyword)) {
             await saveKeyword(postId, keyword, [], "auto_detected", false);
             keywordsAutoDetected++;
           }
