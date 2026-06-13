@@ -92,6 +92,7 @@ export async function listPostsForBusiness(businessId: string): Promise<
     auditStatus: string | null;
     auditScore: number | null;
     auditGrade: string | null;
+    auditedAt: Date | null;
     rewriteStatus: string | null;
     rewriteScore: number | null;
     rewriteGrade: string | null;
@@ -112,6 +113,7 @@ export async function listPostsForBusiness(businessId: string): Promise<
       auditStatus: posts.auditStatus,
       auditScore: posts.auditScore,
       auditGrade: posts.auditGrade,
+      auditedAt: posts.auditedAt,
       rewriteStatus: posts.rewriteStatus,
       rewriteScore: posts.rewriteScore,
       rewriteGrade: posts.rewriteGrade,

@@ -75,6 +75,7 @@ interface Post {
   auditStatus?: string | null;
   auditScore?: number | null;
   auditGrade?: string | null;
+  auditedAt?: string | Date | null;
   rewriteStatus?: string | null;
   rewriteScore?: number | null;
   rewriteGrade?: string | null;
@@ -1807,11 +1808,23 @@ export default function PostList() {
 
                     {/* Audit score badge (if audited) */}
                     {post.auditScore !== null && post.auditScore !== undefined && (
-                      <div className="shrink-0 flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-foreground">
-                          {post.auditScore}/16
-                        </span>
-                        <GradeBadge grade={post.auditGrade} />
+                      <div className="shrink-0 flex flex-col items-end gap-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-foreground">
+                            {post.auditScore}/16
+                          </span>
+                          <GradeBadge grade={post.auditGrade} />
+                        </div>
+                        {post.auditedAt && (
+                          <span className="text-[10px] text-muted-foreground/70 leading-none">
+                            Audited{" "}
+                            {new Date(post.auditedAt).toLocaleDateString("en-AU", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </span>
+                        )}
                       </div>
                     )}
 
