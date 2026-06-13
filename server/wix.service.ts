@@ -56,8 +56,10 @@ const WIX_STATUS_MAP: Record<string, WpPostStatus> = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function buildHeaders(creds: WixCredentials): Record<string, string> {
+  // Wix Blog API v3 requires the raw API key in Authorization — NO "Bearer" prefix.
+  // See: https://dev.wix.com/docs/api-reference/articles/authentication/api-keys/make-api-calls-with-an-api-key
   return {
-    "Authorization": `Bearer ${creds.apiKey}`,
+    "Authorization": creds.apiKey,
     "wix-site-id": creds.siteId,
     "Content-Type": "application/json",
     "Accept": "application/json",
@@ -545,18 +547,34 @@ export async function importFromWix(
   if (options.cursor) params.set("paging.cursor", options.cursor);
 
   const url = `${WIX_BASE}/posts?${params.toString()}`;
+
+  // ── Diagnostic logging ──────────────────────────────────────────────────────
+  console.log("[Wix Import] Requesting URL:", url);
+  console.log("[Wix Import] siteId present:", !!creds.siteId, "| apiKey length:", creds.apiKey?.length ?? 0);
+  console.log("[Wix Import] Authorization header (raw key, no Bearer):", creds.apiKey?.slice(0, 8) + "...");
+  console.log("[Wix Import] wix-site-id header:", creds.siteId?.slice(0, 8) + "...");
+
   let res: Response;
   try {
     res = await wixFetch(url, creds);
   } catch (err: any) {
+    console.error("[Wix Import] Network error:", err?.message);
     throw new WixImportException("site_unreachable", `Could not reach Wix: ${err?.message}`);
   }
 
+  console.log("[Wix Import] Response status:", res.status, res.statusText);
+
   if (res.status === 401 || res.status === 403) {
-    throw new WixImportException("invalid_credentials", "Invalid Wix API key or insufficient permissions.");
+    let body = "";
+    try { body = await res.text(); } catch {}
+    console.error("[Wix Import] Auth failure body:", body.slice(0, 500));
+    throw new WixImportException("invalid_credentials", `Invalid Wix API key or insufficient permissions. API response: ${body.slice(0, 200)}`);
   }
   if (!res.ok) {
-    throw new WixImportException("site_unreachable", `Wix API returned HTTP ${res.status}`);
+    let body = "";
+    try { body = await res.text(); } catch {}
+    console.error("[Wix Import] Non-OK response body:", body.slice(0, 500));
+    throw new WixImportException("site_unreachable", `Wix API returned HTTP ${res.status}: ${body.slice(0, 200)}`);
   }
 
   const data = await res.json() as Record<string, unknown>;
@@ -601,17 +619,34 @@ export async function testWixConnection(
   creds: WixCredentials
 ): Promise<{ ok: boolean; message: string; siteId: string }> {
   const url = `${WIX_BASE}/posts?paging.limit=1`;
+
+  // ── Diagnostic logging ──────────────────────────────────────────────────────
+  console.log("[Wix Test] URL:", url);
+  console.log("[Wix Test] siteId present:", !!creds.siteId, "| apiKey length:", creds.apiKey?.length ?? 0);
+  console.log("[Wix Test] Authorization header (raw key, no Bearer):", creds.apiKey?.slice(0, 8) + "...");
+  console.log("[Wix Test] wix-site-id:", creds.siteId?.slice(0, 8) + "...");
+
   let res: Response;
   try {
     res = await wixFetch(url, creds);
   } catch (err: any) {
+    console.error("[Wix Test] Network error:", err?.message);
     return { ok: false, message: `Could not reach Wix: ${err?.message}`, siteId: "" };
   }
+
+  console.log("[Wix Test] Response status:", res.status, res.statusText);
+
   if (res.status === 401 || res.status === 403) {
-    return { ok: false, message: "Invalid Wix API key or insufficient permissions.", siteId: "" };
+    let body = "";
+    try { body = await res.text(); } catch {}
+    console.error("[Wix Test] Auth failure body:", body.slice(0, 500));
+    return { ok: false, message: `Invalid Wix API key or insufficient permissions. API: ${body.slice(0, 200)}`, siteId: "" };
   }
   if (!res.ok) {
-    return { ok: false, message: `Wix API returned HTTP ${res.status}`, siteId: "" };
+    let body = "";
+    try { body = await res.text(); } catch {}
+    console.error("[Wix Test] Non-OK body:", body.slice(0, 500));
+    return { ok: false, message: `Wix API returned HTTP ${res.status}: ${body.slice(0, 200)}`, siteId: "" };
   }
   return { ok: true, message: "", siteId: creds.siteId };
 }
