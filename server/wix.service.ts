@@ -594,7 +594,24 @@ export async function importFromWix(
     throw new WixImportException("zero_posts", "No posts found on this Wix site.");
   }
 
-  const posts = rawPosts.map(parseWixPost);
+  const posts: WpImportedPost[] = [];
+  for (const raw of rawPosts) {
+    try {
+      posts.push(parseWixPost(raw));
+    } catch (parseErr: any) {
+      // Log the exact error and the raw post that caused it so we can diagnose
+      console.error(
+        "[Wix Import] parseWixPost failed for post id:",
+        raw.id,
+        "title:",
+        raw.title,
+        "error:",
+        parseErr?.message,
+        parseErr?.stack?.slice(0, 400)
+      );
+      // Skip this post rather than crashing the entire import
+    }
+  }
   // POST /query uses metaData.cursors.next for pagination
   const nextCursor = (data.metaData as any)?.cursors?.next ?? null;
 
