@@ -1210,7 +1210,7 @@ export default function PostList() {
   const [preserveFaq, setPreserveFaq] = useState(true);
   const [preserveCta, setPreserveCta] = useState(true);
   // Review-status filter tabs
-  const [reviewFilter, setReviewFilter] = useState<"all" | "awaiting_review" | "approved" | "published">("all");
+  const [reviewFilter, setReviewFilter] = useState<"all" | "no_keyword" | "awaiting_review" | "approved" | "published">("all");
   const [titleSearch, setTitleSearch] = useState("");
   const { data, isLoading, refetch } = trpc.keyword.listPosts.useQuery(
     { businessId, iauditUserId: iauditUserId ?? "" },
@@ -1577,6 +1577,7 @@ export default function PostList() {
   const posts: Post[] = allPosts.filter((p) => {
     const isPublishedBack = p.postBackStatus === "complete";
     if (reviewFilter === "all" && isPublishedBack) return false;
+    if (reviewFilter === "no_keyword" && !!p.focusKeyword) return false;
     if (reviewFilter === "awaiting_review" && !(p.rewriteStatus === "awaiting_review" && !isPublishedBack)) return false;
     if (reviewFilter === "approved" && !(p.rewriteStatus === "approved" && !isPublishedBack)) return false;
     if (reviewFilter === "published" && !isPublishedBack) return false;
@@ -1603,6 +1604,7 @@ export default function PostList() {
   const awaitingReviewCount = allPosts.filter((p) => p.rewriteStatus === "awaiting_review" && p.postBackStatus !== "complete").length;
   const approvedCount = allPosts.filter((p) => p.rewriteStatus === "approved" && p.postBackStatus !== "complete").length;
   const publishedCount = allPosts.filter((p) => p.postBackStatus === "complete").length;
+  const noKeywordCount = allPosts.filter((p) => !p.focusKeyword).length;
 
   return (
     <div className="p-4">
@@ -1737,6 +1739,8 @@ export default function PostList() {
                     )}
                     {detectingAllKeywords && detectKwProgress
                       ? `Detecting ${detectKwProgress.processed} of ${detectKwProgress.total}…`
+                      : noKeywordCount > 0
+                      ? `Detect All Keywords (${noKeywordCount} missing)`
                       : "Detect All Keywords"}
                   </Button>
                 </span>
@@ -1791,6 +1795,7 @@ export default function PostList() {
         <div className="flex gap-1 mb-4 flex-wrap">
           {([
             { key: "all", label: "All", count: titleSearchLower ? posts.length : allPosts.length },
+            { key: "no_keyword", label: "No Keyword", count: noKeywordCount },
             { key: "awaiting_review", label: "Awaiting Review", count: awaitingReviewCount },
             { key: "approved", label: "Approved", count: approvedCount },
             { key: "published", label: "Published", count: publishedCount },
