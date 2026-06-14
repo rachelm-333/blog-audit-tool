@@ -225,15 +225,30 @@ export async function resetKeywordsForBusiness(businessId: string): Promise<numb
 
   const ids = toReset.map((r) => r.id);
 
-  // Clear in batches of 100 to stay within SQL parameter limits
-  const BATCH = 100;
+  // Process in batches of 20 with a small delay between batches to avoid
+  // overwhelming the DB connection pool (mirrors the batch audit pattern).
+  const BATCH = 20;
+  let cleared = 0;
   for (let i = 0; i < ids.length; i += BATCH) {
     const batch = ids.slice(i, i + BATCH);
-    await db
-      .update(posts)
-      .set({ focusKeyword: null, keywordSource: null, updatedAt: new Date() })
-      .where(inArray(posts.id, batch));
+    try {
+      await db
+        .update(posts)
+        .set({ focusKeyword: null, keywordSource: null, updatedAt: new Date() })
+        .where(inArray(posts.id, batch));
+      cleared += batch.length;
+    } catch (err) {
+      // Log and continue — a single batch failure should not abort the whole reset
+      console.error(
+        `[resetKeywords] Batch ${i / BATCH + 1} failed (ids ${i}–${i + batch.length - 1}):`,
+        (err as Error)?.message
+      );
+    }
+    // Small delay between batches to avoid DB connection pressure
+    if (i + BATCH < ids.length) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
   }
 
-  return ids.length;
+  return cleared;
 }

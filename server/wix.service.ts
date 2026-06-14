@@ -398,14 +398,35 @@ function parseWixPost(raw: Record<string, unknown>): WpImportedPost {
   // as fallbacks if AI detection fails or returns nothing.
 
   // Fallback A: seoData.settings.keywords (Wix SEO app) — used only if AI fails
+  // The Wix API returns this field in multiple shapes depending on site config:
+  //   - a plain string: "keyword phrase"
+  //   - an array of strings: ["keyword phrase"]
+  //   - an array of objects: [{ keyword: "keyword phrase" }] or [{ text: "..." }]
+  //   - a single object: { keyword: "keyword phrase" }
+  // We must handle all cases without crashing.
   let cmsKeyword: string | null = null;
   const seoSettings = seo?.settings as Record<string, unknown> | undefined;
-  const seoKeywordsRaw = seoSettings?.keywords as string | string[] | undefined;
-  if (seoKeywordsRaw) {
-    const firstRaw = Array.isArray(seoKeywordsRaw)
-      ? seoKeywordsRaw[0]
-      : seoKeywordsRaw.split(",")[0];
-    const first = typeof firstRaw === "string" ? firstRaw : null;
+  const seoKeywordsRaw: unknown = seoSettings?.keywords;
+  if (seoKeywordsRaw != null) {
+    let firstRaw: unknown;
+    if (Array.isArray(seoKeywordsRaw)) {
+      firstRaw = seoKeywordsRaw[0];
+    } else if (typeof seoKeywordsRaw === "string") {
+      firstRaw = seoKeywordsRaw.split(",")[0];
+    } else {
+      // object shape — skip, don't crash
+      firstRaw = null;
+    }
+    // firstRaw may itself be a string, an object like { keyword: "..." }, or null
+    let first: string | null = null;
+    if (typeof firstRaw === "string") {
+      first = firstRaw;
+    } else if (firstRaw != null && typeof firstRaw === "object") {
+      // Try common object shapes: { keyword }, { text }, { value }
+      const obj = firstRaw as Record<string, unknown>;
+      const candidate = obj.keyword ?? obj.text ?? obj.value ?? obj.name;
+      if (typeof candidate === "string") first = candidate;
+    }
     const trimmed = first?.trim().toLowerCase() ?? "";
     if (trimmed && validateKeyword(trimmed)) cmsKeyword = trimmed;
   }
