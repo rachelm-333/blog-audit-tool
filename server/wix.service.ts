@@ -21,6 +21,7 @@ import { extractBodyImageAlts } from "./wordpress.service";
 import type { WpImportedPost, WpPostStatus } from "./wordpress.service";
 import { PostBackException, preserveImagesInBody } from "./postback.service";
 import { extractKeywordFromTitle, validateKeyword, STOP_WORDS, detectKeywordWithAI } from "./keyword.service";
+import { getExistingKeywordsByCmsIds } from "./cms.db";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -569,7 +570,7 @@ function ricosToHtml(nodes: object[]): string {
 
 export async function importFromWix(
   creds: WixCredentials,
-  options: { limit?: number; cursor?: string } = {}
+  options: { limit?: number; cursor?: string; businessId?: string } = {}
 ): Promise<{ posts: WpImportedPost[]; nextCursor: string | null }> {
   // IMPORTANT: The Wix Blog API v3 does NOT support `fieldsets` as a GET query parameter.
   // Sending fieldsets in the query string causes HTTP 400 "Failed to parse JSON or deserialize
@@ -622,16 +623,38 @@ export async function importFromWix(
     throw new WixImportException("zero_posts", "No posts found on this Wix site.");
   }
 
+  // Pre-flight: look up which posts already have a valid keyword in the DB.
+  // This avoids running AI detection (3-5s per post) for posts that don't need it.
+  const rawPostIds = rawPosts.map((r) => String(r.id ?? "")).filter(Boolean);
+  const existingKeywords = options.businessId
+    ? await getExistingKeywordsByCmsIds(options.businessId, rawPostIds).catch(() => new Map())
+    : new Map<string, { focusKeyword: string | null; keywordSource: string | null }>();
+
   const posts: WpImportedPost[] = [];
   for (const raw of rawPosts) {
     try {
       const parsed = parseWixPost(raw);
 
-      // ── NEW priority order: AI first, CMS fields second, slug last ──
-      // The Wix SEO fields consistently contain poor-quality keywords, so AI
-      // detection runs unconditionally and its result is always preferred.
+      // Check if this post already has a valid keyword stored in the DB.
+      // If so, skip AI detection — the stored keyword will be preserved by upsertPost.
+      const cmsPostId = String(raw.id ?? "");
+      const existing = existingKeywords.get(cmsPostId);
+      const storedKwValid = existing?.focusKeyword
+        ? validateKeyword(existing.focusKeyword)
+        : false;
 
-      // Priority 1: AI detection (always run)
+      if (storedKwValid) {
+        // Post already has a good keyword — skip AI, let upsertPost keep the stored one
+        console.log(`[Wix Import] Skipping AI for "${parsed.title.slice(0, 50)}" — valid keyword already stored`);
+        posts.push(parsed);
+        continue;
+      }
+
+      // ── Priority order: AI first, CMS fields second, slug last ──
+      // The Wix SEO fields consistently contain poor-quality keywords, so AI
+      // detection runs first and its result is always preferred.
+
+      // Priority 1: AI detection
       const aiKw = await detectKeywordWithAI(
         parsed.title,
         parsed.bodyHtml,
@@ -684,13 +707,14 @@ export async function importFromWix(
 
 export async function importWixPosts(
   creds: WixCredentials,
-  statusFilter: "published" | "scheduled" | "draft" | "all" = "all"
+  statusFilter: "published" | "scheduled" | "draft" | "all" = "all",
+  businessId?: string
 ): Promise<{ posts: WpImportedPost[]; errors: string[] }> {
   const allPosts: WpImportedPost[] = [];
   let cursor: string | undefined;
 
   do {
-    const { posts, nextCursor } = await importFromWix(creds, { limit: 100, cursor });
+    const { posts, nextCursor } = await importFromWix(creds, { limit: 100, cursor, businessId });
     allPosts.push(...posts);
     cursor = nextCursor ?? undefined;
   } while (cursor);

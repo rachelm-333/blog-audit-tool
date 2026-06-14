@@ -251,3 +251,40 @@ export async function countPostsByBusiness(businessId: string) {
     { published: 0, scheduled: 0, draft: 0 } as Record<string, number>
   );
 }
+
+/**
+ * Fetch the stored focusKeyword and keywordSource for a batch of posts
+ * identified by their CMS post IDs within a business.
+ * Used by the Wix importer to skip AI detection for posts that already
+ * have a valid keyword in the database.
+ *
+ * Returns a Map<cmsPostId, { focusKeyword, keywordSource }>.
+ */
+export async function getExistingKeywordsByCmsIds(
+  businessId: string,
+  cmsPostIds: string[]
+): Promise<Map<string, { focusKeyword: string | null; keywordSource: string | null }>> {
+  if (cmsPostIds.length === 0) return new Map();
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const rows = await db
+    .select({
+      cmsPostId: posts.cmsPostId,
+      focusKeyword: posts.focusKeyword,
+      keywordSource: posts.keywordSource,
+    })
+    .from(posts)
+    .where(
+      and(
+        eq(posts.businessId, businessId),
+        inArray(posts.cmsPostId, cmsPostIds)
+      )
+    );
+
+  const map = new Map<string, { focusKeyword: string | null; keywordSource: string | null }>();
+  for (const row of rows) {
+    if (row.cmsPostId) map.set(row.cmsPostId, row);
+  }
+  return map;
+}

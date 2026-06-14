@@ -216,10 +216,12 @@ export const iauthRouter = router({
     const email = input.email.toLowerCase().trim();
     const user = await getIauditUserByEmail(email);
 
-    // Use constant-time comparison to prevent user enumeration
+    // Use constant-time comparison to prevent user enumeration.
+    // bcrypt.compare against a pre-computed dummy hash is ~100ms (same as a real verify)
+    // without the 100ms overhead of generating a new hash from scratch.
+    const DUMMY_HASH = "$2b$10$invalidhashfortimingnobodycanloginwiththis00000000000000";
     if (!user) {
-      // Still run bcrypt to prevent timing attacks
-      await hashPassword("dummy-prevent-timing-attack");
+      await verifyPassword(input.password, DUMMY_HASH).catch(() => {});
       throw new TRPCError({
         code: "UNAUTHORIZED",
         message: "Invalid email or password",

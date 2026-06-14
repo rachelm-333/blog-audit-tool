@@ -559,7 +559,7 @@ export const cmsRouter = router({
             siteId: rawCreds["siteId"] ?? "",
             apiKey: rawCreds["apiKey"] ?? "",
           };
-          importResult = await importWixPosts(creds, input.statusFilter);
+          importResult = await importWixPosts(creds, input.statusFilter, connection.businessId);
         } else if (connection.platform === "shopify") {
           const creds: ShopifyCredentials = {
             shop: rawCreds["shop"] ?? rawCreds["shopDomain"] ?? "",

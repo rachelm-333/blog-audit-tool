@@ -18,7 +18,9 @@ import { nanoid } from "nanoid";
 // Constants
 // ---------------------------------------------------------------------------
 
-const BCRYPT_ROUNDS = 12;
+// OWASP minimum is 10; 12 was ~400ms per hash on 1 vCPU which made login take 3-4s.
+// 10 rounds = ~100ms per hash — still secure, 4× faster.
+const BCRYPT_ROUNDS = 10;
 const ACCESS_TOKEN_TTL_SECONDS = 15 * 60; // 15 minutes
 const REFRESH_TOKEN_TTL_DAYS = 30; // 30 days
 const VERIFICATION_TOKEN_TTL_HOURS = 24; // 24 hours for email verification
