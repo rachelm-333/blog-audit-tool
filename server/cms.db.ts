@@ -146,17 +146,22 @@ export async function upsertPost(input: UpsertPostInput): Promise<string> {
         scheduledDate: input.scheduledDate ?? undefined,
         authorIdCms: input.authorIdCms,
         authorNameCms: input.authorNameCms,
-        // Only overwrite keyword if the stored one is blank or fails validation
+        // Always overwrite keyword on re-import UNLESS the user manually set it.
+        // Auto-detected keywords (ai_detected, cms_scraped, slug) are always refreshed.
+        // Manually entered keywords (user_entered) are preserved.
         ...((() => {
-          const storedKw = existing[0]!.focusKeyword ?? null;
-          const storedValid = storedKw ? validateKeyword(storedKw) : false;
+          const existingSource = (existing[0] as any).keywordSource ?? null;
           const newKw = input.focusKeyword ?? null;
-          if (!storedValid && newKw) {
-            // Stored keyword is bad or missing — use the newly detected one
-            return { focusKeyword: newKw, keywordSource: "cms_scraped" as const };
+          const newSource = (input as any).keywordSource ?? "cms_scraped";
+          if (existingSource === "user_entered") {
+            // User manually set this keyword — never overwrite it on import
+            return {};
           }
-          // Stored keyword is good — keep it, don't touch keywordSource
-          return {};
+          if (newKw) {
+            return { focusKeyword: newKw, keywordSource: newSource };
+          }
+          // No new keyword detected — clear the stored one so AI runs next import
+          return { focusKeyword: null as any, keywordSource: null as any };
         })()),
         // Use || so empty/null values don't overwrite existing data; fall back to title for meta title
         metaTitleOriginal: input.metaTitle || input.title || undefined,
