@@ -392,9 +392,13 @@ function parseWixPost(raw: Record<string, unknown>): WpImportedPost {
   const seoSettings = seo?.settings as Record<string, unknown> | undefined;
   const seoKeywordsRaw = seoSettings?.keywords as string | string[] | undefined;
   if (seoKeywordsRaw) {
-    const first = Array.isArray(seoKeywordsRaw)
+    // seoKeywordsRaw may be a string, an array of strings, or an array of objects
+    // (Wix SEO app stores keywords differently depending on the site config)
+    const firstRaw = Array.isArray(seoKeywordsRaw)
       ? seoKeywordsRaw[0]
       : seoKeywordsRaw.split(",")[0];
+    // Only call .trim() if the value is actually a string
+    const first = typeof firstRaw === "string" ? firstRaw : null;
     const trimmed = first?.trim().toLowerCase() ?? "";
     if (trimmed && validateKeyword(trimmed)) detectedKeyword = trimmed;
   }
