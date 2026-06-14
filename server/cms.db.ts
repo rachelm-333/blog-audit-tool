@@ -13,6 +13,7 @@ import type { CmsCredentials } from "./encryption.service";
 import { cmsConnections, posts } from "../drizzle/schema";
 import type { InsertPost, Post } from "../drizzle/schema";
 import type { WpImportedPost } from "./wordpress.service";
+import { validateKeyword } from "./keyword.service";
 
 // ─── CMS Connections ──────────────────────────────────────────────────────────
 
@@ -122,7 +123,7 @@ export async function upsertPost(input: UpsertPostInput): Promise<string> {
 
   // Check if post already exists
   const existing = await db
-    .select({ id: posts.id, bodyOriginal: posts.bodyOriginal })
+    .select({ id: posts.id, bodyOriginal: posts.bodyOriginal, focusKeyword: posts.focusKeyword })
     .from(posts)
     .where(
       and(
@@ -145,8 +146,18 @@ export async function upsertPost(input: UpsertPostInput): Promise<string> {
         scheduledDate: input.scheduledDate ?? undefined,
         authorIdCms: input.authorIdCms,
         authorNameCms: input.authorNameCms,
-        focusKeyword: input.focusKeyword ?? undefined,
-        keywordSource: input.focusKeyword ? "cms_scraped" : undefined,
+        // Only overwrite keyword if the stored one is blank or fails validation
+        ...((() => {
+          const storedKw = existing[0]!.focusKeyword ?? null;
+          const storedValid = storedKw ? validateKeyword(storedKw) : false;
+          const newKw = input.focusKeyword ?? null;
+          if (!storedValid && newKw) {
+            // Stored keyword is bad or missing — use the newly detected one
+            return { focusKeyword: newKw, keywordSource: "cms_scraped" as const };
+          }
+          // Stored keyword is good — keep it, don't touch keywordSource
+          return {};
+        })()),
         // Use || so empty/null values don't overwrite existing data; fall back to title for meta title
         metaTitleOriginal: input.metaTitle || input.title || undefined,
         metaDescriptionOriginal: input.metaDescription || undefined,
