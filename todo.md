@@ -808,3 +808,11 @@
 - [x] Add batch audit queue on server: process max 5 posts concurrently, expose progress via tRPC polling (already implemented)
 - [x] Add progress indicator in UI: "Auditing X of Y..." with progress bar, updated as each batch completes (already implemented)
 - [x] Disable Audit All button while batch audit is running, show cancel option (cancel button added)
+
+## Keyword Validation Edge Case Fix (Jun 14)
+
+- [x] Fix `validateKeyword()` stop-word threshold: add `stopCount > words.length / 2` rule for 3+ word phrases (e.g. "australia your definitive" with 2/3 stop words → FAIL)
+- [x] Add special rule for 2-word phrases: fail if ANY word is a stop word (e.g. "apply for" → FAIL, "online business" → FAIL)
+- [x] Expand STOP_WORDS: add "apply", "check", "learn", "create", "add", "change", "update", "manage", "local", "global", "general", "specific", "common", "popular", "setup", "install", "configure", "phone", "device", "app", "software", "website"
+- [x] Remove temporary `/api/test-wix` debug endpoint from `server/_core/index.ts`
+- [x] All 16 keyword validation tests pass (australia your definitive FAIL, apply for FAIL, how setup phone FAIL, starting up in australia PASS, online business australia PASS, etc.)

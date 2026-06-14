@@ -55,6 +55,10 @@ export const STOP_WORDS = new Set([
   "find","know","take","give","go","come","see","look","set","run",
   "build","grow","start","stop","read","write","say","tell","ask",
   "put","keep","let","try","turn","move","show","play","lead","open",
+  "apply","check","learn","create","add","change","update","manage",
+  "local","global","general","specific","common","popular",
+  // Generic tech/device words too vague to anchor a keyword
+  "setup","install","configure","phone","device","app","software","website",
   // Generic content/document words (too vague to be a keyword)
   "guide","guides","definitive","complete","ultimate","comprehensive",
   "everything","checklist","overview","introduction","basics","essentials",
@@ -225,6 +229,18 @@ export function validateKeyword(keyword: string | null | undefined): boolean {
 
   // Must not consist entirely of stop words
   if (words.every((w) => STOP_WORDS.has(w))) return false;
+
+  // For 2-word phrases: both words must be meaningful (no stop words allowed).
+  // e.g. "apply for" → "for" is a stop word → fail
+  // e.g. "online business" → "online" is a stop word → fail
+  // e.g. "business registration" → neither is a stop word → pass
+  const stopCount = words.filter((w) => STOP_WORDS.has(w)).length;
+  if (words.length === 2 && stopCount > 0) return false;
+
+  // For longer phrases: fail if MORE THAN HALF the words are stop words.
+  // e.g. "australia your definitive" has 2/3 stop words (67%) → fail
+  // e.g. "starting up in australia" has 2/4 stop words (50%) → pass
+  if (words.length > 2 && stopCount > words.length / 2) return false;
 
   // Must not start AND end with a stop word
   if (STOP_WORDS.has(words[0]) && STOP_WORDS.has(words[words.length - 1])) return false;
