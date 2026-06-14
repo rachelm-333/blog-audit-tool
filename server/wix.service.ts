@@ -392,51 +392,44 @@ function parseWixPost(raw: Record<string, unknown>): WpImportedPost {
     return validateKeyword(phrase) ? phrase : null;
   }
 
-  // Priority 1: seoData.settings.keywords (Wix SEO app)
-  let detectedKeyword: string | null = null;
+  // ── Keyword detection: heuristic sources only (CMS fields + slug) ──
+  // AI detection is intentionally NOT run here because parseWixPost is sync.
+  // AI runs FIRST in importFromWix (async), and these heuristics are only used
+  // as fallbacks if AI detection fails or returns nothing.
+
+  // Fallback A: seoData.settings.keywords (Wix SEO app) — used only if AI fails
+  let cmsKeyword: string | null = null;
   const seoSettings = seo?.settings as Record<string, unknown> | undefined;
   const seoKeywordsRaw = seoSettings?.keywords as string | string[] | undefined;
   if (seoKeywordsRaw) {
-    // seoKeywordsRaw may be a string, an array of strings, or an array of objects
-    // (Wix SEO app stores keywords differently depending on the site config)
     const firstRaw = Array.isArray(seoKeywordsRaw)
       ? seoKeywordsRaw[0]
       : seoKeywordsRaw.split(",")[0];
-    // Only call .trim() if the value is actually a string
     const first = typeof firstRaw === "string" ? firstRaw : null;
     const trimmed = first?.trim().toLowerCase() ?? "";
-    if (trimmed && validateKeyword(trimmed)) detectedKeyword = trimmed;
+    if (trimmed && validateKeyword(trimmed)) cmsKeyword = trimmed;
   }
 
-  // Priority 2: seoData.tags keyword meta tag
-  if (!detectedKeyword && seo?.tags && Array.isArray(seo.tags)) {
+  // Fallback B: seoData.tags keyword meta tag — used only if AI fails
+  if (!cmsKeyword && seo?.tags && Array.isArray(seo.tags)) {
     for (const tag of seo.tags as Record<string, unknown>[]) {
       if (tag.type === "meta" && (tag.props as Record<string, string>)?.name === "keywords") {
         const kw = ((tag.props as Record<string, string>).content ?? "").split(",")[0].trim().toLowerCase();
-        if (kw && validateKeyword(kw)) { detectedKeyword = kw; break; }
+        if (kw && validateKeyword(kw)) { cmsKeyword = kw; break; }
       }
     }
   }
 
-  // Priority 3: URL slug
-  if (!detectedKeyword && urlPath) {
+  // Fallback C: URL slug — last resort
+  let slugKeyword: string | null = null;
+  if (urlPath) {
     const slugKw = extractFromSlug(urlPath);
-    if (slugKw) detectedKeyword = slugKw;
+    if (slugKw) slugKeyword = slugKw;
   }
-  // Priority 4: extractKeywordFromTitle (title + body + metaTitle + metaDesc — 5-zone scoring)
-  if (!detectedKeyword) {
-    const titleKw = extractKeywordFromTitle(
-      title,
-      bodyHtml,
-      metaTitle ?? "",
-      metaDescription ?? "",
-    );
-    if (titleKw && validateKeyword(titleKw)) detectedKeyword = titleKw;
-  }
-  // Priority 5: AI-powered detection (async fallback — only called when all heuristics fail)
-  // Note: parseWixPost is called inside importFromWix which is already async
-  const focusKeyword = detectedKeyword;
-  // AI fallback is applied in importFromWix after parseWixPost returns, to keep this function sync-compatible
+
+  // focusKeyword is left null here — AI detection runs first in importFromWix (async).
+  // cmsKeyword and slugKeyword are passed back for use as fallbacks.
+  const focusKeyword: string | null = null;
 
   // ── FIX 4: Correctly read published/draft status from Wix API ──
   // The Wix Blog API returns status on the top-level post object.
@@ -459,6 +452,9 @@ function parseWixPost(raw: Record<string, unknown>): WpImportedPost {
     authorIdCms: "",
     authorNameCms: "",
     focusKeyword,
+    // Fallback keyword sources — used by importFromWix if AI detection fails
+    _cmsKeyword: cmsKeyword,
+    _slugKeyword: slugKeyword,
     metaTitle: metaTitle || title,
     metaDescription,
     featuredImageUrl: null,
@@ -609,18 +605,33 @@ export async function importFromWix(
   for (const raw of rawPosts) {
     try {
       const parsed = parseWixPost(raw);
-      // Priority 5: AI-powered keyword detection — only when all heuristics produced nothing
-      if (!parsed.focusKeyword) {
-        const aiKw = await detectKeywordWithAI(
-          parsed.title,
-          parsed.bodyHtml,
-          (raw.slug as string) ?? ""
-        );
-        if (aiKw) {
-          (parsed as any).focusKeyword = aiKw;
-          (parsed as any).keywordSource = "ai_detected";
+
+      // ── NEW priority order: AI first, CMS fields second, slug last ──
+      // The Wix SEO fields consistently contain poor-quality keywords, so AI
+      // detection runs unconditionally and its result is always preferred.
+
+      // Priority 1: AI detection (always run)
+      const aiKw = await detectKeywordWithAI(
+        parsed.title,
+        parsed.bodyHtml,
+        (raw.slug as string) ?? ""
+      );
+      if (aiKw) {
+        parsed.focusKeyword = aiKw;
+        (parsed as any).keywordSource = "ai_detected";
+      } else {
+        // Priority 2: CMS SEO field (only if AI fails)
+        if (parsed._cmsKeyword) {
+          parsed.focusKeyword = parsed._cmsKeyword;
+          (parsed as any).keywordSource = "cms_scraped";
+        }
+        // Priority 3: Slug extraction (last resort)
+        else if (parsed._slugKeyword) {
+          parsed.focusKeyword = parsed._slugKeyword;
+          (parsed as any).keywordSource = "cms_scraped";
         }
       }
+
       posts.push(parsed);
     } catch (parseErr: any) {
       // Log the exact error and the raw post that caused it so we can diagnose

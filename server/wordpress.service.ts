@@ -41,6 +41,10 @@ export interface WpImportedPost {
   bodyImageAlts: string[];
   categories: string[];
   tags: string[];
+  /** Wix-only: CMS SEO field keyword, used as fallback if AI detection fails */
+  _cmsKeyword?: string | null;
+  /** Wix-only: slug-derived keyword, used as last-resort fallback */
+  _slugKeyword?: string | null;
 }
 
 export type WpImportError =
