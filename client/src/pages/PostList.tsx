@@ -1711,9 +1711,26 @@ export default function PostList() {
                   ? `Auditing ${auditJobCompleted + auditJobFailed} of ${auditJobTotal}…`
                   : "Starting audit…"}
               </span>
-              <span className="text-xs text-muted-foreground">
-                {auditJobTotal > 0 ? `${auditProgress}%` : ""}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {auditJobTotal > 0 ? `${auditProgress}%` : ""}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive"
+                  onClick={() => {
+                    if (auditPollRef.current) clearInterval(auditPollRef.current);
+                    setAuditingAll(false);
+                    setAuditProgress(0);
+                    setAuditJobId(null);
+                    toast.info("Audit cancelled. Posts audited so far have been saved.");
+                    refetch();
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
             </div>
             <Progress value={auditProgress} className="h-2" />
             {auditJobFailed > 0 && (

@@ -36,8 +36,10 @@ export interface CannibalisationResult {
 // Multi-zone Focus Keyword Extraction (fast, no AI)
 // ---------------------------------------------------------------------------
 
-// Common English stop words to exclude from n-gram candidates
-const STOP_WORDS = new Set([
+// Common English stop words to exclude from n-gram candidates.
+// Includes structural/generic words that are too vague to anchor a focus keyword.
+export const STOP_WORDS = new Set([
+  // Articles, conjunctions, prepositions
   "a","an","the","and","or","but","in","on","at","to","for","of","with",
   "by","from","up","about","into","through","during","before","after",
   "above","below","between","out","off","over","under","again","then",
@@ -48,7 +50,26 @@ const STOP_WORDS = new Set([
   "do","does","did","this","that","these","those","it","its","you",
   "your","we","our","they","their","he","she","his","her","what",
   "which","who","whom","as","if","while","because","although","though",
+  // Generic action/utility verbs
   "get","make","use","need","want","help","work","also","like","new",
+  "find","know","take","give","go","come","see","look","set","run",
+  "build","grow","start","stop","read","write","say","tell","ask",
+  "put","keep","let","try","turn","move","show","play","lead","open",
+  // Generic content/document words (too vague to be a keyword)
+  "guide","guides","definitive","complete","ultimate","comprehensive",
+  "everything","checklist","overview","introduction","basics","essentials",
+  "tips","tricks","steps","ways","things","reasons","facts","ideas",
+  "examples","list","top","best","great","good","better","big","full",
+  "real","true","right","wrong","easy","simple","quick","fast","free",
+  "actually","really","truly","properly","effectively","successfully",
+  // Generic business/content words
+  "business","businesses","company","companies","service","services",
+  "product","products","solution","solutions","platform","tool","tools",
+  "system","process","strategy","strategies","approach","method","methods",
+  // Structural/directional words
+  "back","down","around","across","along","within","without","beyond",
+  "following","behind","plus","except","every","even","still","yet",
+  "first","last","next","second","third","one","two","three","many",
 ]);
 
 /**

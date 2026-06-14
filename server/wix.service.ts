@@ -20,7 +20,7 @@ import type { WixCredentials } from "./encryption.service";
 import { extractBodyImageAlts } from "./wordpress.service";
 import type { WpImportedPost, WpPostStatus } from "./wordpress.service";
 import { PostBackException, preserveImagesInBody } from "./postback.service";
-import { extractKeywordFromTitle, validateKeyword } from "./keyword.service";
+import { extractKeywordFromTitle, validateKeyword, STOP_WORDS } from "./keyword.service";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -378,12 +378,17 @@ function parseWixPost(raw: Record<string, unknown>): WpImportedPost {
 
   function extractFromSlug(slug: string): string | null {
     // Strip common URL prefixes and split on hyphens/slashes
-    const words = slug
+    const allWords = slug
       .replace(/^\/|\/$|^blog\/|^posts\//g, "")
       .split(/[-/]+/)
       .map((w) => w.toLowerCase())
       .filter((w) => w.length > 1);
-    const phrase = words.slice(0, 4).join(" ");
+    // Remove stop words — we want only the meaningful content words from the slug.
+    // e.g. "starting-up-in-australia-your-definitive-guide" → ["starting", "australia"]
+    const meaningfulWords = allWords.filter((w) => !STOP_WORDS.has(w));
+    if (meaningfulWords.length < 2) return null;
+    // Take the first 2–3 meaningful words as the keyword phrase
+    const phrase = meaningfulWords.slice(0, 3).join(" ");
     return validateKeyword(phrase) ? phrase : null;
   }
 

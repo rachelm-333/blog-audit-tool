@@ -800,3 +800,11 @@
 - [x] Fix `ReviewEdit.tsx` platform label to include Webflow case
 - [x] Update `cms.db.ts` `CreateConnectionInput.platform` and `UpsertPostInput.cmsPlatform` types to include `webflow`
 - [x] Update `drizzle/schema.ts` `CmsConnection` and `Post` TypeScript types to include `webflow`
+
+## Batch Audit + Keyword Fixes (Jun 14)
+
+- [x] Fix slug stop-word list: add "your", "definitive", "guide", "building", "business", "complete", "ultimate", "everything", "really", "actually", "truly", "proper", "full", "real", "best", "top", "great", "good", "new", "big", "get", "use", "make", "need", "know", "want", "help", "find", "start", "build", "grow", "run", "work", "set", "out", "all", "more", "most", "just", "also", "even", "still", "back", "first", "last", "next", "every", "each", "both", "few", "own", "same", "other", "such", "than", "then", "when", "where", "which", "while", "about", "after", "before", "between", "into", "through", "during", "without", "within", "along", "following", "across", "behind", "beyond", "plus", "except", "around", "down", "off", "above", "below"
+- [x] Fix extractFromSlug to require at least one non-stop-word in the extracted phrase
+- [x] Add batch audit queue on server: process max 5 posts concurrently, expose progress via tRPC polling (already implemented)
+- [x] Add progress indicator in UI: "Auditing X of Y..." with progress bar, updated as each batch completes (already implemented)
+- [x] Disable Audit All button while batch audit is running, show cancel option (cancel button added)
