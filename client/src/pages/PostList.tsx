@@ -27,6 +27,16 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
+import {
   Sheet,
   SheetContent,
   SheetHeader,
@@ -57,6 +67,7 @@ import {
   ExternalLink,
   Send,
   Globe,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { HelpTooltip } from "@/components/HelpTooltip";
@@ -1200,7 +1211,9 @@ export default function PostList() {
   const scanMutation = trpc.keyword.runCannibalisationScan.useMutation();
   const bulkSuggestMutation = trpc.keyword.bulkSuggest.useMutation();
   const backfillMutation = trpc.keyword.backfillFromTitles.useMutation();
+  const resetKeywordsMutation = trpc.keyword.resetAllKeywords.useMutation();
   const [bulkSuggestRunning, setBulkSuggestRunning] = useState(false);
+  const [showResetKeywordsDialog, setShowResetKeywordsDialog] = useState(false);
   const auditAllMutation = trpc.audit.runAuditAll.useMutation();
   const auditOneMutation = trpc.audit.runAudit.useMutation();
   const getPaaMutation = trpc.rewrite.getPaaQuestion.useMutation();
@@ -1265,6 +1278,26 @@ export default function PostList() {
   }, [data?.posts, isLoading]);
 
   const postsWithoutKeyword = (data?.posts ?? []).filter((p) => !p.focusKeyword);
+
+  const handleResetAllKeywords = () => {
+    if (!businessId || !iauditUserId) return;
+    resetKeywordsMutation.mutate(
+      { businessId, iauditUserId },
+      {
+        onSuccess: (result) => {
+          setShowResetKeywordsDialog(false);
+          refetch();
+          toast.success(
+            `Cleared keywords for ${result.cleared} post${result.cleared !== 1 ? "s" : ""}. Re-import from your CMS to detect fresh keywords.`
+          );
+        },
+        onError: () => {
+          setShowResetKeywordsDialog(false);
+          toast.error("Failed to reset keywords. Please try again.");
+        },
+      }
+    );
+  };
 
   const handleBackfillFromTitles = () => {
     if (!businessId || !iauditUserId) return;
@@ -1636,6 +1669,24 @@ export default function PostList() {
                   No posts imported yet. Connect your CMS and import posts first.
                 </TooltipContent>
               )}
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowResetKeywordsDialog(true)}
+                  disabled={posts.length === 0 || resetKeywordsMutation.isPending}
+                  className="gap-2 border-red-500/40 text-red-500 hover:bg-red-500/10"
+                >
+                  <RotateCcw size={14} />
+                  Reset All Keywords
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Clear all auto-detected keywords and re-detect them fresh on next import.
+                Manually edited keywords are preserved.
+              </TooltipContent>
             </Tooltip>
           </div>
         </div>
@@ -2179,6 +2230,38 @@ export default function PostList() {
         iauditUserId={iauditUserId ?? ""}
         onClose={() => setPreviewPost(null)}
       />
+
+      {/* Reset All Keywords confirmation dialog */}
+      <AlertDialog open={showResetKeywordsDialog} onOpenChange={setShowResetKeywordsDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset all keywords?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will clear all auto-detected keywords and re-detect them fresh on next import.
+              Manually edited keywords will also be cleared. Continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={resetKeywordsMutation.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleResetAllKeywords}
+              disabled={resetKeywordsMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {resetKeywordsMutation.isPending ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="animate-spin" size={14} />
+                  Clearing…
+                </span>
+              ) : (
+                "Reset Keywords"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

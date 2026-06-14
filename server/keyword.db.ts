@@ -9,7 +9,7 @@
  * - getPostForKeyword: fetch post fields needed for keyword management
  */
 
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, or } from "drizzle-orm";
 import { getDb } from "./db";
 import { posts } from "../drizzle/schema";
 
@@ -193,4 +193,47 @@ export async function getPostForKeyword(postId: string): Promise<{
     .limit(1);
 
   return rows[0] ?? null;
+}
+
+/**
+ * Clear focusKeyword and keywordSource for all posts belonging to a business
+ * where keywordSource is NOT "user_entered" (i.e. manually set by the user).
+ * This forces fresh AI detection on the next import without touching manually
+ * curated keywords.
+ *
+ * Returns the number of posts that were cleared.
+ */
+export async function resetKeywordsForBusiness(businessId: string): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Fetch all posts for this business that are NOT user_entered
+  const toReset = await db
+    .select({ id: posts.id })
+    .from(posts)
+    .where(
+      and(
+        eq(posts.businessId, businessId),
+        or(
+          isNull(posts.keywordSource),
+          ne(posts.keywordSource, "user_entered")
+        )
+      )
+    );
+
+  if (toReset.length === 0) return 0;
+
+  const ids = toReset.map((r) => r.id);
+
+  // Clear in batches of 100 to stay within SQL parameter limits
+  const BATCH = 100;
+  for (let i = 0; i < ids.length; i += BATCH) {
+    const batch = ids.slice(i, i + BATCH);
+    await db
+      .update(posts)
+      .set({ focusKeyword: null, keywordSource: null, updatedAt: new Date() })
+      .where(inArray(posts.id, batch));
+  }
+
+  return ids.length;
 }

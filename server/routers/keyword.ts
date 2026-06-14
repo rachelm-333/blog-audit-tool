@@ -18,6 +18,7 @@ import { getBusinessById } from "../businesses.db";
 import {
   getPostForKeyword,
   listPostsForBusiness,
+  resetKeywordsForBusiness,
   saveKeyword,
   updateCannibalisationFlags,
   updatePostKeyword,
@@ -297,6 +298,25 @@ export const keywordRouter = router({
     .query(async ({ input }) => {
       const post = await assertPostOwnership(input.postId, input.iauditUserId);
       return { bodyOriginal: post.bodyOriginal ?? "" };
+    }),
+
+  /**
+   * keyword.resetAllKeywords
+   * Clear focusKeyword + keywordSource for all posts in a business where
+   * keywordSource is NOT 'user_entered'. This forces fresh AI detection on
+   * the next import without touching manually curated keywords.
+   */
+  resetAllKeywords: publicProcedure
+    .input(
+      z.object({
+        businessId: z.string().min(1),
+        iauditUserId: z.string().min(1),
+      })
+    )
+    .mutation(async ({ input }) => {
+      await assertBusinessOwnership(input.businessId, input.iauditUserId);
+      const cleared = await resetKeywordsForBusiness(input.businessId);
+      return { success: true, cleared };
     }),
 
   /**
