@@ -17,7 +17,7 @@
 
 import { JSDOM } from "jsdom";
 import type { WordPressCredentials } from "./encryption.service";
-import { validateKeyword } from "./keyword.service";
+import { validateKeyword, detectKeywordWithAI } from "./keyword.service";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -398,6 +398,13 @@ export async function importWordPressPosts(
           ]);
           categories = catTerms.map((t) => t.name);
           tags = tagTerms.map((t) => t.name);
+        }
+
+        // AI fallback: if no keyword from Yoast/RankMath, ask Claude
+        if (!focusKeyword) {
+          const slug = (raw.slug as string) ?? "";
+          const aiKw = await detectKeywordWithAI(raw.title?.rendered ?? "", bodyHtml, slug);
+          if (aiKw) focusKeyword = aiKw;
         }
 
         allPosts.push({

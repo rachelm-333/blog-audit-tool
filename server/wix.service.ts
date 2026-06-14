@@ -20,7 +20,7 @@ import type { WixCredentials } from "./encryption.service";
 import { extractBodyImageAlts } from "./wordpress.service";
 import type { WpImportedPost, WpPostStatus } from "./wordpress.service";
 import { PostBackException, preserveImagesInBody } from "./postback.service";
-import { extractKeywordFromTitle, validateKeyword, STOP_WORDS } from "./keyword.service";
+import { extractKeywordFromTitle, validateKeyword, STOP_WORDS, detectKeywordWithAI } from "./keyword.service";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -433,8 +433,10 @@ function parseWixPost(raw: Record<string, unknown>): WpImportedPost {
     );
     if (titleKw && validateKeyword(titleKw)) detectedKeyword = titleKw;
   }
-  // If still invalid, leave null — user fills manually
+  // Priority 5: AI-powered detection (async fallback — only called when all heuristics fail)
+  // Note: parseWixPost is called inside importFromWix which is already async
   const focusKeyword = detectedKeyword;
+  // AI fallback is applied in importFromWix after parseWixPost returns, to keep this function sync-compatible
 
   // ── FIX 4: Correctly read published/draft status from Wix API ──
   // The Wix Blog API returns status on the top-level post object.
@@ -606,7 +608,20 @@ export async function importFromWix(
   const posts: WpImportedPost[] = [];
   for (const raw of rawPosts) {
     try {
-      posts.push(parseWixPost(raw));
+      const parsed = parseWixPost(raw);
+      // Priority 5: AI-powered keyword detection — only when all heuristics produced nothing
+      if (!parsed.focusKeyword) {
+        const aiKw = await detectKeywordWithAI(
+          parsed.title,
+          parsed.bodyHtml,
+          (raw.slug as string) ?? ""
+        );
+        if (aiKw) {
+          (parsed as any).focusKeyword = aiKw;
+          (parsed as any).keywordSource = "ai_detected";
+        }
+      }
+      posts.push(parsed);
     } catch (parseErr: any) {
       // Log the exact error and the raw post that caused it so we can diagnose
       console.error(

@@ -13,7 +13,7 @@
  */
 
 import type { WpImportedPost } from "./wordpress.service";
-import { validateKeyword } from "./keyword.service";
+import { validateKeyword, detectKeywordWithAI } from "./keyword.service";
 
 export interface WebflowCredentials {
   apiKey: string;
@@ -340,6 +340,9 @@ export async function importWebflowPosts(
         featuredImageAlt = img.alt ?? null;
       }
 
+      // AI fallback: if no keyword from Webflow SEO fields, ask Claude
+      const finalKeyword = focusKeyword ?? (await detectKeywordWithAI(title, bodyHtml, slug)) ?? null;
+
       importedPosts.push({
         cmsPostId: item.id,
         title,
@@ -350,7 +353,7 @@ export async function importWebflowPosts(
         scheduledDate: null,
         authorIdCms: authorId,
         authorNameCms: authorName,
-        focusKeyword,
+        focusKeyword: finalKeyword,
         metaTitle: metaTitle || null,
         metaDescription: metaDesc || null,
         featuredImageUrl,

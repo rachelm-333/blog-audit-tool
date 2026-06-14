@@ -378,3 +378,56 @@ export function detectCannibalisation(
     duplicateGroups,
   };
 }
+
+// ---------------------------------------------------------------------------
+// AI-Powered Keyword Detection (Import Fallback)
+// ---------------------------------------------------------------------------
+
+/**
+ * Ask Claude to identify the single most likely SEO focus keyword for a post.
+ * Used as a fallback during import when CMS SEO fields and slug/title heuristics
+ * fail to produce a valid keyword.
+ *
+ * Returns the keyword phrase (2–4 words) or null if the LLM call fails or
+ * the result fails validateKeyword().
+ */
+export async function detectKeywordWithAI(
+  title: string,
+  bodyHtml: string,
+  slug: string
+): Promise<string | null> {
+  try {
+    // Strip HTML tags for a clean text excerpt
+    const bodyText = bodyHtml
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 500);
+
+    const response = await invokeLLM({
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an SEO specialist. Given a blog post title, URL slug, and content excerpt, " +
+            "identify the single most likely SEO focus keyword phrase a person would type into Google " +
+            "to find this post. Return ONLY the keyword phrase — 2 to 4 words, all lowercase, " +
+            "no punctuation, no explanation, no quotes.",
+        },
+        {
+          role: "user",
+          content: `Title: ${title}\nSlug: ${slug}\nContent excerpt: ${bodyText}`,
+        },
+      ],
+    });
+
+    const contentVal = response?.choices?.[0]?.message?.content;
+    const raw = (typeof contentVal === "string" ? contentVal : "").trim().toLowerCase();
+    // Strip any accidental quotes or punctuation the model may add
+    const cleaned = raw.replace(/["""''.,!?;:]/g, "").trim();
+    return validateKeyword(cleaned) ? cleaned : null;
+  } catch {
+    // Never let an AI failure break the import
+    return null;
+  }
+}

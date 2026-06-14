@@ -18,7 +18,7 @@ import type { ShopifyCredentials } from "./encryption.service";
 import { extractBodyImageAlts } from "./wordpress.service";
 import type { WpImportedPost, WpPostStatus } from "./wordpress.service";
 import { PostBackException } from "./postback.service";
-import { validateKeyword } from "./keyword.service";
+import { validateKeyword, detectKeywordWithAI } from "./keyword.service";
 
 // ─── Error types ──────────────────────────────────────────────────────────────
 
@@ -252,6 +252,13 @@ export async function importShopifyPosts(
           // Author — Shopify stores author name only (no separate author_id)
           const authorNameCms: string = article.author ?? "Unknown";
           const authorIdCms: string = article.author ?? ""; // No native author ID in Shopify
+
+          // AI fallback: if no keyword from Shopify metafields, ask Claude
+          if (!focusKeyword) {
+            const slug = article.handle ?? "";
+            const aiKw = await detectKeywordWithAI(article.title ?? "", bodyHtml, slug);
+            if (aiKw) focusKeyword = aiKw;
+          }
 
           allPosts.push({
             cmsPostId: article.id.toString(),
