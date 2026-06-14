@@ -425,14 +425,24 @@ export async function detectKeywordWithAI(
         {
           role: "system",
           content:
-            "You are an SEO specialist. Given a blog post title, URL slug, and content excerpt, " +
-            "identify the single most likely SEO focus keyword phrase a person would type into Google " +
-            "to find this post. Return ONLY the keyword phrase — 2 to 4 words, all lowercase, " +
-            "no punctuation, no explanation, no quotes.",
+            "You are an SEO expert. Given a blog post title, URL slug, and content excerpt, " +
+            "identify the single best focus keyword phrase.\n\n" +
+            "Rules:\n" +
+            "- The keyword must be 2-4 words\n" +
+            "- It should be something a real person would type into Google\n" +
+            "- Read the TITLE as a complete phrase first — derive the keyword from the title topic, not random words\n" +
+            "- Prefer specific phrases over generic ones\n" +
+            "- Do NOT include filler words like 'guide', 'definitive', 'ultimate', 'your', 'how to' unless they are core to the search query\n\n" +
+            "Examples:\n" +
+            "- Title \"Starting Up in Australia: Your Definitive Guide\" → starting up in australia\n" +
+            "- Title \"Start Up Business Loans in Australia\" → startup business loans australia\n" +
+            "- Title \"How to Build an MVP\" → build an mvp\n" +
+            "- Title \"Australian Business Registration Explained\" → australian business registration\n\n" +
+            "Return ONLY the keyword phrase — all lowercase, no punctuation, no explanation, no quotes.",
         },
         {
           role: "user",
-          content: `Title: ${title}\nSlug: ${slug}\nContent excerpt: ${bodyText}`,
+          content: `Title: ${title}\nSlug: ${slug}\nFirst 100 words: ${bodyText}`,
         },
       ],
     });
