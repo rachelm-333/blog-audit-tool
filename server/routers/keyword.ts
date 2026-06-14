@@ -25,6 +25,10 @@ import {
   updatePostKeyword,
 } from "../keyword.db";
 import { detectCannibalisation, detectKeywordWithAI, extractKeywordFromTitle, suggestKeywordsForPost } from "../keyword.service";
+import { getPostForAudit, saveAuditResults } from "../audit.db";
+import type { AuditResultsJson } from "../audit.db";
+import { runMechanicalChecks, scoreToGrade } from "../audit.service";
+import type { AuditPoint } from "../audit.service";
 
 // ---------------------------------------------------------------------------
 // Ownership helpers
@@ -377,6 +381,92 @@ export const keywordRouter = router({
       const done = processed >= total;
 
       return { processed, succeeded, failed, total, done };
+    }),
+
+  /**
+   * keyword.updateAndRescore
+   * Save a manually edited keyword (source = user_entered) and immediately
+   * re-score the SEO audit using the new keyword.
+   *
+   * Strategy: re-run mechanical checks (P1–P8, P13, P16) with the new keyword,
+   * then merge with the stored AI scores (P9–P12, P14–P15) from the last audit.
+   * This gives an updated score in milliseconds without a new AI call.
+   * If the post has never been audited, the mechanical-only score is saved.
+   * Content is NEVER modified.
+   */
+  updateAndRescore: publicProcedure
+    .input(
+      z.object({
+        postId: z.string().min(1),
+        keyword: z.string().min(1).max(255).trim(),
+        iauditUserId: z.string().min(1),
+      })
+    )
+    .mutation(async ({ input }) => {
+      // 1. Ownership check
+      const post = await assertPostOwnership(input.postId, input.iauditUserId);
+
+      // 2. Save keyword as user_entered
+      await updatePostKeyword(input.postId, input.keyword, "user_entered");
+
+      // 3. Re-score only if the post has been audited before
+      const auditPost = await getPostForAudit(input.postId);
+      if (!auditPost || auditPost.auditStatus !== "complete" || !auditPost.auditResults) {
+        // No prior audit — just save keyword, return without rescoring
+        return { success: true, rescored: false };
+      }
+
+      // 4. Re-run mechanical checks with the new keyword
+      const mechanicalPoints = runMechanicalChecks({
+        title: auditPost.title,
+        bodyHtml: auditPost.bodyOriginal ?? "",
+        url: auditPost.url ?? "",
+        focusKeyword: input.keyword,
+        metaTitle: auditPost.metaTitleOriginal ?? null,
+        metaDescription: auditPost.metaDescriptionOriginal ?? null,
+      });
+
+      // 5. Extract stored AI points from the previous audit results
+      const storedResults = auditPost.auditResults as unknown as AuditResultsJson;
+      const aiPointIds = new Set(["P9", "P10", "P11", "P12", "P14", "P15"]);
+      const storedAiPoints: AuditPoint[] = (storedResults?.points ?? []).filter(
+        (p: AuditPoint) => aiPointIds.has(p.point)
+      );
+
+      // 6. Merge mechanical + AI points in P1–P16 order
+      const byPoint: Record<string, AuditPoint> = {};
+      for (const p of [...mechanicalPoints, ...storedAiPoints]) {
+        byPoint[p.point] = p;
+      }
+      const allPoints: AuditPoint[] = [];
+      for (let i = 1; i <= 16; i++) {
+        const key = `P${i}`;
+        if (byPoint[key]) allPoints.push(byPoint[key]);
+      }
+
+      // 7. Compute new score and grade
+      const score = allPoints.filter(
+        (p) => p.status === "pass" || p.status === "na"
+      ).length;
+      const grade = scoreToGrade(score);
+      const potentialScore = allPoints.filter(
+        (p) => p.status === "pass" || p.status === "na" || p.status === "unable_to_score"
+      ).length;
+
+      // 8. Persist updated audit results
+      await saveAuditResults(input.postId, score, grade, {
+        points: allPoints,
+        potentialScore,
+      });
+
+      return {
+        success: true,
+        rescored: true,
+        score,
+        grade,
+        potentialScore,
+        points: allPoints,
+      };
     }),
 
   /**

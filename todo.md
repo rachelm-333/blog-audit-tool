@@ -830,3 +830,10 @@
 - [x] Add handleDetectAllKeywords async handler with batched loop and progress tracking
 - [x] Add "Detect All Keywords" button to PostList toolbar with live progress label ("Detecting X of 256…")
 - [x] TypeScript clean (0 errors)
+
+## Keyword Editing Features (June 15)
+
+- [ ] Inline keyword editing in Post Library — click chip to edit, save with source=manual
+- [ ] Editable Focus Keyword field in Review/Edit screen with warning about no content rewrite
+- [ ] Slug-source warning indicator (⚠️) on keyword chip with tooltip
+- [ ] Re-score SEO audit points on keyword change without rewriting content

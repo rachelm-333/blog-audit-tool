@@ -153,74 +153,115 @@ function GradeBadge({ grade }: { grade: string | null | undefined }) {
 }
 
 // ---------------------------------------------------------------------------
-// Keyword Status Badge
+// Inline Keyword Editor
 // ---------------------------------------------------------------------------
 
-function KeywordBadge({
-  source,
-  keyword,
+const SOURCE_CONFIG: Record<string, { label: string; className: string }> = {
+  cms_scraped: { label: "CMS", className: "text-sky-400 border-sky-400/40 bg-sky-400/5" },
+  user_entered: { label: "Manual", className: "text-emerald-400 border-emerald-400/40 bg-emerald-400/5" },
+  auto_detected: { label: "Auto", className: "text-violet-400 border-violet-400/40 bg-violet-400/5" },
+  ai_suggested: { label: "AI", className: "text-indigo-400 border-indigo-400/40 bg-indigo-400/5" },
+  ai_detected: { label: "AI", className: "text-indigo-400 border-indigo-400/40 bg-indigo-400/5" },
+  slug: { label: "Slug", className: "text-amber-400 border-amber-400/40 bg-amber-400/5" },
+};
+
+function InlineKeywordEditor({
+  post,
+  isEditing,
+  editValue,
+  isSaving,
+  onEditStart,
+  onEditChange,
+  onSave,
+  onCancel,
 }: {
-  source: string | null;
-  keyword: string | null;
+  post: Post;
+  isEditing: boolean;
+  editValue: string;
+  isSaving: boolean;
+  onEditStart: () => void;
+  onEditChange: (v: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
 }) {
-  if (!keyword) {
+  const isSlug = post.keywordSource === "slug";
+
+  if (isEditing) {
     return (
-      <Badge
-        variant="outline"
-        className="text-amber-400 border-amber-400/40 bg-amber-400/5 text-xs gap-1"
-      >
-        <Tag size={10} />
-        No keyword
-      </Badge>
+      <div className="flex items-center gap-1.5 min-w-0">
+        <Input
+          autoFocus
+          value={editValue}
+          onChange={(e) => onEditChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") onSave();
+            if (e.key === "Escape") onCancel();
+          }}
+          className="h-6 text-xs px-2 py-0 w-44 border-primary/60 focus-visible:ring-1 focus-visible:ring-primary/40"
+          placeholder="e.g. pool installation sydney"
+          disabled={isSaving}
+        />
+        <Button
+          size="sm"
+          className="h-6 px-2 text-[10px] font-semibold"
+          onClick={onSave}
+          disabled={isSaving || !editValue.trim()}
+        >
+          {isSaving ? <Loader2 className="animate-spin" size={10} /> : "Save"}
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-6 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+          onClick={onCancel}
+          disabled={isSaving}
+        >
+          Cancel
+        </Button>
+      </div>
     );
   }
-  const sourceConfig: Record<
-    string,
-    { label: string; className: string }
-  > = {
-    cms_scraped: {
-      label: "CMS",
-      className: "text-sky-400 border-sky-400/40 bg-sky-400/5",
-    },
-    user_entered: {
-      label: "Manual",
-      className: "text-emerald-400 border-emerald-400/40 bg-emerald-400/5",
-    },
-    auto_detected: {
-      label: "Auto",
-      className: "text-violet-400 border-violet-400/40 bg-violet-400/5",
-    },
-    ai_suggested: {
-      label: "AI",
-      className: "text-indigo-400 border-indigo-400/40 bg-indigo-400/5",
-    },
-    ai_detected: {
-      label: "AI",
-      className: "text-indigo-400 border-indigo-400/40 bg-indigo-400/5",
-    },
-    slug: {
-      label: "Slug",
-      className: "text-violet-400 border-violet-400/40 bg-violet-400/5",
-    },
-  };
-  const cfg = sourceConfig[source ?? ""] ?? {
-    label: "Set",
-    className: "text-muted-foreground border-border",
-  };
+
+  if (!post.focusKeyword) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge
+            variant="outline"
+            className="text-amber-400 border-amber-400/40 bg-amber-400/5 text-xs gap-1 cursor-pointer hover:bg-amber-400/10 transition-colors"
+            onClick={onEditStart}
+          >
+            <Tag size={10} />
+            No keyword — click to set
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent side="top">Click to set a focus keyword for this post</TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  const cfg = SOURCE_CONFIG[post.keywordSource ?? ""] ?? { label: "Set", className: "text-muted-foreground border-border" };
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <Badge
           variant="outline"
-          className={`text-xs gap-1 cursor-default ${cfg.className}`}
+          className={`text-xs gap-1 cursor-pointer hover:opacity-80 transition-opacity ${cfg.className}`}
+          onClick={onEditStart}
         >
-          <CheckCircle2 size={10} />
-          <span>{keyword}</span>
+          {isSlug ? (
+            <AlertTriangle size={10} className="text-amber-400 shrink-0" />
+          ) : (
+            <CheckCircle2 size={10} />
+          )}
+          <span>{post.focusKeyword}</span>
           <span className="opacity-60 shrink-0">· {cfg.label}</span>
         </Badge>
       </TooltipTrigger>
       <TooltipContent side="top" className="max-w-xs">
-        Focus keyword: <strong>{keyword}</strong> (source: {source ?? "unknown"})
+        {isSlug
+          ? "This keyword was auto-detected with low confidence. Click to edit if it looks wrong."
+          : `Focus keyword: ${post.focusKeyword} (source: ${post.keywordSource ?? "unknown"}). Click to edit.`}
       </TooltipContent>
     </Tooltip>
   );
@@ -1225,6 +1266,48 @@ export default function PostList() {
   const [showResetKeywordsDialog, setShowResetKeywordsDialog] = useState(false);
   const [detectingAllKeywords, setDetectingAllKeywords] = useState(false);
   const [detectKwProgress, setDetectKwProgress] = useState<{ processed: number; total: number } | null>(null);
+  const updateAndRescoreMutation = trpc.keyword.updateAndRescore.useMutation();
+  // Inline keyword editing state: postId -> draft value (null = not editing)
+  const [editingKeywordId, setEditingKeywordId] = useState<string | null>(null);
+  const [editingKeywordValue, setEditingKeywordValue] = useState("");
+  const [savingKeywordId, setSavingKeywordId] = useState<string | null>(null);
+
+  const handleKeywordEditStart = (post: Post) => {
+    setEditingKeywordId(post.id);
+    setEditingKeywordValue(post.focusKeyword ?? "");
+  };
+
+  const handleKeywordEditCancel = () => {
+    setEditingKeywordId(null);
+    setEditingKeywordValue("");
+  };
+
+  const handleKeywordEditSave = (postId: string) => {
+    const trimmed = editingKeywordValue.trim();
+    if (!trimmed || !iauditUserId) return;
+    setSavingKeywordId(postId);
+    updateAndRescoreMutation.mutate(
+      { postId, keyword: trimmed, iauditUserId },
+      {
+        onSuccess: (result) => {
+          setEditingKeywordId(null);
+          setEditingKeywordValue("");
+          setSavingKeywordId(null);
+          refetch();
+          if (result.rescored) {
+            toast.success(`Keyword saved and SEO score updated to ${result.score}/16 (${result.grade?.replace("_", " ")}).`);
+          } else {
+            toast.success("Keyword saved. Run an audit to update the SEO score.");
+          }
+        },
+        onError: (err) => {
+          setSavingKeywordId(null);
+          toast.error(err.message ?? "Failed to save keyword.");
+        },
+      }
+    );
+  };
+
   const auditAllMutation = trpc.audit.runAuditAll.useMutation();
   const auditOneMutation = trpc.audit.runAudit.useMutation();
   const getPaaMutation = trpc.rewrite.getPaaQuestion.useMutation();
@@ -2055,13 +2138,19 @@ export default function PostList() {
                       </div>
                     )}
 
-                    {/* Keyword badge */}
-                    <div className="shrink-0">
-                      <KeywordBadge
-                        source={post.keywordSource}
-                        keyword={post.focusKeyword}
-                      />
-                    </div>
+                    {/* Inline keyword editor */}
+                     <div className="shrink-0">
+                       <InlineKeywordEditor
+                         post={post}
+                         isEditing={editingKeywordId === post.id}
+                         editValue={editingKeywordId === post.id ? editingKeywordValue : ""}
+                         isSaving={savingKeywordId === post.id}
+                         onEditStart={() => handleKeywordEditStart(post)}
+                         onEditChange={setEditingKeywordValue}
+                         onSave={() => handleKeywordEditSave(post.id)}
+                         onCancel={handleKeywordEditCancel}
+                       />
+                     </div>
 
                     {/* Actions */}
                     <div className="shrink-0 flex gap-2">

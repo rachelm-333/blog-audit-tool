@@ -1003,10 +1003,23 @@ export default function ReviewEdit() {
     },
   });
 
-  const saveKeywordMutation = trpc.keyword.saveKeyword.useMutation({
-    onSuccess: () => {
-      toast.success("Keyword saved. Re-run the audit to update your score.");
+  const updateAndRescoreMutation = trpc.keyword.updateAndRescore.useMutation({
+    onSuccess: (result) => {
       setEditingKeyword(false);
+      if (result.rescored && result.score != null && result.grade) {
+        setCurrentScore(result.score);
+        setCurrentGrade(result.grade);
+        if (result.points) {
+          setCurrentAuditPoints(
+            result.points as Array<{ point: string; name: string; status: string; note: string }>
+          );
+        }
+        toast.success(
+          `Keyword saved. SEO score updated to ${result.score}/16 (${result.grade.replace("_", " ")}). Content was not changed.`
+        );
+      } else {
+        toast.success("Keyword saved. Run an audit to update the SEO score.");
+      }
     },
     onError: (err) => {
       toast.error(err.message ?? "Failed to save keyword.");
@@ -1617,6 +1630,13 @@ ${editor.getHTML()}
               <div className="pt-1">
                 {editingKeyword ? (
                   <div className="space-y-2">
+                    {/* Warning: keyword change updates scoring but not content */}
+                    <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-md px-3 py-2">
+                      <AlertTriangle size={12} className="text-amber-400 shrink-0 mt-0.5" />
+                      <p className="text-[10px] text-amber-300 leading-snug">
+                        Changing the keyword here will update the SEO scoring but will <strong>NOT</strong> rewrite the content. You can manually edit the content below to incorporate the new keyword.
+                      </p>
+                    </div>
                     <div>
                       <label className="text-xs text-muted-foreground flex items-center mb-1">Focus Keyword <HelpTooltip text="Your focus keyword is the main phrase this post is trying to rank for in Google. Every post should have exactly one. iAudit checks that this keyword appears in the right places throughout your post." /></label>
                       <Input
@@ -1648,22 +1668,17 @@ ${editor.getHTML()}
                       <Button
                         size="sm"
                         className="flex-1 h-7 text-xs"
-                        disabled={saveKeywordMutation.isPending || !keywordDraft.trim()}
+                        disabled={updateAndRescoreMutation.isPending || !keywordDraft.trim()}
                         onClick={() => {
                           if (!postId || !iauditUserId) return;
-                          const secondaryArr = secondaryKeywordsDraft
-                            .split(",")
-                            .map((s) => s.trim())
-                            .filter(Boolean);
-                          saveKeywordMutation.mutate({
+                          updateAndRescoreMutation.mutate({
                             postId,
+                            keyword: keywordDraft.trim(),
                             iauditUserId,
-                            focusKeyword: keywordDraft.trim(),
-                            secondaryKeywords: secondaryArr,
                           });
                         }}
                       >
-                        {saveKeywordMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : "Save Keyword"}
+                        {updateAndRescoreMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : "Save Keyword"}
                       </Button>
                     </div>
                   </div>
