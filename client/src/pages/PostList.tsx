@@ -1663,7 +1663,7 @@ export default function PostList() {
         {/* Review-status filter tabs */}
         <div className="flex gap-1 mb-4 flex-wrap">
           {([
-            { key: "all", label: "All", count: allPosts.length },
+            { key: "all", label: "All", count: titleSearchLower ? posts.length : allPosts.length },
             { key: "awaiting_review", label: "Awaiting Review", count: awaitingReviewCount },
             { key: "approved", label: "Approved", count: approvedCount },
             { key: "published", label: "Published", count: publishedCount },
@@ -1781,21 +1781,35 @@ export default function PostList() {
               <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
                 <FileText className="h-7 w-7 text-primary/60" />
               </div>
-              <div>
-                <p className="text-base font-semibold text-foreground">No posts imported yet</p>
-                <p className="text-sm text-muted-foreground mt-1 max-w-xs mx-auto">
-                  Connect your CMS and import your blog posts to start auditing and rewriting them.
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate("/cms/connect")}
-                >
-                  Connect CMS
-                </Button>
-              </div>
+              {titleSearchLower ? (
+                <div>
+                  <p className="text-base font-semibold text-foreground">No posts match &ldquo;{titleSearch}&rdquo;</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Try a different search term or{" "}
+                    <button className="underline hover:text-foreground" onClick={() => setTitleSearch("")}>
+                      clear the search
+                    </button>.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-base font-semibold text-foreground">No posts imported yet</p>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-xs mx-auto">
+                    Connect your CMS and import your blog posts to start auditing and rewriting them.
+                  </p>
+                </div>
+              )}
+              {!titleSearchLower && (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate("/cms/connect")}
+                  >
+                    Connect CMS
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         ) : (
