@@ -616,8 +616,14 @@ export async function importFromWix(
       // Skip this post rather than crashing the entire import
     }
   }
-  // POST /query uses metaData.cursors.next for pagination
-  const nextCursor = (data.metaData as any)?.cursors?.next ?? null;
+  // POST /query response has two paging objects:
+  //   data.metaData.cursor         — flat cursor string (simple paging, no sub-object)
+  //   data.pagingMetadata.cursors.next — correct cursor for Query API pagination
+  // We must use pagingMetadata.cursors.next; metaData has no .cursors property.
+  const nextCursor: string | null =
+    (data.pagingMetadata as any)?.cursors?.next ??
+    (data.metaData as any)?.cursor ??
+    null;
 
   return { posts, nextCursor };
 }

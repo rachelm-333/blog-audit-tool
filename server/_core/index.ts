@@ -128,7 +128,7 @@ async function startServer() {
         test2_listFieldsetsEncoded: { url: url2, status: res2.status, error: (body2 as any)?.message },
         test3_singlePostNoFieldsets: { url: url3, status: res3.status, fieldsReturned: Object.keys((body3 as any)?.post ?? {}), hasSeoData: !!(body3 as any)?.post?.seoData, hasRichContent: !!(body3 as any)?.post?.richContent },
         test4_singlePostFieldsetsRaw: { url: url4, status: res4.status, error: (body4 as any)?.message, fieldsReturned: Object.keys((body4 as any)?.post ?? {}), hasSeoData: !!(body4 as any)?.post?.seoData, hasRichContent: !!(body4 as any)?.post?.richContent },
-        test5_postQueryWithFieldsets: { url: url5, status: res5.status, error: (body5 as any)?.message, fieldsReturned: Object.keys((body5 as any)?.posts?.[0] ?? {}), hasSeoData: !!(body5 as any)?.posts?.[0]?.seoData, hasRichContent: !!(body5 as any)?.posts?.[0]?.richContent, postCount: (body5 as any)?.posts?.length ?? 0 },
+        test5_postQueryWithFieldsets: { url: url5, status: res5.status, error: (body5 as any)?.message, fieldsReturned: Object.keys((body5 as any)?.posts?.[0] ?? {}), hasSeoData: !!(body5 as any)?.posts?.[0]?.seoData, hasRichContent: !!(body5 as any)?.posts?.[0]?.richContent, postCount: (body5 as any)?.posts?.length ?? 0, topLevelKeys: Object.keys((body5 as any) ?? {}), metaData: (body5 as any)?.metaData, pagingMetadata: (body5 as any)?.pagingMetadata },
       });
     } catch (err: any) {
       return res.json({ error: err?.message ?? String(err), stack: err?.stack?.slice(0, 500) });
