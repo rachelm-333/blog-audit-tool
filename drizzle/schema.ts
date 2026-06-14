@@ -201,6 +201,8 @@ export const posts = mysqlTable(
       "user_entered",
       "auto_detected",
       "ai_suggested",
+      "ai_detected",
+      "slug",
     ]),
     // Secondary keywords — supporting/related terms that reinforce the primary keyword
     // JSON array of strings, nullable. Scraped from CMS where available.

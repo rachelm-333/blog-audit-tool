@@ -816,3 +816,17 @@
 - [x] Expand STOP_WORDS: add "apply", "check", "learn", "create", "add", "change", "update", "manage", "local", "global", "general", "specific", "common", "popular", "setup", "install", "configure", "phone", "device", "app", "software", "website"
 - [x] Remove temporary `/api/test-wix` debug endpoint from `server/_core/index.ts`
 - [x] All 16 keyword validation tests pass (australia your definitive FAIL, apply for FAIL, how setup phone FAIL, starting up in australia PASS, online business australia PASS, etc.)
+
+## Keyword Detection Improvements (Jun 15 2026)
+
+- [x] Diagnose why AI detection didn't run during Wix re-import (import ran before DB reset — pre-flight check found valid keywords, skipped AI for all posts)
+- [x] Add getPostsWithoutKeyword DB helper to keyword.db.ts
+- [x] Add keyword.detectAllKeywords tRPC procedure (batched, offset-based, 10 posts per call)
+- [x] Expand keywordSource enum in schema.ts to include "ai_detected" and "slug"
+- [x] Apply schema migration (ALTER TABLE posts MODIFY COLUMN keyword_source enum)
+- [x] Expand updatePostKeyword and saveKeyword type signatures to include "ai_detected" and "slug"
+- [x] Expand PostTableRow.keywordSource type in dashboard.db.ts
+- [x] Add ai_detected and slug source configs to KeywordBadge in PostList.tsx
+- [x] Add handleDetectAllKeywords async handler with batched loop and progress tracking
+- [x] Add "Detect All Keywords" button to PostList toolbar with live progress label ("Detecting X of 256…")
+- [x] TypeScript clean (0 errors)

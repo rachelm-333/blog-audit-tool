@@ -194,6 +194,14 @@ function KeywordBadge({
       label: "AI",
       className: "text-indigo-400 border-indigo-400/40 bg-indigo-400/5",
     },
+    ai_detected: {
+      label: "AI",
+      className: "text-indigo-400 border-indigo-400/40 bg-indigo-400/5",
+    },
+    slug: {
+      label: "Slug",
+      className: "text-violet-400 border-violet-400/40 bg-violet-400/5",
+    },
   };
   const cfg = sourceConfig[source ?? ""] ?? {
     label: "Set",
@@ -1212,8 +1220,11 @@ export default function PostList() {
   const bulkSuggestMutation = trpc.keyword.bulkSuggest.useMutation();
   const backfillMutation = trpc.keyword.backfillFromTitles.useMutation();
   const resetKeywordsMutation = trpc.keyword.resetAllKeywords.useMutation();
+  const detectAllKeywordsMutation = trpc.keyword.detectAllKeywords.useMutation();
   const [bulkSuggestRunning, setBulkSuggestRunning] = useState(false);
   const [showResetKeywordsDialog, setShowResetKeywordsDialog] = useState(false);
+  const [detectingAllKeywords, setDetectingAllKeywords] = useState(false);
+  const [detectKwProgress, setDetectKwProgress] = useState<{ processed: number; total: number } | null>(null);
   const auditAllMutation = trpc.audit.runAuditAll.useMutation();
   const auditOneMutation = trpc.audit.runAudit.useMutation();
   const getPaaMutation = trpc.rewrite.getPaaQuestion.useMutation();
@@ -1364,6 +1375,45 @@ export default function PostList() {
   };
 
   const trpcUtils = trpc.useUtils();
+
+  // ── Detect All Keywords handler ────────────────────────────────────────────
+  const handleDetectAllKeywords = useCallback(async () => {
+    if (!businessId || !iauditUserId) return;
+    setDetectingAllKeywords(true);
+    setDetectKwProgress(null);
+
+    let offset = 0;
+    const BATCH = 10;
+    let total = 0;
+
+    try {
+      while (true) {
+        const result = await detectAllKeywordsMutation.mutateAsync({
+          businessId,
+          iauditUserId,
+          batchOffset: offset,
+          batchSize: BATCH,
+        });
+        total = result.total;
+        setDetectKwProgress({ processed: result.processed, total });
+        if (result.done || result.processed >= total) break;
+        offset = result.processed;
+        // Small pause between batches to avoid overwhelming the server
+        await new Promise((r) => setTimeout(r, 300));
+      }
+      toast.success(
+        total === 0
+          ? "All posts already have keywords set."
+          : `Detected keywords for ${total} posts.`
+      );
+      refetch();
+    } catch (err: any) {
+      toast.error(`Keyword detection failed: ${err?.message ?? "Unknown error"}`);
+    } finally {
+      setDetectingAllKeywords(false);
+      setDetectKwProgress(null);
+    }
+  }, [businessId, iauditUserId, detectAllKeywordsMutation, refetch]);
 
   const handleAuditAll = () => {
     if (!businessId || !iauditUserId) return;
@@ -1669,6 +1719,32 @@ export default function PostList() {
                   No posts imported yet. Connect your CMS and import posts first.
                 </TooltipContent>
               )}
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleDetectAllKeywords}
+                    disabled={detectingAllKeywords || posts.length === 0}
+                    className="gap-2 border-indigo-500/40 text-indigo-400 hover:bg-indigo-500/10"
+                  >
+                    {detectingAllKeywords ? (
+                      <Loader2 className="animate-spin" size={14} />
+                    ) : (
+                      <Sparkles size={14} />
+                    )}
+                    {detectingAllKeywords && detectKwProgress
+                      ? `Detecting ${detectKwProgress.processed} of ${detectKwProgress.total}…`
+                      : "Detect All Keywords"}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                Run AI keyword detection on all posts with no keyword set.
+                Processes in batches of 10 — may take a few minutes for large libraries.
+              </TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>

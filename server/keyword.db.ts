@@ -20,7 +20,7 @@ import { posts } from "../drizzle/schema";
 export async function updatePostKeyword(
   postId: string,
   keyword: string,
-  source: "cms_scraped" | "user_entered" | "auto_detected" | "ai_suggested"
+  source: "cms_scraped" | "user_entered" | "auto_detected" | "ai_suggested" | "ai_detected" | "slug"
 ): Promise<void> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -42,7 +42,7 @@ export async function saveKeyword(
   postId: string,
   focusKeyword: string,
   secondaryKeywords: string[],
-  source: "cms_scraped" | "user_entered" | "auto_detected" | "ai_suggested",
+  source: "cms_scraped" | "user_entered" | "auto_detected" | "ai_suggested" | "ai_detected" | "slug",
   clearAudit: boolean
 ): Promise<void> {
   const db = await getDb();
@@ -251,4 +251,38 @@ export async function resetKeywordsForBusiness(businessId: string): Promise<numb
   }
 
   return cleared;
+}
+
+/**
+ * Return all posts for a business that have no focus keyword set,
+ * with the fields needed for AI keyword detection.
+ * Ordered by title for deterministic batching.
+ */
+export async function getPostsWithoutKeyword(businessId: string): Promise<
+  Array<{
+    id: string;
+    title: string;
+    url: string;
+    bodyOriginal: string;
+    metaTitleOriginal: string | null;
+  }>
+> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db
+    .select({
+      id: posts.id,
+      title: posts.title,
+      url: posts.url,
+      bodyOriginal: posts.bodyOriginal,
+      metaTitleOriginal: posts.metaTitleOriginal,
+    })
+    .from(posts)
+    .where(
+      and(
+        eq(posts.businessId, businessId),
+        isNull(posts.focusKeyword)
+      )
+    );
 }

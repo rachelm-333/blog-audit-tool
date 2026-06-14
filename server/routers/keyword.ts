@@ -17,13 +17,14 @@ import { publicProcedure, router } from "../_core/trpc";
 import { getBusinessById } from "../businesses.db";
 import {
   getPostForKeyword,
+  getPostsWithoutKeyword,
   listPostsForBusiness,
   resetKeywordsForBusiness,
   saveKeyword,
   updateCannibalisationFlags,
   updatePostKeyword,
 } from "../keyword.db";
-import { detectCannibalisation, extractKeywordFromTitle, suggestKeywordsForPost } from "../keyword.service";
+import { detectCannibalisation, detectKeywordWithAI, extractKeywordFromTitle, suggestKeywordsForPost } from "../keyword.service";
 
 // ---------------------------------------------------------------------------
 // Ownership helpers
@@ -317,6 +318,65 @@ export const keywordRouter = router({
       await assertBusinessOwnership(input.businessId, input.iauditUserId);
       const cleared = await resetKeywordsForBusiness(input.businessId);
       return { success: true, cleared };
+    }),
+
+  /**
+   * keyword.detectAllKeywords
+   * Run AI keyword detection on all posts with no keyword set, in batches of 10.
+   * Returns progress after each batch so the client can show a live counter.
+   * Only processes posts where focusKeyword IS NULL.
+   */
+  detectAllKeywords: publicProcedure
+    .input(
+      z.object({
+        businessId: z.string().min(1),
+        iauditUserId: z.string().min(1),
+        batchOffset: z.number().int().min(0).default(0),
+        batchSize: z.number().int().min(1).max(10).default(10),
+      })
+    )
+    .mutation(async ({ input }) => {
+      await assertBusinessOwnership(input.businessId, input.iauditUserId);
+
+      // Fetch all posts without a keyword at query time
+      const allPosts = await getPostsWithoutKeyword(input.businessId);
+      const total = allPosts.length;
+
+      if (total === 0) {
+        return { processed: 0, succeeded: 0, failed: 0, total: 0, done: true };
+      }
+
+      // Slice the requested batch
+      const batch = allPosts.slice(input.batchOffset, input.batchOffset + input.batchSize);
+      let succeeded = 0;
+      let failed = 0;
+
+      for (const post of batch) {
+        try {
+          // Extract slug from URL (last path segment)
+          const slug = post.url ? post.url.split("/").filter(Boolean).pop() ?? "" : "";
+          const keyword = await detectKeywordWithAI(post.title, post.bodyOriginal ?? "", slug);
+          if (keyword) {
+            await updatePostKeyword(post.id, keyword, "ai_detected");
+            succeeded++;
+          } else {
+            // AI returned nothing — fall back to title extraction
+            const fallback = extractKeywordFromTitle(post.title, post.bodyOriginal ?? "", post.metaTitleOriginal ?? "");
+            if (fallback) {
+              await updatePostKeyword(post.id, fallback, "slug");
+            }
+            failed++;
+          }
+        } catch (err: any) {
+          console.error(`[detectAllKeywords] Failed for post ${post.id}:`, err?.message);
+          failed++;
+        }
+      }
+
+      const processed = input.batchOffset + batch.length;
+      const done = processed >= total;
+
+      return { processed, succeeded, failed, total, done };
     }),
 
   /**
