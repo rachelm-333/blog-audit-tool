@@ -507,85 +507,65 @@ async function generateRewriteOutline(input: Pass1Input): Promise<RewriteOutline
 }
 
 // ---------------------------------------------------------------------------
-// Pass 1B — Section-by-section rewrite
+// Pass 1B — Single guided rewrite call (replaces section-by-section approach)
 // ---------------------------------------------------------------------------
-async function rewriteSectionBySection(
+async function rewriteWithSingleCall(
   outline: RewriteOutline,
   input: Pass1Input,
   bannedPhrases: string
 ): Promise<string> {
-  const sections = outline.sections;
-  const totalSections = sections.length;
-  let assembledHtml = '';
+  const { wordCountMin, wordCountMax } = {
+    wordCountMin: input.wordCountTarget.min,
+    wordCountMax: input.wordCountTarget.max,
+  };
 
-  for (let i = 0; i < totalSections; i++) {
-    const section = sections[i];
-    const isFirst = i === 0;
-    const isLast = i === totalSections - 1;
-    const isSecond = i === 1;
-    const previousContext = assembledHtml.slice(-2000);
+  const sectionsText = outline.sections
+    .map((s, i) => `${i + 1}. H2: "${s.heading}" — ${s.targetWords} words — ${s.notes}`)
+    .join('\n');
 
-    let sectionInstructions = '';
-    if (isFirst) {
-      sectionInstructions =
-        `- Start with <h2>${section.heading}</h2>\n` +
-        `- Immediately answer the most likely search question in 40–60 words (bold the question)\n` +
-        `- The primary keyword "${input.focusKeyword}" MUST appear in the first 50 words`;
-    } else if (isLast) {
-      sectionInstructions =
-        `- Start with <h2>${section.heading}</h2>\n` +
-        `- Write 1–2 sentences summarising the value the reader gained\n` +
-        `- Keep to ${section.targetWords} words`;
-    } else {
-      sectionInstructions =
-        `- The focus keyword is: "${input.focusKeyword}". This section MUST include the focus keyword at least once, naturally.\n` +
-        `- Start with <h2>${section.heading}</h2>\n` +
-        `- Write ${section.targetWords} words of specific, practical, expert-level content\n` +
-        `- Use H3 subheadings where appropriate\n` +
-        `- Include bullet or numbered lists where they add clarity\n` +
-        `- DO NOT fabricate statistics — only cite real, verifiable facts\n` +
-        `- Use Australian English spelling\n` +
-        `- Vary sentence length — mix short punchy sentences with longer explanatory ones\n` +
-        `- Sound like a specific human expert, not a generic AI assistant\n` +
-        `- DO NOT use em dashes (—) excessively`;
-    }
-    if (isSecond) {
-      sectionInstructions += `\n- Include at least one hyperlink to a real, high-authority external source (.gov.au, industry body, or nationally recognised publication). Use descriptive anchor text.`;
-    }
+  const brandVoice = input.businessContext.brandVoice?.trim() ||
+    'Professional, authoritative, helpful. Sound like a real human expert.';
 
-    const userMsg =
-      `You are an expert SEO content writer. Rewrite ONE section of a blog article.\n` +
-      `ARTICLE CONTEXT:\n` +
-      `Business: ${input.businessContext.businessName} (${input.businessContext.targetAudience ?? 'business'}, Australia)\n` +
-      `Article Title (H1): ${outline.title}\n` +
-      `Primary Keyword: ${input.focusKeyword}\n` +
-      `Brand Voice: ${input.businessContext.brandVoice ?? 'Professional, authoritative, helpful. Sound like a real human expert.'}\n` +
-      `Section ${i + 1} of ${totalSections}\n\n` +
-      `THIS SECTION TO WRITE:\n` +
-      `H2 Heading: ${section.heading}\n` +
-      `Target Word Count: ${section.targetWords} words (write AT LEAST ${Math.round(section.targetWords * 0.9)} words)\n` +
-      `Section Notes: ${section.notes}\n\n` +
-      sectionInstructions + `\n\n` +
-      `DO NOT use any of these banned phrases:\n${bannedPhrases}\n\n` +
-      (previousContext ? `PREVIOUS SECTIONS (for context — DO NOT repeat this content):\n${previousContext}\n\n` : '') +
-      `Return ONLY the HTML for this section, wrapped in:\n` +
-      `<SECTION_HTML>\n` +
-      `...html here (h2, h3, p, ul, ol, li, a, strong, em tags only)...\n` +
-      `</SECTION_HTML>`;
+  const userMsg =
+    `You are an expert SEO content writer. Rewrite this blog article following the plan below exactly.\n\n` +
+    `ARTICLE CONTEXT:\n` +
+    `Business: ${input.businessContext.businessName} (${input.businessContext.targetAudience ?? 'business'}, ${input.businessContext.websiteUrl ? new URL(input.businessContext.websiteUrl).hostname.replace('www.', '') : 'Australia'})\n` +
+    `Primary Keyword: ${input.focusKeyword}\n` +
+    `Brand Voice: ${brandVoice}\n\n` +
+    `REWRITE PLAN (follow this structure exactly):\n` +
+    `Title (H1): ${outline.title}\n` +
+    `Sections to write:\n${sectionsText}\n\n` +
+    `STRICT RULES:\n` +
+    `- Total word count: ${wordCountMin}–${wordCountMax} words\n` +
+    `- The primary keyword "${input.focusKeyword}" MUST appear in the first 50 words [P5]\n` +
+    `- At least one H2 heading must contain the primary keyword [P3]\n` +
+    `- The first section must open with a bold question and direct 40–60 word answer [P9]\n` +
+    `- Section 2 must include one external link to a real .gov.au or industry authority source [P10]\n` +
+    `- Use Australian English spelling throughout\n` +
+    `- Vary sentence length — mix short punchy sentences with longer ones\n` +
+    `- Sound like a specific human expert, not a generic AI\n` +
+    `- DO NOT use: ${bannedPhrases}\n` +
+    `- DO NOT use em dashes (—) excessively\n` +
+    `- DO NOT fabricate statistics\n` +
+    `- Preserve all images and links from the original where relevant\n\n` +
+    `ORIGINAL ARTICLE (for reference — rewrite this, do not copy it):\n` +
+    `${input.bodyHtml}\n\n` +
+    `Return ONLY the full rewritten HTML body wrapped in:\n` +
+    `<ARTICLE_HTML>\n` +
+    `...full html here (h2, h3, p, ul, ol, li, a, strong, em tags only)...\n` +
+    `</ARTICLE_HTML>`;
 
-    const resp = await invokeClaude({
-      max_tokens: 8000,
-      system: 'You are an expert SEO content writer. Return ONLY the section HTML wrapped in <SECTION_HTML>...</SECTION_HTML> delimiters. No other text.',
-      messages: [{ role: 'user', content: userMsg }],
-    });
-    const raw = resp.choices?.[0]?.message?.content ?? '';
-    const sectionMatch = raw.match(/<SECTION_HTML>\s*([\s\S]*?)\s*<\/SECTION_HTML>/i);
-    const sectionHtml = sectionMatch?.[1]?.trim() ?? raw.trim();
-    assembledHtml += (assembledHtml ? '\n' : '') + sectionHtml;
-    console.log(`[Rewrite] Section ${i + 1}/${totalSections} written (${wordCount(stripHtml(sectionHtml))} words)`);
-  }
+  const resp = await invokeClaude({
+    max_tokens: 32000,
+    system: 'You are an expert SEO content writer. Return ONLY the full article HTML wrapped in <ARTICLE_HTML>...</ARTICLE_HTML> delimiters. No other text.',
+    messages: [{ role: 'user', content: userMsg }],
+  });
 
-  return assembledHtml;
+  const raw = resp.choices?.[0]?.message?.content ?? '';
+  const articleMatch = raw.match(/<ARTICLE_HTML>\s*([\s\S]*?)\s*<\/ARTICLE_HTML>/i);
+  const bodyHtml = articleMatch?.[1]?.trim() ?? raw.trim();
+  console.log(`[Rewrite] Pass 1B single-call complete (${wordCount(stripHtml(bodyHtml))} words)`);
+  return bodyHtml;
 }
 
 /** Run Pass 1 — outline + section-by-section rewrite */
@@ -613,9 +593,9 @@ export async function runPass1Rewrite(input: Pass1Input): Promise<Pass1Output> {
   const outline = await generateRewriteOutline(input);
   console.log(`[Rewrite] Pass 1A: outline ready — ${outline.sections.length} sections planned`);
 
-  // Step 1B — Rewrite section by section
-  console.log(`[Rewrite] Pass 1B: rewriting ${outline.sections.length} sections`);
-  let bodyRewritten = await rewriteSectionBySection(outline, input, bannedPhrasesStr);
+  // Step 1B — Single guided rewrite call
+  console.log(`[Rewrite] Pass 1B: single guided rewrite call for post with keyword "${input.focusKeyword}"`);
+  let bodyRewritten = await rewriteWithSingleCall(outline, input, bannedPhrasesStr);
 
   // --- Safety net: re-append preserved sections if the LLM truncated them ---
   if (input.originalCtaSection) {
@@ -635,13 +615,6 @@ export async function runPass1Rewrite(input: Pass1Input): Promise<Pass1Output> {
   const metaTitleRewritten = outline.metaTitle.trim();
   // Change 7: do NOT truncate meta description — store exactly as returned
   const metaDescriptionRewritten = outline.metaDescription.trim();
-
-  return {
-    bodyRewritten,
-    metaTitleRewritten,
-    metaDescriptionRewritten,
-    aiSnippet: undefined,
-  };
 
   return {
     bodyRewritten,
@@ -1570,13 +1543,13 @@ export async function runFullRewrite(params: {
     userInstructions: userInstructions ?? null,
   };
 
-  // --- Pass 1: LLM call with 90s hard timeout ---
+  // --- Pass 1: LLM call with 300s hard timeout ---
   const pass1Start = Date.now();
   console.log(`[Rewrite] Pass 1 starting — mode: ${rewriteMode}, post: ${post.id}`);
   let pass1Output = await Promise.race([
     runPass1Rewrite(pass1Input),
     new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Rewrite timed out after 90 seconds — please try again.")), 90_000)
+      setTimeout(() => reject(new Error("Rewrite timed out after 300 seconds — please try again.")), 300_000)
     ),
   ]);
   console.log(`[Rewrite] Pass 1 complete in ${((Date.now() - pass1Start) / 1000).toFixed(1)}s`);
@@ -1605,13 +1578,13 @@ export async function runFullRewrite(params: {
     ctaText: businessContext.primaryCtaLabel ?? undefined,
   });
 
-  // --- Pass 2: Fingerprint Scrub (LLM call with 90s hard timeout) ---
+  // --- Pass 2: Fingerprint Scrub (LLM call with 300s hard timeout) ---
   const pass2Start = Date.now();
   console.log(`[Rewrite] Pass 2 starting — post: ${post.id}`);
   const pass2Raw = await Promise.race([
     runPass2FingerprintScrub(pass1Output, post.focusKeyword),
     new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Rewrite timed out after 90 seconds — please try again.")), 90_000)
+      setTimeout(() => reject(new Error("Rewrite timed out after 300 seconds — please try again.")), 300_000)
     ),
   ]);
   console.log(`[Rewrite] Pass 2 complete in ${((Date.now() - pass2Start) / 1000).toFixed(1)}s`);
