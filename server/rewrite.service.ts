@@ -1764,15 +1764,29 @@ export async function runFullRewrite(params: {
     bodyHtml: pass2Output.bodyRewritten,
   });
 
-  // Fix stale year references and Australia capitalisation
-  pass2Output.bodyRewritten = pass2Output.bodyRewritten.replace(/\b202[45]\b/g, '2026').replace(/\baustralia\b/g, 'Australia').replace(/\baustralian\b/g, 'Australian');
-  pass2Output.metaTitleRewritten = pass2Output.metaTitleRewritten.replace(/\b202[45]\b/g, '2026').replace(/\baustralia\b/g, 'Australia').replace(/\baustralian\b/g, 'Australian');
-  pass2Output.metaDescriptionRewritten = pass2Output.metaDescriptionRewritten.replace(/\b202[45]\b/g, '2026').replace(/\baustralia\b/g, 'Australia').replace(/\baustralian\b/g, 'Australian');
+  // Fix stale year references and Australia capitalisation (immutable — pass2Output may be const)
+  const fixedBody = pass2Output.bodyRewritten
+    .replace(/\b202[45]\b/g, '2026')
+    .replace(/\baustralia\b/g, 'Australia')
+    .replace(/\baustralian\b/g, 'Australian');
+  const fixedMetaTitle = pass2Output.metaTitleRewritten
+    .replace(/\b202[45]\b/g, '2026')
+    .replace(/\baustralia\b/g, 'Australia')
+    .replace(/\baustralian\b/g, 'Australian');
+  const fixedMetaDesc = pass2Output.metaDescriptionRewritten
+    .replace(/\b202[45]\b/g, '2026')
+    .replace(/\baustralia\b/g, 'Australia')
+    .replace(/\baustralian\b/g, 'Australian');
+  const pass2OutputFixed: Pass1Output = {
+    bodyRewritten: fixedBody,
+    metaTitleRewritten: fixedMetaTitle,
+    metaDescriptionRewritten: fixedMetaDesc,
+  };
 
   // --- Mechanical Enforcement Layer (Pass 2) ---
   // Re-run enforcement after fingerprint scrub to catch any regressions,
   // and inject schema into body for P13 scoring
-  const finalOutput = runMechanicalEnforcement(pass2Output, post.focusKeyword, {
+  const finalOutput = runMechanicalEnforcement(pass2OutputFixed, post.focusKeyword, {
     paaQuestion,
     primaryCtaUrl: businessContext.primaryCtaUrl ?? undefined,
     internalBlogLinks,
