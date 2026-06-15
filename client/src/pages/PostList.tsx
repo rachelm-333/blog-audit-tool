@@ -583,9 +583,9 @@ function DashboardOverview({
         </div>
 
         {/* Keyword accuracy tip */}
-        <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-2.5 min-w-[220px] max-w-xs self-start">
+        <div className="flex items-start gap-2 bg-background border border-border border-l-4 border-l-amber-500 rounded-lg px-3 py-2.5 min-w-[220px] max-w-xs self-start">
           <AlertTriangle size={13} className="text-amber-400 shrink-0 mt-0.5" />
-          <p className="text-[11px] text-amber-300 leading-snug">
+          <p className="text-[11px] text-amber-600 dark:text-amber-400 leading-snug">
             <strong>Before auditing,</strong> check your keywords are accurate. Click any keyword to edit it, or use{" "}
             <strong>Detect All Keywords</strong> to auto-detect missing ones.
           </p>
