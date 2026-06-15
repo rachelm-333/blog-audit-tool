@@ -10,7 +10,7 @@
  *   getPostTableRows    — full post list with optional filter / sort
  */
 
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { getDb } from "./db";
 import { posts } from "../drizzle/schema";
 
@@ -267,7 +267,7 @@ export async function getReviewQueuePosts(businessId: string): Promise<Array<{
     .where(
       and(
         eq(posts.businessId, businessId),
-        eq(posts.rewriteStatus, "awaiting_review")
+        inArray(posts.rewriteStatus, ["awaiting_review", "needs_manual_review"])
       )
     );
   return rows.map((r) => ({

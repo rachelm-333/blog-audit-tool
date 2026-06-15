@@ -20,6 +20,7 @@ import {
   BookOpen,
   Layers,
   ClipboardCheck,
+  AlertTriangle,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -82,9 +83,11 @@ export default function ReviewQueue() {
     },
   });
 
-  const posts = data?.posts ?? [];
+  const allPosts = data?.posts ?? [];
+  const posts = allPosts.filter((p) => p.rewriteStatus === "awaiting_review");
+  const attentionPosts = allPosts.filter((p) => p.rewriteStatus === "needs_manual_review");
 
-  // Group by article type
+  // Group awaiting_review posts by article type
   const grouped = useMemo(() => {
     const groups: Record<string, typeof posts> = {
       cornerstone: [],
@@ -100,7 +103,7 @@ export default function ReviewQueue() {
     return groups;
   }, [posts]);
 
-  const selectedPost = posts.find((p) => p.id === selectedPostId) ?? null;
+  const selectedPost = allPosts.find((p) => p.id === selectedPostId) ?? null;
 
   const handleApproveAll = () => {
     if (!userId || !businessId) return;
@@ -156,7 +159,7 @@ export default function ReviewQueue() {
                 <Skeleton key={i} className="h-16 w-full rounded-lg" />
               ))}
             </div>
-          ) : posts.length === 0 ? (
+          ) : allPosts.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-48 text-center px-6">
               <CheckCircle2 className="w-10 h-10 text-green-400 mb-3" />
               <p className="text-sm font-medium text-slate-700">All clear!</p>
@@ -166,45 +169,90 @@ export default function ReviewQueue() {
             </div>
           ) : (
             <div className="p-2 space-y-4">
-              {(["cornerstone", "pillar", "cluster", "unknown"] as const).map((type) => {
-                const group = grouped[type];
-                if (!group || group.length === 0) return null;
-                return (
-                  <div key={type}>
-                    <div className="px-2 py-1 text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                      <ArticleTypeIcon type={type} />
-                      {type === "unknown" ? "Other" : type.charAt(0).toUpperCase() + type.slice(1)}
-                      <span className="ml-auto text-slate-300">{group.length}</span>
-                    </div>
-                    {group.map((post) => (
-                      <button
-                        key={post.id}
-                        onClick={() => setSelectedPostId(post.id)}
-                        className={`w-full text-left rounded-lg px-3 py-2.5 mb-1 transition-colors group ${
-                          selectedPostId === post.id
-                            ? "bg-blue-50 border border-blue-200"
-                            : "hover:bg-slate-50 border border-transparent"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm font-medium text-slate-800 line-clamp-2 leading-snug flex-1">
-                            {post.title}
-                          </p>
-                          <ChevronRight className="w-3.5 h-3.5 text-slate-400 flex-shrink-0 mt-0.5 group-hover:text-slate-600" />
-                        </div>
-                        <div className="mt-1.5 flex items-center gap-2">
-                          <GradeBadge grade={post.rewriteGrade} score={post.rewriteScore} />
-                          {post.rewrittenAt && (
-                            <span className="text-xs text-slate-400">
-                              {new Date(post.rewrittenAt).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}
-                            </span>
-                          )}
-                        </div>
-                      </button>
-                    ))}
+              {/* Needs Attention section */}
+              {attentionPosts.length > 0 && (
+                <div>
+                  <div className="px-2 py-1.5 text-xs font-semibold text-amber-700 uppercase tracking-wider flex items-center gap-1.5 bg-amber-50 rounded mb-1">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    Needs Attention
+                    <span className="ml-auto text-amber-400">{attentionPosts.length}</span>
                   </div>
-                );
-              })}
+                  {attentionPosts.map((post) => (
+                    <button
+                      key={post.id}
+                      onClick={() => setSelectedPostId(post.id)}
+                      className={`w-full text-left rounded-lg px-3 py-2.5 mb-1 transition-colors group ${
+                        selectedPostId === post.id
+                          ? "bg-amber-50 border border-amber-300"
+                          : "hover:bg-amber-50/60 border border-transparent"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-medium text-slate-800 line-clamp-2 leading-snug flex-1">
+                          {post.title}
+                        </p>
+                        <ChevronRight className="w-3.5 h-3.5 text-slate-400 flex-shrink-0 mt-0.5 group-hover:text-amber-500" />
+                      </div>
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <GradeBadge grade={post.rewriteGrade} score={post.rewriteScore} />
+                        <span className="text-xs text-amber-600 font-medium">Manual review needed</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Ready to Review section */}
+              {posts.length > 0 && (
+                <div>
+                  {attentionPosts.length > 0 && (
+                    <div className="px-2 py-1 text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mt-2">
+                      <ClipboardCheck className="w-3.5 h-3.5" />
+                      Ready to Review
+                      <span className="ml-auto text-slate-300">{posts.length}</span>
+                    </div>
+                  )}
+                  {(["cornerstone", "pillar", "cluster", "unknown"] as const).map((type) => {
+                    const group = grouped[type];
+                    if (!group || group.length === 0) return null;
+                    return (
+                      <div key={type}>
+                        <div className="px-2 py-1 text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                          <ArticleTypeIcon type={type} />
+                          {type === "unknown" ? "Other" : type.charAt(0).toUpperCase() + type.slice(1)}
+                          <span className="ml-auto text-slate-300">{group.length}</span>
+                        </div>
+                        {group.map((post) => (
+                          <button
+                            key={post.id}
+                            onClick={() => setSelectedPostId(post.id)}
+                            className={`w-full text-left rounded-lg px-3 py-2.5 mb-1 transition-colors group ${
+                              selectedPostId === post.id
+                                ? "bg-blue-50 border border-blue-200"
+                                : "hover:bg-slate-50 border border-transparent"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-sm font-medium text-slate-800 line-clamp-2 leading-snug flex-1">
+                                {post.title}
+                              </p>
+                              <ChevronRight className="w-3.5 h-3.5 text-slate-400 flex-shrink-0 mt-0.5 group-hover:text-slate-600" />
+                            </div>
+                            <div className="mt-1.5 flex items-center gap-2">
+                              <GradeBadge grade={post.rewriteGrade} score={post.rewriteScore} />
+                              {post.rewrittenAt && (
+                                <span className="text-xs text-slate-400">
+                                  {new Date(post.rewrittenAt).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}
+                                </span>
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -390,11 +438,11 @@ export default function ReviewQueue() {
           <div className="text-center max-w-sm">
             <ClipboardCheck className="w-12 h-12 text-slate-300 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-slate-700 mb-2">
-              {posts.length === 0 ? "No posts awaiting review" : "Select a post to review"}
+              {allPosts.length === 0 ? "No posts awaiting review" : "Select a post to review"}
             </h3>
             <p className="text-sm text-slate-500">
-              {posts.length === 0
-                ? "Posts that score 14/16 or higher after rewriting will appear here automatically."
+              {allPosts.length === 0
+                ? "Posts will appear here after a rewrite is completed. Run a rewrite from the Posts page to get started."
                 : "Click a post from the list on the left to see its details and approve it."}
             </p>
           </div>
