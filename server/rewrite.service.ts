@@ -641,16 +641,45 @@ export async function runPass1Rewrite(input: Pass1Input): Promise<Pass1Output> {
     }
   }
 
-  // --- Safety net: re-append preserved sections if the LLM truncated them ---
+  // --- Guaranteed CTA/FAQ preservation ---
+  // Remove any LLM-generated CTA-like section, then re-inject the original verbatim.
+  // This prevents the LLM from fabricating a CTA while also preventing duplication.
+
   if (input.originalCtaSection) {
-    const ctaSnippet = input.originalCtaSection.replace(/<[^>]+>/g, '').slice(0, 60).trim();
-    if (ctaSnippet && !bodyRewritten.includes(ctaSnippet)) {
-      bodyRewritten += `\n${input.originalCtaSection}`;
+    // Strip any LLM-written CTA section from the body before re-injecting the original
+    const ctaHeadingRx = /<h[2-4][^>]*>[^<]*(next step|get started|ready to|call to action|contact us|what you can do|how (we can help|to get started))[^<]*<\/h[2-4]>/gi;
+    const ctaHeadingMatch = bodyRewritten.match(ctaHeadingRx);
+    if (ctaHeadingMatch) {
+      // Find position of first CTA heading and strip everything from there to end of body
+      const ctaStartIdx = bodyRewritten.search(ctaHeadingRx);
+      if (ctaStartIdx > 0) {
+        bodyRewritten = bodyRewritten.slice(0, ctaStartIdx).trimEnd();
+      }
     }
+    // Always append the original CTA verbatim at the end
+    bodyRewritten += `\n${input.originalCtaSection}`;
   }
+
   if (input.originalFaqSection) {
-    const faqSnippet = input.originalFaqSection.replace(/<[^>]+>/g, '').slice(0, 60).trim();
-    if (faqSnippet && !bodyRewritten.includes(faqSnippet)) {
+    // Strip any LLM-written FAQ section from the body before re-injecting the original
+    const faqHeadingRx = /<h[2-4][^>]*>[^<]*(frequently asked|faqs?|common questions|questions (and answers|people ask))[^<]*<\/h[2-4]>/gi;
+    const faqHeadingMatch = bodyRewritten.match(faqHeadingRx);
+    if (faqHeadingMatch) {
+      const faqStartIdx = bodyRewritten.search(faqHeadingRx);
+      if (faqStartIdx > 0) {
+        bodyRewritten = bodyRewritten.slice(0, faqStartIdx).trimEnd();
+      }
+    }
+    // Always append the original FAQ verbatim at the end (before CTA if both exist — FAQ goes before CTA)
+    // Since CTA was already appended above, insert FAQ before the CTA
+    if (input.originalCtaSection) {
+      const ctaIdx = bodyRewritten.lastIndexOf(input.originalCtaSection);
+      if (ctaIdx > 0) {
+        bodyRewritten = bodyRewritten.slice(0, ctaIdx).trimEnd() + `\n${input.originalFaqSection}\n` + input.originalCtaSection;
+      } else {
+        bodyRewritten += `\n${input.originalFaqSection}`;
+      }
+    } else {
       bodyRewritten += `\n${input.originalFaqSection}`;
     }
   }

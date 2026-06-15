@@ -764,7 +764,7 @@ function RewriteProgressIndicator() {
         <Progress value={pct} className="h-1.5" />
         <div className="flex justify-between text-[10px] text-muted-foreground">
           <span>{elapsed}s elapsed</span>
-          <span>Up to 90s</span>
+          <span>Up to 5 min</span>
         </div>
       </div>
     </div>
