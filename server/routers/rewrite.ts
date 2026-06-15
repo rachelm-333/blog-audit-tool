@@ -227,11 +227,14 @@ export const rewriteRouter = router({
           preserveFaq: input.preserveFaq,
           preserveCta: input.preserveCta,
           userInstructions: input.userInstructions,
+          originalScore: typeof post.auditScore === 'number' ? post.auditScore : undefined,
         });
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
         // Credit was NOT yet deducted — no refund needed on any error or timeout.
-        await setRewriteStatus(post.id, "failed");
+        // For score regression, keep status as 'pending' so user can try again.
+        const isRegression = errMsg.includes('Rewrite quality check failed');
+        await setRewriteStatus(post.id, isRegression ? 'pending' : 'failed');
         void logError({
           userId: input.iauditUserId,
           businessId: post.businessId,
@@ -244,7 +247,9 @@ export const rewriteRouter = router({
           code: "INTERNAL_SERVER_ERROR",
           message: errMsg.includes("timed out")
             ? "The rewrite timed out. No credit was charged. Please try again."
-            : "Rewrite failed. No credit was charged.",
+            : errMsg.includes("Rewrite quality check failed")
+              ? errMsg  // Surface the regression message directly to the user
+              : "Rewrite failed. No credit was charged.",
         });
       }
 

@@ -431,78 +431,223 @@ ${input.originalFaqSection ? `- PRESERVE FAQ SECTION VERBATIM: The original post
 - Return ONLY a JSON object — no prose, no markdown fences outside the JSON.`;
 }
 
-/** Run Pass 1 — full rewrite via LLM */
+// ---------------------------------------------------------------------------
+// Pass 1A — Outline Generation
+// ---------------------------------------------------------------------------
+interface RewriteOutline {
+  title: string;
+  metaTitle: string;
+  metaDescription: string;
+  sections: Array<{ heading: string; targetWords: number; notes: string }>;
+}
+
+async function generateRewriteOutline(input: Pass1Input): Promise<RewriteOutline> {
+  const existingH2s: string[] = [];
+  const h2Regex = /<h2[^>]*>(.*?)<\/h2>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = h2Regex.exec(input.bodyHtml)) !== null) {
+    existingH2s.push(stripHtml(m[1]));
+  }
+
+  const userInstructionsLine = input.userInstructions?.trim()
+    ? `Publisher direction: "${input.userInstructions.trim()}". Build the outline around this direction.`
+    : '';
+
+  const userMsg =
+    `You are an expert SEO content strategist. Plan the structure for a rewritten blog article.\n` +
+    `Business: ${input.businessContext.businessName} (${input.businessContext.targetAudience ?? 'business'}, Australia)\n` +
+    `Primary Keyword: ${input.focusKeyword}\n` +
+    `Article Title: ${input.title}\n` +
+    `Current H2 headings: ${existingH2s.length > 0 ? existingH2s.join(', ') : '(none)'}\n` +
+    `Total Word Count Target: ${input.wordCountTarget.min}–${input.wordCountTarget.max} words\n` +
+    `RULES (ALL MANDATORY):\n` +
+    `- H1 title MUST contain the exact primary keyword verbatim [P2]\n` +
+    `- Meta title MUST contain the primary keyword and be ≤60 characters [P7]\n` +
+    `- Meta description MUST contain the exact primary keyword phrase and be EXACTLY 140–160 characters — do NOT truncate mid-sentence [P8]\n` +
+    `- Plan 5–8 H2 sections so the total hits ${input.wordCountTarget.min}–${input.wordCountTarget.max} words [P16]\n` +
+    `- AT LEAST ONE H2 heading must contain the primary keyword [P3]\n` +
+    `- The FIRST section must be an "Opening Answer Block" (40–60 words) that directly answers the search query with a bold question [P9]\n` +
+    `- The LAST section must be a CTA section (50–80 words)\n` +
+    `- Each section's targetWords should be realistic for that section's depth\n` +
+    `- Use Australian English spelling\n` +
+    `- Plan for an external authority link (.gov.au or industry body) in section 2 [P10]\n` +
+    `- Plan for E-E-A-T signals (years experience, clients, awards) in at least one section [P14]\n` +
+    (userInstructionsLine ? `- ${userInstructionsLine}\n` : '') +
+    `Return a single JSON object:\n` +
+    `{\n` +
+    `  "title": "H1 title (contains primary keyword verbatim)",\n` +
+    `  "metaTitle": "SEO meta title (≤60 chars, contains primary keyword)",\n` +
+    `  "metaDescription": "SEO meta description (exactly 140–160 chars, complete sentences, contains primary keyword)",\n` +
+    `  "sections": [\n` +
+    `    { "heading": "H2 heading text", "targetWords": 200, "notes": "What this section covers in 1 sentence" }\n` +
+    `  ]\n` +
+    `}`;
+
+  let outline: RewriteOutline | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const resp = await invokeClaude({
+      max_tokens: 2000,
+      system: 'You are an expert SEO content strategist. Return only a valid JSON object. No markdown, no code fences.',
+      messages: [{ role: 'user', content: userMsg }],
+    });
+    const raw = resp.choices?.[0]?.message?.content ?? '';
+    // Strip markdown fences if present
+    const jsonStr = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+    try {
+      const parsed = JSON.parse(jsonStr) as RewriteOutline;
+      if (!parsed.sections || parsed.sections.length < 3) throw new Error('Too few sections');
+      outline = parsed;
+      break;
+    } catch {
+      console.warn(`[Rewrite] Outline JSON parse failed (attempt ${attempt + 1}):`, jsonStr.slice(0, 200));
+    }
+  }
+  if (!outline) throw new Error('Failed to generate rewrite outline after 3 attempts');
+  return outline;
+}
+
+// ---------------------------------------------------------------------------
+// Pass 1B — Section-by-section rewrite
+// ---------------------------------------------------------------------------
+async function rewriteSectionBySection(
+  outline: RewriteOutline,
+  input: Pass1Input,
+  bannedPhrases: string
+): Promise<string> {
+  const sections = outline.sections;
+  const totalSections = sections.length;
+  let assembledHtml = '';
+
+  for (let i = 0; i < totalSections; i++) {
+    const section = sections[i];
+    const isFirst = i === 0;
+    const isLast = i === totalSections - 1;
+    const isSecond = i === 1;
+    const previousContext = assembledHtml.slice(-2000);
+
+    let sectionInstructions = '';
+    if (isFirst) {
+      sectionInstructions =
+        `- Start with <h2>${section.heading}</h2>\n` +
+        `- Immediately answer the most likely search question in 40–60 words (bold the question)\n` +
+        `- The primary keyword "${input.focusKeyword}" MUST appear in the first 50 words`;
+    } else if (isLast) {
+      sectionInstructions =
+        `- Start with <h2>${section.heading}</h2>\n` +
+        `- Write 1–2 sentences summarising the value the reader gained\n` +
+        `- Keep to ${section.targetWords} words`;
+    } else {
+      sectionInstructions =
+        `- The focus keyword is: "${input.focusKeyword}". This section MUST include the focus keyword at least once, naturally.\n` +
+        `- Start with <h2>${section.heading}</h2>\n` +
+        `- Write ${section.targetWords} words of specific, practical, expert-level content\n` +
+        `- Use H3 subheadings where appropriate\n` +
+        `- Include bullet or numbered lists where they add clarity\n` +
+        `- DO NOT fabricate statistics — only cite real, verifiable facts\n` +
+        `- Use Australian English spelling\n` +
+        `- Vary sentence length — mix short punchy sentences with longer explanatory ones\n` +
+        `- Sound like a specific human expert, not a generic AI assistant\n` +
+        `- DO NOT use em dashes (—) excessively`;
+    }
+    if (isSecond) {
+      sectionInstructions += `\n- Include at least one hyperlink to a real, high-authority external source (.gov.au, industry body, or nationally recognised publication). Use descriptive anchor text.`;
+    }
+
+    const userMsg =
+      `You are an expert SEO content writer. Rewrite ONE section of a blog article.\n` +
+      `ARTICLE CONTEXT:\n` +
+      `Business: ${input.businessContext.businessName} (${input.businessContext.targetAudience ?? 'business'}, Australia)\n` +
+      `Article Title (H1): ${outline.title}\n` +
+      `Primary Keyword: ${input.focusKeyword}\n` +
+      `Brand Voice: ${input.businessContext.brandVoice ?? 'Professional, authoritative, helpful. Sound like a real human expert.'}\n` +
+      `Section ${i + 1} of ${totalSections}\n\n` +
+      `THIS SECTION TO WRITE:\n` +
+      `H2 Heading: ${section.heading}\n` +
+      `Target Word Count: ${section.targetWords} words (write AT LEAST ${Math.round(section.targetWords * 0.9)} words)\n` +
+      `Section Notes: ${section.notes}\n\n` +
+      sectionInstructions + `\n\n` +
+      `DO NOT use any of these banned phrases:\n${bannedPhrases}\n\n` +
+      (previousContext ? `PREVIOUS SECTIONS (for context — DO NOT repeat this content):\n${previousContext}\n\n` : '') +
+      `Return ONLY the HTML for this section, wrapped in:\n` +
+      `<SECTION_HTML>\n` +
+      `...html here (h2, h3, p, ul, ol, li, a, strong, em tags only)...\n` +
+      `</SECTION_HTML>`;
+
+    const resp = await invokeClaude({
+      max_tokens: 8000,
+      system: 'You are an expert SEO content writer. Return ONLY the section HTML wrapped in <SECTION_HTML>...</SECTION_HTML> delimiters. No other text.',
+      messages: [{ role: 'user', content: userMsg }],
+    });
+    const raw = resp.choices?.[0]?.message?.content ?? '';
+    const sectionMatch = raw.match(/<SECTION_HTML>\s*([\s\S]*?)\s*<\/SECTION_HTML>/i);
+    const sectionHtml = sectionMatch?.[1]?.trim() ?? raw.trim();
+    assembledHtml += (assembledHtml ? '\n' : '') + sectionHtml;
+    console.log(`[Rewrite] Section ${i + 1}/${totalSections} written (${wordCount(stripHtml(sectionHtml))} words)`);
+  }
+
+  return assembledHtml;
+}
+
+/** Run Pass 1 — outline + section-by-section rewrite */
 export async function runPass1Rewrite(input: Pass1Input): Promise<Pass1Output> {
-  const systemPrompt = buildPass1SystemPrompt(input);
+  const BANNED_PHRASES_LIST = [
+    "in today's world", "it's important to note", "it is important to note", "delve into",
+    "game-changer", "game changer", "leverage", "synergy", "transformative",
+    "it's crucial to", "it is crucial to", "one of the most important", "ultimately,",
+    "essentially,", "furthermore,", "moreover,", "at the end of the day",
+    "according to research", "studies show", "it has been shown",
+    "navigating the complexities", "navigate the ever-changing",
+    "in today's competitive landscape", "in today's fast-paced", "in today's digital",
+    "look no further", "cutting-edge", "state-of-the-art", "seamlessly",
+    "robust solution", "tailored solutions", "tailored to your needs",
+    "unlock your potential", "unlock the power", "empower your", "elevate your",
+    "take your business to the next level", "in conclusion,", "to summarize,",
+    "to summarise,", "it goes without saying", "needless to say",
+    "as we all know", "the bottom line is", "at its core", "dive into",
+    "in other words",
+  ];
+  const bannedPhrasesStr = BANNED_PHRASES_LIST.join(', ');
 
-  const response = await invokeClaude({
-    // Use a generous token budget for long blog posts — 32000 is near Claude's max output
-    max_tokens: 32000,
-    system: systemPrompt,
-    messages: [
-      {
-        role: "user",
-        content:
-          `Here is the original post to rewrite:\n\n` +
-          `TITLE: ${input.title}\n\n` +
-          `BODY (HTML):\n${input.bodyHtml}\n\n` +
-          `META TITLE: ${input.metaTitleOriginal ?? "(none)"}\n` +
-          `META DESCRIPTION: ${input.metaDescriptionOriginal ?? "(none)"}\n\n` +
-          `Respond using EXACTLY this format — no JSON, no markdown fences:\n\n` +
-          `META_TITLE: <rewritten meta title — max 60 chars, contains keyword>\n` +
-          `META_DESC: <rewritten meta description — 140–160 chars>\n` +
-          `AI_SNIPPET: <2–3 sentence AI citation snippet — under 150 words, directly answers the PAA question, contains focus keyword, cites one real fact>\n` +
-          `<BODY>\n` +
-          `<full rewritten body HTML here — do NOT include the AI citation snippet inside the body>\n` +
-          `</BODY>`,
-      },
-    ],
-  });
+  // Step 1A — Generate outline
+  console.log(`[Rewrite] Pass 1A: generating outline for post with keyword "${input.focusKeyword}"`);
+  const outline = await generateRewriteOutline(input);
+  console.log(`[Rewrite] Pass 1A: outline ready — ${outline.sections.length} sections planned`);
 
-  const content = response.choices?.[0]?.message?.content;
-  if (!content) throw new Error("LLM returned no content for Pass 1 rewrite");
-
-  // --- Parse delimited response ---
-  const metaTitleMatch = content.match(/^META_TITLE:\s*(.+)$/m);
-  const metaDescMatch = content.match(/^META_DESC:\s*(.+)$/m);
-  const aiSnippetMatch = content.match(/^AI_SNIPPET:\s*(.+)$/m);
-  const bodyMatch = content.match(/<BODY>\s*([\s\S]*?)\s*<\/BODY>/i);
-
-  if (!bodyMatch) throw new Error("LLM response missing <BODY> block in Pass 1 rewrite");
-
-  let bodyRewritten: string = bodyMatch[1].trim();
+  // Step 1B — Rewrite section by section
+  console.log(`[Rewrite] Pass 1B: rewriting ${outline.sections.length} sections`);
+  let bodyRewritten = await rewriteSectionBySection(outline, input, bannedPhrasesStr);
 
   // --- Safety net: re-append preserved sections if the LLM truncated them ---
-  // If the user asked to preserve the CTA or FAQ verbatim, but the LLM output does not
-  // contain them (truncation), append them back now so they are never silently lost.
   if (input.originalCtaSection) {
-    // Check if any meaningful fragment of the CTA is present in the output
-    const ctaSnippet = input.originalCtaSection.replace(/<[^>]+>/g, "").slice(0, 60).trim();
+    const ctaSnippet = input.originalCtaSection.replace(/<[^>]+>/g, '').slice(0, 60).trim();
     if (ctaSnippet && !bodyRewritten.includes(ctaSnippet)) {
       bodyRewritten += `\n${input.originalCtaSection}`;
     }
   }
   if (input.originalFaqSection) {
-    const faqSnippet = input.originalFaqSection.replace(/<[^>]+>/g, "").slice(0, 60).trim();
+    const faqSnippet = input.originalFaqSection.replace(/<[^>]+>/g, '').slice(0, 60).trim();
     if (faqSnippet && !bodyRewritten.includes(faqSnippet)) {
       bodyRewritten += `\n${input.originalFaqSection}`;
     }
   }
 
-  // --- Prepend AI citation snippet as the very first paragraph ---
-  const aiSnippet: string | undefined = aiSnippetMatch?.[1]?.trim();
-  if (aiSnippet) {
-    bodyRewritten = `<p data-ai-snippet="true">${aiSnippet}</p>\n` + bodyRewritten;
-  }
-
-  const metaTitleRewritten = metaTitleMatch?.[1]?.trim() ?? input.metaTitleOriginal ?? input.title;
-  const metaDescriptionRewritten = metaDescMatch?.[1]?.trim() ?? input.metaDescriptionOriginal ?? "";
+  // Use outline values for meta — Change 6: use ONLY outline.metaTitle, never concatenate
+  const metaTitleRewritten = outline.metaTitle.trim();
+  // Change 7: do NOT truncate meta description — store exactly as returned
+  const metaDescriptionRewritten = outline.metaDescription.trim();
 
   return {
     bodyRewritten,
     metaTitleRewritten,
     metaDescriptionRewritten,
-    aiSnippet,
+    aiSnippet: undefined,
+  };
+
+  return {
+    bodyRewritten,
+    metaTitleRewritten,
+    metaDescriptionRewritten,
+    aiSnippet: undefined,
   };
 }
 
@@ -523,11 +668,19 @@ export function runMechanicalEnforcement(
     schemaJson?: object;
     /** Fallback external authority link to inject if the AI omitted one */
     externalAuthorityFallback?: { anchor: string; url: string };
+    /** Business industry/audience for P9 answer block injection */
+    businessIndustry?: string;
+    /** CTA button/link text for Pass G injection */
+    ctaText?: string;
+    /** Business name for Pass I E-E-A-T injection */
+    businessName?: string;
   }
 ): Pass1Output {
   let { bodyRewritten, metaTitleRewritten, metaDescriptionRewritten } = output;
 
-  // --- P1: Keyword density ---
+  // -----------------------------------------------------------------------
+  // Pass C — Keyword density + P5
+  // -----------------------------------------------------------------------
   const plainText = stripHtml(bodyRewritten);
   const wc = wordCount(plainText);
   const kw = normalise(focusKeyword);
@@ -542,30 +695,55 @@ export function runMechanicalEnforcement(
   }
   const density = wc > 0 ? (kwCount / wc) * 100 : 0;
 
-  // Keyword density is informational only — do not auto-inject text.
-
-  // --- P4: Keyword in H3 ---
-  const h3EnforceRegex = /<h3[^>]*>(.*?)<\/h3>/gi;
-  const h3s: string[] = [];
-  let h3m: RegExpExecArray | null;
-  while ((h3m = h3EnforceRegex.exec(bodyRewritten)) !== null) {
-    h3s.push(stripHtml(h3m[1]));
+  // P5: Keyword in first 150 words
+  const first150 = stripHtml(bodyRewritten).split(/\s+/).slice(0, 150).join(" ");
+  if (!containsKeyword(first150, focusKeyword)) {
+    bodyRewritten = bodyRewritten.replace(
+      /(<p[^>]*>)(.*?)(<\/p>)/i,
+      (match, open, content, close) => {
+        const stripped = stripHtml(content);
+        return `${open} When considering ${focusKeyword}, understanding the facts is essential. ${stripped}${close}`;
+      }
+    );
   }
-  if (h3s.length > 0) {
-    const hasKeywordInH3 = h3s.some((h) => containsKeyword(h, focusKeyword));
-    if (!hasKeywordInH3) {
-      // Append keyword phrase to the first H3
-      bodyRewritten = bodyRewritten.replace(
-        /<h3([^>]*)>(.*?)<\/h3>/i,
-        (match, attrs, content) => {
-          const stripped = stripHtml(content);
-          return `<h3${attrs}>${stripped}: ${focusKeyword}</h3>`;
-        }
-      );
+
+  // Keyword density: if < 4 occurrences or < 1.0%, inject at 25%, 50%, 75% positions
+  if (kwCount < 4 || density < 1.0) {
+    // Split body into paragraphs and inject at 25%, 50%, 75%
+    const paraMatches = Array.from(bodyRewritten.matchAll(/<p[^>]*>[\s\S]*?<\/p>/gi));
+    const total = paraMatches.length;
+    if (total >= 4) {
+      const injectPositions = [
+        Math.floor(total * 0.25),
+        Math.floor(total * 0.50),
+        Math.floor(total * 0.75),
+      ];
+      const injections = [
+        ` This is particularly relevant when evaluating ${focusKeyword} options.`,
+        ` Understanding ${focusKeyword} helps you make an informed decision.`,
+        ` Many clients researching ${focusKeyword} find this information valuable.`,
+      ];
+      // Rebuild body inserting injection sentences at target paragraphs
+      let rebuilt = bodyRewritten;
+      let offset = 0;
+      for (let pi = 0; pi < injectPositions.length; pi++) {
+        const pos = injectPositions[pi];
+        const match = paraMatches[pos];
+        if (!match || match.index === undefined) continue;
+        const closeTag = '</p>';
+        const closeIdx = rebuilt.indexOf(closeTag, match.index + offset);
+        if (closeIdx === -1) continue;
+        const injection = injections[pi];
+        rebuilt = rebuilt.slice(0, closeIdx) + injection + rebuilt.slice(closeIdx);
+        offset += injection.length;
+      }
+      bodyRewritten = rebuilt;
     }
   }
 
-  // --- P3: Keyword in H2 ---
+  // -----------------------------------------------------------------------
+  // Pass D — P3: Keyword in H2
+  // -----------------------------------------------------------------------
   const h2Regex = /<h2[^>]*>(.*?)<\/h2>/gi;
   const h2s: string[] = [];
   let m: RegExpExecArray | null;
@@ -574,45 +752,43 @@ export function runMechanicalEnforcement(
   }
   const hasKeywordInH2 = h2s.some((h) => containsKeyword(h, focusKeyword));
   if (!hasKeywordInH2 && h2s.length > 0) {
-    // Append keyword phrase to the first H2
     bodyRewritten = bodyRewritten.replace(
       /<h2([^>]*)>(.*?)<\/h2>/i,
       (match, attrs, content) => {
         const stripped = stripHtml(content);
-        return `<h2${attrs}>${stripped} — ${focusKeyword}</h2>`;
+        return `<h2${attrs}>${stripped}: ${focusKeyword}</h2>`;
       }
     );
   }
 
-  // --- P5: Keyword in first 150 words ---
-  const first150 = stripHtml(bodyRewritten).split(/\s+/).slice(0, 150).join(" ");
-  if (!containsKeyword(first150, focusKeyword)) {
-    // Inject keyword into the opening paragraph
-    bodyRewritten = bodyRewritten.replace(
-      /(<p[^>]*>)(.*?)(<\/p>)/i,
-      (match, open, content, close) => {
-        const stripped = stripHtml(content);
-        return `${open}${focusKeyword.charAt(0).toUpperCase() + focusKeyword.slice(1)} — ${stripped}${close}`;
-      }
-    );
+  // -----------------------------------------------------------------------
+  // Pass E — P9: Opening answer block
+  // -----------------------------------------------------------------------
+  const first800 = bodyRewritten.slice(0, 800);
+  const hasQuestionMark = first800.includes('?');
+  if (!hasQuestionMark) {
+    const businessIndustry = options?.businessIndustry ?? 'business'; // Pass E uses this for the answer block
+    const answerBlock =
+      `<p><strong>What do you need to know about ${focusKeyword}?</strong> ` +
+      `Understanding ${focusKeyword} is essential for ${businessIndustry} success. ` +
+      `This guide covers the key facts, practical steps, and expert advice you need.</p>\n`;
+    // Inject immediately after the first H2
+    const firstH2Match = bodyRewritten.match(/<h2[^>]*>.*?<\/h2>/i);
+    if (firstH2Match && firstH2Match.index !== undefined) {
+      const insertPos = firstH2Match.index + firstH2Match[0].length;
+      bodyRewritten = bodyRewritten.slice(0, insertPos) + '\n' + answerBlock + bodyRewritten.slice(insertPos);
+    } else {
+      bodyRewritten = answerBlock + bodyRewritten;
+    }
   }
 
-    // --- P7: Meta title — must be 40–60 chars, must contain keyword ---
-  // Rule: NEVER truncate with ellipsis. Trim to the last complete word within 60 chars.
+    // --- P7: Meta title — Change 6: Use ONLY what the LLM returned. Never concatenate or rebuild.
+  // The outline/Pass1 already composed the meta title to spec. Only add keyword prefix if
+  // the keyword is genuinely absent — do NOT truncate or reconstruct.
   if (!containsKeyword(metaTitleRewritten, focusKeyword)) {
-    metaTitleRewritten = `${focusKeyword.charAt(0).toUpperCase() + focusKeyword.slice(1)} | ${metaTitleRewritten}`;
-  }
-  if (metaTitleRewritten.length > 60) {
-    // Trim to last complete word at or before char 60 — no ellipsis
-    const trimmed = metaTitleRewritten.slice(0, 60);
-    const lastSpace = trimmed.lastIndexOf(' ');
-    metaTitleRewritten = lastSpace > 20 ? trimmed.slice(0, lastSpace).trimEnd() : trimmed.trimEnd();
-  }
-  // If trimming removed the keyword, rebuild as "Keyword | shortened phrase"
-  if (!containsKeyword(metaTitleRewritten, focusKeyword)) {
+    // Keyword missing — prepend it. Keep total under 60 chars by trimming the suffix.
     const kwPrefix = `${focusKeyword.charAt(0).toUpperCase() + focusKeyword.slice(1)} | `;
     const remaining = 60 - kwPrefix.length;
-    // Take as many words of the original title as fit after the keyword prefix
     const words = metaTitleRewritten.split(' ');
     let suffix = '';
     for (const w of words) {
@@ -622,6 +798,7 @@ export function runMechanicalEnforcement(
     }
     metaTitleRewritten = `${kwPrefix}${suffix}`.trimEnd();
   }
+  // Do NOT truncate the meta title if it already contains the keyword — trust the LLM output.
 
   // --- P8: Meta description — length is checked by the audit (P8 requires 140–160 chars).
   // Do NOT truncate here — store whatever the AI wrote so the user can edit it in full.
@@ -655,38 +832,54 @@ export function runMechanicalEnforcement(
     }
   }
 
-  // --- P10: External Authority Link ---
-  // If no external authority link exists, inject a real .gov.au link relevant to the topic
-  // This is a last-resort fallback only — the AI should have included one in Pass 1
-  if (options?.externalAuthorityFallback) {
+  // -----------------------------------------------------------------------
+  // Pass F — P10: External authority link
+  // -----------------------------------------------------------------------
+  {
     const hasExternalLink = /<a[^>]+href=["'](https?:\/\/(?!(?:[^"']*\.)?(?:wix\.com|wordpress\.com|blogger\.com))[^"']+)["'][^>]*>/i.test(bodyRewritten);
     if (!hasExternalLink) {
-      const { anchor, url: extUrl } = options.externalAuthorityFallback;
-      // Inject after the first paragraph
-      const firstPClose = bodyRewritten.indexOf('</p>');
-      const extLinkText = ` According to <a href="${extUrl}" target="_blank" rel="noopener">${anchor}</a>, understanding the key requirements is essential for success.`;
-      if (firstPClose !== -1) {
-        // Insert the link text before the closing </p> of the first paragraph
-        bodyRewritten = bodyRewritten.slice(0, firstPClose) + extLinkText + bodyRewritten.slice(firstPClose);
+      // Spec: inject into the second paragraph
+      const secondPMatch = bodyRewritten.match(/(<p[^>]*>[\s\S]*?<\/p>[\s\S]*?)(<p[^>]*>[\s\S]*?<\/p>)/i);
+      const extLinkSentence =
+        ` For more information, visit the <a href="https://www.fairwork.gov.au" target="_blank" rel="noopener">Fair Work Commission</a>` +
+        ` or check current guidelines at <a href="https://www.australia.gov.au" target="_blank" rel="noopener">Australia.gov.au</a>.`;
+      if (secondPMatch && secondPMatch.index !== undefined) {
+        // Find the second <p> close tag
+        const secondPStart = secondPMatch.index + secondPMatch[1].length;
+        const secondPClose = bodyRewritten.indexOf('</p>', secondPStart);
+        if (secondPClose !== -1) {
+          bodyRewritten = bodyRewritten.slice(0, secondPClose) + extLinkSentence + bodyRewritten.slice(secondPClose);
+        }
+      } else if (options?.externalAuthorityFallback) {
+        // Fallback to the provided external authority link
+        const { anchor, url: extUrl } = options.externalAuthorityFallback;
+        const firstPClose = bodyRewritten.indexOf('</p>');
+        const extLinkText = ` According to <a href="${extUrl}" target="_blank" rel="noopener">${anchor}</a>, understanding the key requirements is essential for success.`;
+        if (firstPClose !== -1) {
+          bodyRewritten = bodyRewritten.slice(0, firstPClose) + extLinkText + bodyRewritten.slice(firstPClose);
+        }
       }
     }
   }
 
-  // --- P11: Internal CTA Link ---
-  // Check if a CTA link already exists; if not, inject one before the last paragraph
+  // -----------------------------------------------------------------------
+  // Pass G — P11: Internal CTA link
+  // -----------------------------------------------------------------------
   if (options?.primaryCtaUrl) {
     const ctaUrl = options.primaryCtaUrl;
     const hasCtaLink = bodyRewritten.toLowerCase().includes(ctaUrl.toLowerCase()) ||
-      // Check for any internal link to commercial pages
       /href=["'][^"']*\/(shop|store|product|services|service|contact|book|booking|buy|cart|checkout)[^"']*["']/i.test(bodyRewritten);
     if (!hasCtaLink) {
-      // Inject a CTA paragraph before the last </p> tag
-      const ctaText = `<p>Ready to take the next step? <a href="${ctaUrl}">Get in touch with our team</a> to find out how we can help you with ${focusKeyword}.</p>`;
-      const lastPClose = bodyRewritten.lastIndexOf('</p>');
-      if (lastPClose !== -1) {
-        bodyRewritten = bodyRewritten.slice(0, lastPClose + 4) + '\n' + ctaText + bodyRewritten.slice(lastPClose + 4);
+      // Spec: inject into the second-to-last paragraph
+      const allParaMatches = Array.from(bodyRewritten.matchAll(/<p[^>]*>[\s\S]*?<\/p>/gi));
+      const targetIdx = allParaMatches.length >= 2 ? allParaMatches.length - 2 : allParaMatches.length - 1;
+      const targetMatch = allParaMatches[targetIdx];
+      if (targetMatch && targetMatch.index !== undefined) {
+        const ctaText = `\n<p><a href="${ctaUrl}">${options.ctaText ?? 'Contact us today'}</a> to find out how we can help you with ${focusKeyword}.</p>`;
+        const insertAfter = targetMatch.index + targetMatch[0].length;
+        bodyRewritten = bodyRewritten.slice(0, insertAfter) + ctaText + bodyRewritten.slice(insertAfter);
       } else {
-        bodyRewritten += '\n' + ctaText;
+        bodyRewritten += `\n<p><a href="${ctaUrl}">${options.ctaText ?? 'Contact us today'}</a> to find out how we can help you with ${focusKeyword}.</p>`;
       }
     }
   }
@@ -719,6 +912,27 @@ export function runMechanicalEnforcement(
     if (!hasSchema) {
       const schemaScript = `<script type="application/ld+json">${JSON.stringify(options.schemaJson, null, 2)}</script>`;
       bodyRewritten = schemaScript + '\n' + bodyRewritten;
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // Pass I — P14: E-E-A-T signal
+  // -----------------------------------------------------------------------
+  {
+    const bodyLower = bodyRewritten.toLowerCase();
+    const hasEeat = ['year', 'experience', 'client', 'award'].some(w => bodyLower.includes(w));
+    if (!hasEeat) {
+      const biz = options?.businessName ?? 'Our team';
+      const eeatSentence = ` ${biz} has been helping clients for years, with experience across a wide range of situations.`;
+      // Inject into the third paragraph
+      const thirdParaMatches = Array.from(bodyRewritten.matchAll(/<p[^>]*>[\s\S]*?<\/p>/gi));
+      const thirdPara = thirdParaMatches[2];
+      if (thirdPara && thirdPara.index !== undefined) {
+        const closeIdx = bodyRewritten.indexOf('</p>', thirdPara.index);
+        if (closeIdx !== -1) {
+          bodyRewritten = bodyRewritten.slice(0, closeIdx) + eeatSentence + bodyRewritten.slice(closeIdx);
+        }
+      }
     }
   }
 
@@ -965,99 +1179,150 @@ export async function runPass2FingerprintScrub(
   output: Pass1Output,
   focusKeyword: string
 ): Promise<Pass1Output> {
+  // Change 1 — 47-phrase banned list (used in scrub prompt AND P15 audit check)
   const BANNED_PHRASES = [
-    // Hollow openers
-    "in today's digital landscape", "in today's world", "in the modern world",
-    "in the ever-changing world", "in the current landscape", "in the digital age",
-    "welcome to the world of", "are you looking to", "are you ready to",
-    // Filler transitions
-    "it's important to note", "it is important to note", "it's worth noting",
-    "it is worth noting", "it goes without saying", "needless to say",
-    "without further ado", "look no further", "in conclusion", "to summarise",
-    "to summarize", "in summary", "at the end of the day", "moving forward",
-    "going forward", "with that said", "that being said", "all in all",
-    "all things considered", "when all is said and done",
-    // Corporate buzzwords
-    "leverage", "leveraging", "delve into", "dive into", "seamlessly", "robust",
-    "game-changer", "game-changing", "transformative", "unlock the", "empower you",
-    "empower your", "navigate", "navigating", "comprehensive guide", "ultimate guide",
-    "definitive guide", "begin your journey", "embark on a journey", "take it to the next level",
-    "think outside the box", "synergy", "synergies", "paradigm shift", "value proposition",
-    "scalable solution", "holistic approach", "cutting-edge", "state-of-the-art",
-    "best-in-class", "world-class", "innovative solution", "innovative approach",
-    "groundbreaking", "revolutionary", "disruptive",
-    // Hollow qualifiers
-    "truly", "actually", "basically", "fundamentally", "essentially", "simply put",
-    "put simply", "in other words",
-    // Hollow sentence starters (when used as openers)
-    "However,", "Furthermore,", "Moreover,", "Additionally,", "In addition,",
-    "On the other hand,", "In contrast,", "As a result,", "Consequently,",
-    "Therefore,", "Thus,", "Hence,",
+    "in today's world",
+    "it's important to note",
+    "it is important to note",
+    "delve into",
+    "game-changer",
+    "game changer",
+    "leverage",
+    "synergy",
+    "transformative",
+    "it's crucial to",
+    "it is crucial to",
+    "one of the most important",
+    "ultimately,",
+    "essentially,",
+    "furthermore,",
+    "moreover,",
+    "at the end of the day",
+    "according to research",
+    "studies show",
+    "it has been shown",
+    "navigating the complexities",
+    "navigate the ever-changing",
+    "in today's competitive landscape",
+    "in today's fast-paced",
+    "in today's digital",
+    "look no further",
+    "cutting-edge",
+    "state-of-the-art",
+    "seamlessly",
+    "robust solution",
+    "tailored solutions",
+    "tailored to your needs",
+    "unlock your potential",
+    "unlock the power",
+    "empower your",
+    "elevate your",
+    "take your business to the next level",
+    "in conclusion,",
+    "to summarize,",
+    "to summarise,",
+    "it goes without saying",
+    "needless to say",
+    "as we all know",
+    "the bottom line is",
+    "at its core",
+    "dive into",
+    "in other words",
   ].join("\n- ");
+
+  const scrubSystemPrompt =
+    `You are an AI content editor specialising in removing AI fingerprints from blog content.\n` +
+    `Review the article below and rewrite it to remove all AI tells. The result must be indistinguishable from content written by a specific human expert with a strong point of view.\n` +
+    `SPECIFIC THINGS TO FIX:\n` +
+    `1. Remove em dash (\u2014) overuse \u2014 replace with commas, full stops, or restructure the sentence\n` +
+    `2. Remove rhetorical question openings \u2014 replace with direct statements\n` +
+    `3. Remove these exact phrases (replace with natural alternatives): ${BANNED_PHRASES}\n` +
+    `4. Remove repetitive sentence structures \u2014 vary the rhythm\n` +
+    `5. Vary sentence length deliberately: mix short punchy sentences (under 10 words) with medium ones (15\u201325 words). Never have 4+ sentences in a row of similar length.\n` +
+    `6. Remove transition words that only AI overuses: furthermore, moreover, additionally (when used to pad), in conclusion, to summarize.\n` +
+    `7. Replace any vague authority claims ("research shows", "studies indicate", "experts agree") with specific named examples, or remove them entirely.\n` +
+    `8. If a sentence could appear in any article about any industry, it is too generic. Rewrite it with a specific detail, number, or example from the article's actual topic.\n` +
+    `9. Remove any sentence that begins with "It is important to" or "It is crucial to" \u2014 rewrite as a direct statement.\n` +
+    `10. Ensure the article sounds like it was written by a specific human with a point of view, not a generic assistant\n` +
+    `11. Preserve ALL HTML tags, links, headings exactly \u2014 only change the prose text\n` +
+    `12. Do NOT remove any content, sections, or paragraphs \u2014 the output MUST be at least as long as the input\n` +
+    `IMPORTANT: Do NOT change the meaning, facts, keyword placement, or structure.\n` +
+    `Return ONLY the scrubbed HTML body wrapped in:\n` +
+    `<SCRUBBED_HTML>\n` +
+    `...full scrubbed HTML here...\n` +
+    `</SCRUBBED_HTML>`;
+
+  const scrubUserMsg =
+    `ARTICLE TO SCRUB:\n${output.bodyRewritten}`;
 
   const response = await invokeClaude({
     max_tokens: 32000,
-    system:
-          "You are a ruthless human-voice editor. Your ONLY job is to strip every trace of AI writing from this article. " +
-          "You are NOT rewriting for style — you are surgically removing AI fingerprints. " +
-          "\n\nWHAT AI WRITING LOOKS LIKE (eliminate all of these):\n" +
-          "- Hollow openers: 'In today's digital landscape', 'In today's world', 'Are you looking to...'\n" +
-          "- Filler transitions used as sentence starters: 'However,', 'Furthermore,', 'Moreover,', 'Additionally,', 'In addition,', 'Consequently,', 'Therefore,'\n" +
-          "- Corporate buzzwords: leverage, seamlessly, robust, game-changer, transformative, unlock, empower, navigate, comprehensive guide, cutting-edge, state-of-the-art, innovative, groundbreaking, revolutionary\n" +
-          "- Hollow closers: 'In conclusion,', 'To summarise,', 'At the end of the day,', 'Moving forward,'\n" +
-          "- Hollow qualifiers: truly, actually, basically, essentially, simply put, it's important to note, it goes without saying\n" +
-          "- Formulaic em-dash overuse: sentences like 'X is Y — and that matters' where the em-dash adds nothing\n" +
-"- Parallel list structures where every bullet starts with the same word pattern\n" +
-          "- STACCATO STYLE: single-sentence paragraphs stacked one per line (e.g. 'Momentum doesn't come from doing more.' / 'It comes from finishing loops.' / 'Here\'s what that looks like in practice.' — each on its own line as a separate paragraph)\n" +
-          "- Orphaned colon-fragments: a paragraph ending in ':' followed by bare list items (e.g. 'They:' then 'learn what makes a homepage effective' / 'apply one clear change' as separate lines)\n" +
-          "- Bare list items that are sentence fragments (e.g. 'for a services page' / 'for onboarding' / 'for how leads are handled' as separate paragraphs)\n" +
-          "\n\nWHAT HUMAN WRITING LOOKS LIKE (aim for this):\n" +
-          "- Paragraphs with 2–4 sentences each. Never a single sentence on its own line as a paragraph.\n" +
-          "- Merge staccato fragments into proper paragraphs: 'Momentum doesn\'t come from doing more. It comes from finishing loops — and each loop you close raises the floor of what your business can do.'\n" +
-          "- Rewrite orphaned colon-fragments as prose: instead of 'They:' + bare items, write 'They learn what makes a homepage effective, apply one clear change, watch how people respond, and adjust based on what works.'\n" +
-          "- Direct, confident statements without qualifiers\n" +
-          "- Varied sentence length — short punchy sentences mixed with longer explanatory ones\n" +
-          "- Specific, concrete language — not vague generalisations\n" +
-          "- Transitions that are earned, not decorative ('But', 'So', 'That means', 'Here\'s the thing')\n" +
-          "- Opinions and direct advice ('Do this', 'Avoid that', 'The real issue is...')\n" +
-          "- Australian English: 'optimise' not 'optimize', 'recognise' not 'recognize'\n" +
-          "\n\nCRITICAL RULES — DO NOT BREAK THESE:\n" +
-          "- DO NOT change: headings, focus keywords, links, facts, statistics, schema markup\n" +
-          "- DO NOT rephrase, soften, or remove E-E-A-T signals (specific stats with sources, named credentials, years of experience, case examples)\n" +
-          "- DO NOT fabricate statistics, quotes, or external links\n" +
-          "- DO NOT introduce any of these banned phrases:\n- " + BANNED_PHRASES + "\n" +
-          "- Return ONLY the delimited format specified in the user message — no JSON, no markdown fences.",
-    messages: [
-      {
-        role: "user",
-        content:
-          `Strip all AI fingerprints from this article. Make it sound like it was written by a knowledgeable human expert, not an AI. ` +
-          `Focus keyword (must remain unchanged): "${focusKeyword}"\n\n` +
-          `BODY HTML:\n${output.bodyRewritten}\n\n` +
-          `META TITLE: ${output.metaTitleRewritten}\n` +
-          `META DESCRIPTION: ${output.metaDescriptionRewritten}\n\n` +
-          `Respond using EXACTLY this format — no JSON, no markdown fences:\n\n` +
-          `META_TITLE: <cleaned meta title>\n` +
-          `META_DESC: <cleaned meta description>\n` +
-          `<BODY>\n` +
-          `<cleaned body HTML here>\n` +
-          `</BODY>`,
-      },
-    ],
+    system: scrubSystemPrompt,
+    messages: [{ role: 'user', content: scrubUserMsg }],
   });
 
   const content = response.choices?.[0]?.message?.content;
-  if (!content) throw new Error("LLM returned no content for Pass 2 scrub");
+  if (!content) throw new Error('LLM returned no content for Pass 2 scrub');
 
-  // --- Parse delimited response ---
-  const p2MetaTitleMatch = content.match(/^META_TITLE:\s*(.+)$/m);
-  const p2MetaDescMatch = content.match(/^META_DESC:\s*(.+)$/m);
-  const p2BodyMatch = content.match(/<BODY>\s*([\s\S]*?)\s*<\/BODY>/i);
+  const scrubBodyMatch = content.match(/<SCRUBBED_HTML>\s*([\s\S]*?)\s*<\/SCRUBBED_HTML>/i);
+  let scrubbed = scrubBodyMatch?.[1]?.trim() ?? output.bodyRewritten;
+
+  // Safety guard: if scrubbed body is < 80% of original word count, keep original
+  const originalWc = wordCount(stripHtml(output.bodyRewritten));
+  const scrubbedWc = wordCount(stripHtml(scrubbed));
+  if (originalWc > 0 && scrubbedWc < originalWc * 0.8) {
+    console.warn(`[Rewrite] Pass 2 scrub rejected — word count dropped from ${originalWc} to ${scrubbedWc}. Keeping original.`);
+    scrubbed = output.bodyRewritten;
+  }
+
+  // --- Pass B3: Targeted second scrub for any surviving banned phrases ---
+  const bannedPhrasesList = BANNED_PHRASES.split('\n- ').map(p => p.replace(/^- /, '').trim().toLowerCase()).filter(Boolean);
+  const survivingPhrases = bannedPhrasesList.filter(phrase => scrubbed.toLowerCase().includes(phrase));
+
+  if (survivingPhrases.length > 0) {
+    console.log(`[Rewrite] Pass B3: ${survivingPhrases.length} banned phrases survived scrub — running targeted fix`);
+    // Find sentences containing surviving phrases
+    const sentencesWithBanned: string[] = [];
+    const parts = scrubbed.split(/(<[^>]+>)/g);
+    for (const part of parts) {
+      if (part.startsWith('<')) continue;
+      const sentences = part.split(/(?<=[.!?])\s+/);
+      for (const sentence of sentences) {
+        if (survivingPhrases.some(p => sentence.toLowerCase().includes(p))) {
+          sentencesWithBanned.push(sentence.trim());
+        }
+      }
+    }
+
+    if (sentencesWithBanned.length > 0) {
+      const b3Resp = await invokeClaude({
+        max_tokens: 4000,
+        system: 'You are a human-voice editor. Rewrite each sentence to remove AI fingerprint phrases. Return ONLY the rewritten sentences in the same order, one per line, with no extra text.',
+        messages: [{
+          role: 'user',
+          content:
+            `Rewrite these sentences to remove the following banned phrases: ${survivingPhrases.join(', ')}\n\n` +
+            `SENTENCES TO REWRITE (one per line):\n${sentencesWithBanned.join('\n')}\n\n` +
+            `Return one rewritten sentence per line, in the same order.`,
+        }],
+      });
+      const b3Content = b3Resp.choices?.[0]?.message?.content ?? '';
+      const rewrittenSentences = b3Content.split('\n').map(s => s.trim()).filter(Boolean);
+
+      // Replace original sentences with rewritten ones
+      if (rewrittenSentences.length === sentencesWithBanned.length) {
+        for (let i = 0; i < sentencesWithBanned.length; i++) {
+          scrubbed = scrubbed.replace(sentencesWithBanned[i], rewrittenSentences[i]);
+        }
+        console.log(`[Rewrite] Pass B3: replaced ${rewrittenSentences.length} sentences`);
+      }
+    }
+  }
 
   return {
-    bodyRewritten: p2BodyMatch?.[1]?.trim() ?? output.bodyRewritten,
-    metaTitleRewritten: p2MetaTitleMatch?.[1]?.trim() ?? output.metaTitleRewritten,
-    metaDescriptionRewritten: p2MetaDescMatch?.[1]?.trim() ?? output.metaDescriptionRewritten,
+    bodyRewritten: scrubbed,
+    metaTitleRewritten: output.metaTitleRewritten,
+    metaDescriptionRewritten: output.metaDescriptionRewritten,
   };
 }
 
@@ -1272,6 +1537,8 @@ export async function runFullRewrite(params: {
   preserveFaq?: boolean;
   /** Optional free-text instructions from the user to guide the rewrite */
   userInstructions?: string | null;
+  /** Original pre-rewrite audit score — if provided, rewrite is rejected if it scores lower */
+  originalScore?: number;
 }): Promise<RewriteResult> {
   const { post, businessContext, internalLinks, failingPoints, paaQuestion, secondaryKeywords = [], rewriteMode = "seo_refresh", preserveCta = true, preserveFaq = true, userInstructions } = params;
 
@@ -1333,6 +1600,9 @@ export async function runFullRewrite(params: {
     primaryCtaUrl: businessContext.primaryCtaUrl ?? undefined,
     internalBlogLinks,
     externalAuthorityFallback,
+    businessIndustry: businessContext.targetAudience ?? undefined,
+    businessName: businessContext.businessName ?? undefined,
+    ctaText: businessContext.primaryCtaLabel ?? undefined,
   });
 
   // --- Pass 2: Fingerprint Scrub (LLM call with 90s hard timeout) ---
@@ -1371,8 +1641,11 @@ export async function runFullRewrite(params: {
     paaQuestion,
     primaryCtaUrl: businessContext.primaryCtaUrl ?? undefined,
     internalBlogLinks,
-    schemaJson, // Inject schema into body so P13 passes on re-score
-    externalAuthorityFallback, // Inject external authority link if AI omitted one
+    schemaJson,
+    externalAuthorityFallback,
+    businessIndustry: businessContext.targetAudience ?? undefined,
+    businessName: businessContext.businessName ?? undefined,
+    ctaText: businessContext.primaryCtaLabel ?? undefined,
   });
 
   // --- Re-scoring ---
@@ -1392,6 +1665,18 @@ export async function runFullRewrite(params: {
   console.log(`[Rewrite] Re-scoring complete in ${((Date.now() - rescoreStart) / 1000).toFixed(1)}s — score: ${auditResult.score}`);
   const rewriteScore = auditResult.score;
   const rewriteGrade = scoreToGrade(rewriteScore);
+
+  // --- Change 5: Score regression prevention ---
+  // If the rewrite scores lower than the original, reject it and keep the original.
+  if (params.originalScore !== undefined && rewriteScore < params.originalScore) {
+    console.warn(
+      `[Rewrite] Score regression detected — rewrite: ${rewriteScore}/16, original: ${params.originalScore}/16. Rejecting rewrite.`
+    );
+    throw new Error(
+      `Rewrite quality check failed — the rewritten post scored lower than the original ` +
+      `(${rewriteScore}/16 vs ${params.originalScore}/16). The original has been kept. Please try again or use manual editing.`
+    );
+  }
 
   return {
     bodyRewritten: finalOutput.bodyRewritten,
