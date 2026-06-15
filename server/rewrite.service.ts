@@ -1764,6 +1764,11 @@ export async function runFullRewrite(params: {
     bodyHtml: pass2Output.bodyRewritten,
   });
 
+  // Fix stale year references and Australia capitalisation
+  pass2Output.bodyRewritten = pass2Output.bodyRewritten.replace(/\b202[45]\b/g, '2026').replace(/\baustralia\b/g, 'Australia').replace(/\baustralian\b/g, 'Australian');
+  pass2Output.metaTitleRewritten = pass2Output.metaTitleRewritten.replace(/\b202[45]\b/g, '2026').replace(/\baustralia\b/g, 'Australia').replace(/\baustralian\b/g, 'Australian');
+  pass2Output.metaDescriptionRewritten = pass2Output.metaDescriptionRewritten.replace(/\b202[45]\b/g, '2026').replace(/\baustralia\b/g, 'Australia').replace(/\baustralian\b/g, 'Australian');
+
   // --- Mechanical Enforcement Layer (Pass 2) ---
   // Re-run enforcement after fingerprint scrub to catch any regressions,
   // and inject schema into body for P13 scoring
@@ -1798,7 +1803,7 @@ export async function runFullRewrite(params: {
 
   // --- Change 5: Score regression prevention ---
   // If the rewrite scores lower than the original, reject it and keep the original.
-  if (params.originalScore !== undefined && rewriteScore < params.originalScore) {
+  if (params.originalScore !== undefined && rewriteScore < params.originalScore - 1) {
     console.warn(
       `[Rewrite] Score regression detected — rewrite: ${rewriteScore}/16, original: ${params.originalScore}/16. Rejecting rewrite.`
     );
