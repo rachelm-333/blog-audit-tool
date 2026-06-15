@@ -446,7 +446,6 @@ interface AiAuditOutput {
   P11: { status: AuditPointStatus; note: string };
   P12: { status: AuditPointStatus; note: string };
   P14: { status: AuditPointStatus; note: string };
-  P15: { status: AuditPointStatus; note: string };
 }
 
 export async function runAiChecks(input: AiAuditInput): Promise<AuditPoint[]> {
@@ -456,6 +455,38 @@ export async function runAiChecks(input: AiAuditInput): Promise<AuditPoint[]> {
 
   // Strip HTML to plain text for AI analysis — avoids feeding CSS/JS noise to the AI
   const bodyText = stripHtml(bodyHtml);
+
+  // ---------------------------------------------------------------------------
+  // P15 — Human Authenticity (deterministic banned-phrase check, no LLM)
+  // ---------------------------------------------------------------------------
+  const P15_BANNED_PHRASES = [
+    "in today's world", "it's important to note", "it is important to note",
+    "delve into", "game-changer", "game changer", "leverage", "synergy",
+    "transformative", "it's crucial to", "it is crucial to",
+    "one of the most important", "at the end of the day",
+    "according to research", "studies show", "it has been shown",
+    "navigating the complexities", "in today's competitive landscape",
+    "in today's fast-paced", "in today's digital", "look no further",
+    "cutting-edge", "state-of-the-art", "seamlessly", "robust solution",
+    "tailored solutions", "tailored to your needs", "unlock your potential",
+    "unlock the power", "empower your", "elevate your",
+    "take your business to the next level", "in conclusion,", "to summarize,",
+    "to summarise,", "it goes without saying", "needless to say",
+    "as we all know", "the bottom line is", "at its core",
+    "furthermore,", "moreover,", "essentially,", "ultimately,",
+  ];
+  const bodyLower = bodyText.toLowerCase();
+  const p15FailingPhrase = P15_BANNED_PHRASES.find(p => bodyLower.includes(p));
+  if (p15FailingPhrase) {
+    console.log('[Audit] P15 failing phrase:', p15FailingPhrase);
+  }
+  const p15Pass = !p15FailingPhrase;
+  const p15Result: AuditPoint = {
+    point: "P15",
+    name: "Human Authenticity",
+    status: p15Pass ? "pass" : "fail",
+    note: p15Pass ? "No AI language patterns detected." : "AI language patterns detected.",
+  };
 
   // First 500 words of plain text for P9 opening answer block check
   const opening500Words = bodyText.split(/\s+/).slice(0, 500).join(" ");
@@ -518,16 +549,13 @@ P12 - Internal Blog Link: Does the article contain at least one link to another 
 
 P14 - E-E-A-T Signals: Does the article demonstrate experience, expertise, authority, and trust through specific details? Look for: named credentials, specific data points with sources, years of experience, real case studies, or named professionals.
 
-P15 - Human Authenticity: Does the article avoid AI fingerprint patterns? Look for: hollow transitional phrases ("In today's digital landscape", "It's important to note", "In conclusion"), formulaic structure, excessive hedging, or unnatural repetition.
-
 Return this exact JSON structure (notes must be very brief — one short phrase, no thresholds or criteria revealed):
 {
   "P9": {"status": "pass|fail", "note": "e.g. \"Opening answer block found.\" or \"Opening answer block not detected.\""},
   "P10": {"status": "pass|fail", "note": "e.g. \"External authority link found.\" or \"No external authority link found.\""},
   "P11": {"status": "pass|fail", "note": "e.g. \"Internal CTA link found.\" or \"No internal CTA link found.\""},
   "P12": {"status": "pass|fail", "note": "e.g. \"Internal blog link found.\" or \"No internal blog link found.\""},
-  "P14": {"status": "pass|fail", "note": "e.g. \"E-E-A-T signals detected.\" or \"E-E-A-T signals not detected.\""},
-  "P15": {"status": "pass|fail", "note": "e.g. \"Content reads as human-written.\" or \"AI language patterns detected.\""}
+  "P14": {"status": "pass|fail", "note": "e.g. \"E-E-A-T signals detected.\" or \"E-E-A-T signals not detected.\""}
 }`;
 
   try {
@@ -589,17 +617,8 @@ Return this exact JSON structure (notes must be very brief — one short phrase,
                 required: ["status", "note"],
                 additionalProperties: false,
               },
-              P15: {
-                type: "object",
-                properties: {
-                  status: { type: "string", enum: ["pass", "fail"] },
-                  note: { type: "string" },
-                },
-                required: ["status", "note"],
-                additionalProperties: false,
-              },
             },
-            required: ["P9", "P10", "P11", "P12", "P14", "P15"],
+            required: ["P9", "P10", "P11", "P12", "P14"],
             additionalProperties: false,
           },
         },
@@ -617,10 +636,10 @@ Return this exact JSON structure (notes must be very brief — one short phrase,
       { point: "P11", name: "Internal CTA Link", status: parsed.P11.status, note: parsed.P11.note },
       { point: "P12", name: "Internal Blog Link", status: parsed.P12.status, note: parsed.P12.note },
       { point: "P14", name: "E-E-A-T Signals", status: parsed.P14.status, note: parsed.P14.note },
-      { point: "P15", name: "Human Authenticity", status: parsed.P15.status, note: parsed.P15.note },
+      p15Result,
     ];
   } catch {
-    // AI call failed — mark all 6 as unable_to_score
+    // AI call failed — mark P9–P12, P14 as unable_to_score; P15 is deterministic so always return it
     const failureNote =
       "We could not complete the AI portion of this audit. The mechanical checks are shown below. Try re-running the audit.";
     return [
@@ -629,7 +648,7 @@ Return this exact JSON structure (notes must be very brief — one short phrase,
       { point: "P11", name: "Internal CTA Link", status: "unable_to_score", note: failureNote },
       { point: "P12", name: "Internal Blog Link", status: "unable_to_score", note: failureNote },
       { point: "P14", name: "E-E-A-T Signals", status: "unable_to_score", note: failureNote },
-      { point: "P15", name: "Human Authenticity", status: "unable_to_score", note: failureNote },
+      p15Result,
     ];
   }
 }

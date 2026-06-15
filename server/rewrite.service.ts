@@ -539,7 +539,8 @@ async function rewriteWithSingleCall(
     `- Total word count: ${wordCountMin}–${wordCountMax} words\n` +
     `- The primary keyword "${input.focusKeyword}" MUST appear in the first 50 words [P5]\n` +
     `- At least one H2 heading must contain the primary keyword [P3]\n` +
-    `- At least one H3 subheading must contain the primary keyword "${input.focusKeyword}" [P4]\n` +
+    `- Use <h3> tags for all subheadings within sections. Do NOT write subheadings as plain text or bold paragraphs. Every subsection title must be wrapped in <h3>...</h3>\n` +
+    `- At least one <h3> tag must contain the primary keyword "${input.focusKeyword}" [P4]\n` +
     `- The first section must open with a bold question and direct 40–60 word answer [P9]\n` +
     `- Section 2 must include one external link to a real .gov.au or industry authority source [P10]\n` +
     `- Use Australian English spelling throughout\n` +
@@ -601,8 +602,10 @@ export async function runPass1Rewrite(input: Pass1Input): Promise<Pass1Output> {
   // --- P16 Condensation Pass: if word count exceeds max, run one condensation LLM call ---
   {
     const wc = wordCount(stripHtml(bodyRewritten));
-    if (wc > input.wordCountTarget.max) {
-      console.log(`[Rewrite] P16 condensation: ${wc} words exceeds max ${input.wordCountTarget.max} — running condensation pass`);
+    // Use the article-type max if available, otherwise fall back to 1800 words
+    const condensationMax = (input.wordCountTarget?.max ?? 1800);
+    if (wc > condensationMax) {
+      console.log(`[Rewrite] P16 condensation: ${wc} words exceeds max ${condensationMax} — running condensation pass`);
       try {
         const condensationResp = await invokeClaude({
           max_tokens: 32000,
@@ -610,13 +613,11 @@ export async function runPass1Rewrite(input: Pass1Input): Promise<Pass1Output> {
           messages: [{
             role: 'user',
             content:
-              `The following article is ${wc} words, which exceeds the maximum of ${input.wordCountTarget.max} words. ` +
-              `Reduce it to ${input.wordCountTarget.max} words by:\n` +
-              `- Shortening verbose sentences without losing meaning\n` +
-              `- Removing filler phrases and redundant explanations\n` +
-              `- Do NOT remove any headings, lists, links, or key facts\n` +
-              `- Do NOT change the structure or keyword placement\n` +
-              `- Return ONLY the condensed HTML wrapped in <ARTICLE_HTML>...</ARTICLE_HTML>\n\n` +
+              `The following article is ${wc} words, which exceeds the maximum of ${condensationMax} words. ` +
+              `Reduce it to under ${condensationMax} words by shortening verbose sentences and removing filler phrases. ` +
+              `Do NOT remove any headings, lists, links, or key facts. ` +
+              `Do NOT change keyword placement or structure. ` +
+              `Return ONLY the condensed HTML wrapped in <ARTICLE_HTML>...</ARTICLE_HTML>.\n\n` +
               bodyRewritten,
           }],
         });
@@ -792,6 +793,33 @@ export function runMechanicalEnforcement(
       );
       console.log(`[Rewrite] Pass D2: injected keyword into first H3 for P4`);
     }
+  }
+
+  // -----------------------------------------------------------------------
+  // Pass D3 — Fix plain-text headings (LLM sometimes writes subheadings as <p> tags)
+  // -----------------------------------------------------------------------
+  {
+    // Split into tag/text segments, scan <p> tags whose entire content looks like a heading
+    bodyRewritten = bodyRewritten.replace(
+      /<p([^>]*)>((?:(?!<).)+)<\/p>/g,
+      (match, attrs, content) => {
+        const text = content.trim();
+        // Skip if content contains any child HTML tags (bold, italic, links, etc.)
+        if (/<[a-z]/i.test(text)) return match;
+        // Skip if it ends with a full stop (likely a sentence, not a heading)
+        if (text.endsWith('.') || text.endsWith('!') || text.endsWith('?')) return match;
+        // Must be under 12 words
+        const words = text.split(/\s+/).filter(Boolean);
+        if (words.length > 12) return match;
+        // Must look like a heading: title case (majority of words capitalised) or ALL CAPS
+        const isAllCaps = text === text.toUpperCase() && /[A-Z]/.test(text);
+        const capitalisedWords = words.filter((w: string) => /^[A-Z]/.test(w)).length;
+        const isTitleCase = capitalisedWords / words.length >= 0.5;
+        if (!isAllCaps && !isTitleCase) return match;
+        console.log(`[Rewrite] Pass D3: converted plain-text heading to <h3>: "${text.slice(0, 60)}"`);
+        return `<h3${attrs}>${text}</h3>`;
+      }
+    );
   }
 
   // -----------------------------------------------------------------------
