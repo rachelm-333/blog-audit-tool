@@ -542,7 +542,7 @@ function DashboardOverview({
       )}
 
       {/* Health score + grade breakdown */}
-      <div className="flex items-center gap-6 flex-wrap">
+      <div className="flex items-start gap-6 flex-wrap">
         <div>
           <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
             Blog Health Score
@@ -580,6 +580,15 @@ function DashboardOverview({
               );
             })}
           </div>
+        </div>
+
+        {/* Keyword accuracy tip */}
+        <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-2.5 min-w-[220px] max-w-xs self-start">
+          <AlertTriangle size={13} className="text-amber-400 shrink-0 mt-0.5" />
+          <p className="text-[11px] text-amber-300 leading-snug">
+            <strong>Before auditing,</strong> check your keywords are accurate. Click any keyword to edit it, or use{" "}
+            <strong>Detect All Keywords</strong> to auto-detect missing ones.
+          </p>
         </div>
       </div>
 
@@ -1813,7 +1822,7 @@ export default function PostList() {
                     variant="outline"
                     onClick={handleDetectAllKeywords}
                     disabled={detectingAllKeywords || posts.length === 0}
-                    className="gap-2 border-indigo-500/40 text-indigo-400 hover:bg-indigo-500/10"
+                    className="gap-2 border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
                   >
                     {detectingAllKeywords ? (
                       <Loader2 className="animate-spin" size={14} />
