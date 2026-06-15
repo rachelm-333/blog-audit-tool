@@ -255,27 +255,29 @@ describe("wix.service — testWixConnection", () => {
     fetchSpy.mockRestore();
   });
 
-  it("2. Returns { ok: false, errorCode: 'invalid_credentials' } for 401", async () => {
+  it("2. Returns { ok: false } with message for 401", async () => {
+    // testWixConnection returns { ok, message, siteId } — no errorCode field
     const { testWixConnection } = await import("./wix.service");
     const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
       ok: false,
       status: 401,
-      json: async () => ({ message: "Unauthorized" }),
+      text: async () => "Unauthorized",
     } as Response);
 
     const result = await testWixConnection({ siteId: "test-site", apiKey: "bad-key" });
     expect(result.ok).toBe(false);
-    expect((result as any).errorCode).toBe("invalid_credentials");
+    expect(result.message).toContain("Invalid Wix API key");
     fetchSpy.mockRestore();
   });
 
-  it("3. Returns { ok: false, errorCode: 'site_unreachable' } for network error", async () => {
+  it("3. Returns { ok: false } with message for network error", async () => {
+    // testWixConnection returns { ok, message, siteId } — no errorCode field
     const { testWixConnection } = await import("./wix.service");
     const fetchSpy = vi.spyOn(global, "fetch").mockRejectedValueOnce(new Error("ECONNREFUSED"));
 
     const result = await testWixConnection({ siteId: "test-site", apiKey: "test-key" });
     expect(result.ok).toBe(false);
-    expect((result as any).errorCode).toBe("site_unreachable");
+    expect(result.message).toContain("Could not reach Wix");
     fetchSpy.mockRestore();
   });
 });
@@ -338,7 +340,9 @@ describe("wix.service — importWixPosts", () => {
     fetchSpy.mockRestore();
   });
 
-  it("6. Returns empty array when no posts match filter", async () => {
+  it("6. Throws WixImportException when API returns empty posts", async () => {
+    // importWixPosts calls importFromWix which throws WixImportException("zero_posts")
+    // when rawPosts.length === 0. The error message is "No posts found on this Wix site."
     const { importWixPosts } = await import("./wix.service");
     const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue({
       ok: true,
@@ -346,11 +350,9 @@ describe("wix.service — importWixPosts", () => {
       json: async () => ({ posts: [], metaData: { count: 0, total: 0 } }),
     } as Response);
 
-    const result = await importWixPosts(
-      { siteId: "test-site", apiKey: "test-key" },
-      "scheduled"
-    );
-    expect(result.posts).toHaveLength(0);
+    await expect(
+      importWixPosts({ siteId: "test-site", apiKey: "test-key" }, "scheduled")
+    ).rejects.toThrow("No posts found on this Wix site");
     fetchSpy.mockRestore();
   });
 });
@@ -361,12 +363,12 @@ describe("wix.service — importWixPosts", () => {
 
 describe("wix.service — postBackToWix", () => {
   it("7. Sends PATCH to Wix Blog API with correct payload", async () => {
+    // postBackToWix makes 3 calls: GET draft (Step 0), PATCH draft, POST publish
     const { postBackToWix } = await import("./wix.service");
-    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: async () => ({ post: { id: "wix-1", url: "https://www.wix.com/blog/test" } }),
-    } as Response);
+    const fetchSpy = vi.spyOn(global, "fetch")
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ draftPost: { richContent: { nodes: [] } } }) } as Response) // Step 0 GET
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ draftPost: { id: "wix-1" } }) } as Response) // PATCH
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ post: { id: "wix-1", url: "https://www.wix.com/blog/test" } }) } as Response); // POST publish
 
     const result = await postBackToWix(
       { siteId: "test-site", apiKey: "test-key" },
@@ -385,29 +387,32 @@ describe("wix.service — postBackToWix", () => {
     fetchSpy.mockRestore();
   });
 
-    it("8. Throws Error(insufficient_permissions) on 401", async () => {
+  it("8. Throws PostBackException with code insufficient_permissions on 401", async () => {
+    // postBackToWix first makes a GET (Step 0: fetch draft for image preservation),
+    // then a PATCH. We mock GET as ok, then PATCH as 401.
     const { postBackToWix } = await import("./wix.service");
-    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
-      ok: false,
-      status: 401,
-      json: async () => ({ message: "Unauthorized" }),
-    } as Response);
-    await expect(
-      postBackToWix(
+    const fetchSpy = vi.spyOn(global, "fetch")
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ draftPost: { richContent: { nodes: [] } } }) } as Response) // Step 0 GET
+      .mockResolvedValueOnce({ ok: false, status: 401, json: async () => ({ message: "Unauthorized" }), text: async () => "Unauthorized" } as Response); // PATCH
+    let thrown: any;
+    try {
+      await postBackToWix(
         { siteId: "test-site", apiKey: "bad-key" },
         { cmsPostId: "wix-1", bodyApproved: "<p>x</p>", metaTitleApproved: "T", metaDescriptionApproved: "D", imageAltTexts: [], authorIdCms: "a1" },
         null
-      )
-    ).rejects.toThrow("insufficient_permissions");
+      );
+    } catch (e) { thrown = e; }
+    expect(thrown).toBeInstanceOf(Error);
+    expect(thrown.code).toBe("insufficient_permissions");
     fetchSpy.mockRestore();
   });
-  it("9. Throws Error(post_not_found) on 404", async () => {
+  it("9. Throws PostBackException with code post_not_found on 404", async () => {
+    // postBackToWix first makes a GET (Step 0: fetch draft for image preservation),
+    // then a PATCH. We mock GET as ok, then PATCH as 404.
     const { postBackToWix } = await import("./wix.service");
-    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
-      ok: false,
-      status: 404,
-      json: async () => ({ message: "Not Found" }),
-    } as Response);
+    const fetchSpy = vi.spyOn(global, "fetch")
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ draftPost: { richContent: { nodes: [] } } }) } as Response) // Step 0 GET
+      .mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({ message: "Not Found" }), text: async () => "Not Found" } as Response); // PATCH
     let thrown: any;
     try {
       await postBackToWix(
@@ -415,11 +420,9 @@ describe("wix.service — postBackToWix", () => {
         { cmsPostId: "wix-missing", bodyApproved: "<p>x</p>", metaTitleApproved: "T", metaDescriptionApproved: "D", imageAltTexts: [], authorIdCms: "a1" },
         null
       );
-    } catch (e) {
-      thrown = e;
-    }
+    } catch (e) { thrown = e; }
     expect(thrown).toBeInstanceOf(Error);
-    expect(thrown.message).toBe("post_not_found");
+    expect(thrown.code).toBe("post_not_found");
     fetchSpy.mockRestore();
   });
 });
@@ -581,9 +584,10 @@ describe("shopify.service — postBackToShopify", () => {
     fetchSpy.mockRestore();
   });
 
-  it("16. Throws PostBackException(post_not_found) on 404", async () => {
+  it("16. Throws PostBackException with code post_not_found on 404", async () => {
+    // postBackToShopify throws PostBackException — check .code, not .message
     const { postBackToShopify } = await import("./shopify.service");
-        const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
       ok: false,
       status: 404,
       json: async () => ({ errors: "Not Found" }),
@@ -595,11 +599,9 @@ describe("shopify.service — postBackToShopify", () => {
         { cmsPostId: "999", blogId: "1", bodyApproved: "<p>x</p>", metaTitleApproved: "T", metaDescriptionApproved: "D", imageAltTexts: [], authorIdCms: "a1" },
         null
       );
-    } catch (e) {
-      thrown = e;
-    }
+    } catch (e) { thrown = e; }
     expect(thrown).toBeInstanceOf(Error);
-    expect(thrown.message).toBe("post_not_found");
+    expect(thrown.code).toBe("post_not_found");
     fetchSpy.mockRestore();
   });
 });

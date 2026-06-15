@@ -1039,25 +1039,52 @@ export default function ReviewEdit() {
     },
   });
 
-  // ----- Re-run Rewrite mutation -----
+  // ----- Re-run Rewrite mutation (fire-and-forget + polling) -----
+  // The server returns { jobStarted: true } immediately and runs the rewrite in the background.
+  // We poll review.getPost every 5s until rewriteStatus changes from 'running'.
+  const [rerunPolling, setRerunPolling] = useState(false);
+  const utils = trpc.useUtils();
+
   const rerunRewriteMutation = trpc.rewrite.rerunRewrite.useMutation({
-    onSuccess: (data: { rewriteScore: number; rewriteGrade: string; needsManualReview: boolean; message?: string }) => {
-      setRerunning(false);
-      setCurrentScore(data.rewriteScore);
-      setCurrentGrade(data.rewriteGrade);
-      if (data.needsManualReview && data.message) {
-        toast.warning(data.message, { duration: 8000 });
-      } else {
-        toast.success(`Rewrite complete — scored ${data.rewriteScore}/16!`);
-      }
-      // Reload the page to get the new rewritten content
-      window.location.reload();
+    onSuccess: () => {
+      // Job started — begin polling
+      setRerunPolling(true);
+      toast.info("Rewrite started. This may take up to 5 minutes — you can leave this page and come back.", { duration: 8000 });
     },
     onError: (err: { message?: string }) => {
       setRerunning(false);
       toast.error(err.message ?? "Re-run rewrite failed. Please try again.");
     },
   });
+
+  // Poll every 5s while rerunPolling is true
+  useEffect(() => {
+    if (!rerunPolling || !postId || !iauditUserId) return;
+    const interval = setInterval(async () => {
+      try {
+        await utils.review.getPost.invalidate({ postId, iauditUserId });
+        // Check the latest cached value
+        const latest = utils.review.getPost.getData({ postId, iauditUserId });
+        if (latest && latest.rewriteStatus !== "running") {
+          clearInterval(interval);
+          setRerunPolling(false);
+          setRerunning(false);
+          if (latest.rewriteStatus === "failed") {
+            toast.error("Rewrite failed. No credit was charged. Please try again.");
+          } else if (latest.rewriteStatus === "needs_manual_review") {
+            toast.warning(`Rewrite scored ${latest.rewriteScore ?? 0}/16. Credit refunded. Please review the highlighted points before publishing.`, { duration: 8000 });
+            window.location.reload();
+          } else {
+            toast.success(`Rewrite complete — scored ${latest.rewriteScore ?? 0}/16!`);
+            window.location.reload();
+          }
+        }
+      } catch {
+        // Polling error — keep trying
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [rerunPolling, postId, iauditUserId, utils]);
 
   const handleRerunRewrite = async () => {
     if (!postId || !iauditUserId || !post?.paaQuestion) {

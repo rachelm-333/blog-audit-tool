@@ -437,113 +437,103 @@ export const rewriteRouter = router({
           ? (post.secondaryKeywords as string).split(",").map((s: string) => s.trim()).filter(Boolean)
           : [];
 
-      let rewriteResult;
-      try {
-        rewriteResult = await runFullRewrite({
-          post: {
-            id: post.id,
-            title: post.title,
-            bodyOriginal: post.bodyRewritten ?? post.bodyOriginal, // Use latest rewrite as base
-            url: post.url,
-            focusKeyword: post.focusKeyword,
-            metaTitleOriginal: post.metaTitleRewritten ?? post.metaTitleOriginal,
-            metaDescriptionOriginal: post.metaDescriptionRewritten ?? post.metaDescriptionOriginal,
-            publishDate: post.publishDate,
-            scheduledDate: post.scheduledDate,
-            status: post.status,
-          },
-          businessContext,
-          internalLinks,
-          failingPoints,
-          paaQuestion: input.paaQuestion,
-          secondaryKeywords,
-          rewriteMode: "full_rewrite",
-        });
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        const isParseError =
-          errMsg.includes("JSON") ||
-          errMsg.includes("position") ||
-          errMsg.includes("Unexpected token") ||
-          errMsg.includes("Unexpected end") ||
-          errMsg.includes("Expected");
-        if (isParseError) {
-          try { await refundCredit(input.iauditUserId, post.id); } catch { /* ignore */ }
-        }
-        await setRewriteStatus(post.id, "failed");
-        void logError({
-          userId: input.iauditUserId,
-          businessId: post.businessId ?? null,
-          postId: post.id,
-          errorType: "rewrite_failed",
-          errorMessage: errMsg,
-          layer: "layer_7_rewrite",
-        });
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: isParseError
-            ? "The rewrite hit a length limit on this post. Your credit has been automatically refunded. Please try again."
-            : "Re-run rewrite failed. Your credit has not been refunded.",
-        });
-      }
-
-      // Auto-retry once if score < 14, using the failing points from the first attempt
-      if (rewriteResult.rewriteScore < 14) {
+      // --- Fire-and-forget: return immediately, run rewrite in background ---
+      // This avoids 504 Gateway Timeout from the load balancer (hard 300s limit).
+      // The frontend polls rewrite.getRewriteResult to check when status changes from 'running'.
+      void (async () => {
+        let rewriteResult;
         try {
-          const retryFailingPoints: string[] = [];
-          if (rewriteResult.auditResult?.points) {
-            for (const p of rewriteResult.auditResult.points) {
-              if (p.status === "fail") retryFailingPoints.push(`${p.point} — ${p.name}`);
-            }
-          }
-          const retryResult = await runFullRewrite({
+          rewriteResult = await runFullRewrite({
             post: {
               id: post.id,
               title: post.title,
-              bodyOriginal: rewriteResult.bodyRewritten,
+              bodyOriginal: post.bodyRewritten ?? post.bodyOriginal,
               url: post.url,
-              focusKeyword: post.focusKeyword,
-              metaTitleOriginal: rewriteResult.metaTitleRewritten,
-              metaDescriptionOriginal: rewriteResult.metaDescriptionRewritten,
+              focusKeyword: post.focusKeyword!, // validated above
+              metaTitleOriginal: post.metaTitleRewritten ?? post.metaTitleOriginal,
+              metaDescriptionOriginal: post.metaDescriptionRewritten ?? post.metaDescriptionOriginal,
               publishDate: post.publishDate,
               scheduledDate: post.scheduledDate,
               status: post.status,
             },
             businessContext,
             internalLinks,
-            failingPoints: retryFailingPoints.length > 0 ? retryFailingPoints : failingPoints,
+            failingPoints,
             paaQuestion: input.paaQuestion,
             secondaryKeywords,
             rewriteMode: "full_rewrite",
           });
-          // Pick the best result
-          if (retryResult.rewriteScore > rewriteResult.rewriteScore) {
-            rewriteResult = retryResult;
+        } catch (err) {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          const isParseError =
+            errMsg.includes("JSON") ||
+            errMsg.includes("position") ||
+            errMsg.includes("Unexpected token") ||
+            errMsg.includes("Unexpected end") ||
+            errMsg.includes("Expected");
+          if (isParseError) {
+            try { await refundCredit(input.iauditUserId, post.id); } catch { /* ignore */ }
           }
-        } catch {
-          // Retry failed — continue with first result
+          await setRewriteStatus(post.id, "failed");
+          void logError({
+            userId: input.iauditUserId,
+            businessId: post.businessId ?? null,
+            postId: post.id,
+            errorType: "rewrite_failed",
+            errorMessage: errMsg,
+            layer: "layer_7_rewrite",
+          });
+          return;
         }
-      }
 
-      // saveRewriteResult always sets rewriteStatus to awaiting_review.
-      // For low-scoring rewrites, override to needs_manual_review after saving.
-      await saveRewriteResult(post.id, rewriteResult);
-      const needsManualReview = rewriteResult.rewriteScore < 14;
-      if (needsManualReview) {
-        await refundCredit(input.iauditUserId, post.id);
-        await setRewriteStatus(post.id, "needs_manual_review");
-      }
-      // else: rewriteStatus stays as awaiting_review (set by saveRewriteResult)
+        // Auto-retry once if score < 14
+        if (rewriteResult.rewriteScore < 14) {
+          try {
+            const retryFailingPoints: string[] = [];
+            if (rewriteResult.auditResult?.points) {
+              for (const p of rewriteResult.auditResult.points) {
+                if (p.status === "fail") retryFailingPoints.push(`${p.point} — ${p.name}`);
+              }
+            }
+            const retryResult = await runFullRewrite({
+              post: {
+                id: post.id,
+                title: post.title,
+                bodyOriginal: rewriteResult.bodyRewritten,
+                url: post.url,
+                focusKeyword: post.focusKeyword!, // validated above
+                metaTitleOriginal: rewriteResult.metaTitleRewritten,
+                metaDescriptionOriginal: rewriteResult.metaDescriptionRewritten,
+                publishDate: post.publishDate,
+                scheduledDate: post.scheduledDate,
+                status: post.status,
+              },
+              businessContext,
+              internalLinks,
+              failingPoints: retryFailingPoints.length > 0 ? retryFailingPoints : failingPoints,
+              paaQuestion: input.paaQuestion,
+              secondaryKeywords,
+              rewriteMode: "full_rewrite",
+            });
+            if (retryResult.rewriteScore > rewriteResult.rewriteScore) {
+              rewriteResult = retryResult;
+            }
+          } catch {
+            // Retry failed — continue with first result
+          }
+        }
 
-      return {
-        success: true,
-        rewriteScore: rewriteResult.rewriteScore,
-        rewriteGrade: rewriteResult.rewriteGrade,
-        needsManualReview,
-        message: needsManualReview
-          ? `The rewrite scored ${rewriteResult.rewriteScore}/16. Your credit has been refunded. Please review the highlighted points before publishing.`
-          : undefined,
-      };
+        await saveRewriteResult(post.id, rewriteResult);
+        const needsManualReview = rewriteResult.rewriteScore < 14;
+        if (needsManualReview) {
+          await refundCredit(input.iauditUserId, post.id);
+          await setRewriteStatus(post.id, "needs_manual_review");
+        }
+        // else: rewriteStatus stays as awaiting_review (set by saveRewriteResult)
+      })();
+
+      // Return immediately — frontend polls getRewriteResult for status changes
+      return { jobStarted: true };
     }),
 
   /**

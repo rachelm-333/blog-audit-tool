@@ -65,13 +65,15 @@ import { nanoid } from "nanoid";
 describe("inferArticleType", () => {
   it("returns cornerstone for body with >= 2000 words", async () => {
     const { inferArticleType } = await import("./rewrite.service");
-    const body = "<p>" + "word ".repeat(2100) + "</p>";
+    // Threshold is 2450 words in current code
+    const body = "<p>" + "word ".repeat(2500) + "</p>";
     expect(inferArticleType(body)).toBe("cornerstone");
   });
 
   it("returns pillar for body with 1000-1999 words", async () => {
     const { inferArticleType } = await import("./rewrite.service");
-    const body = "<p>" + "word ".repeat(1200) + "</p>";
+    // Threshold is 1450–2449 words in current code
+    const body = "<p>" + "word ".repeat(1600) + "</p>";
     expect(inferArticleType(body)).toBe("pillar");
   });
 
@@ -252,30 +254,37 @@ describe("runMechanicalEnforcement", () => {
     expect(result.metaTitleRewritten.length).toBeLessThanOrEqual(60);
   });
 
-  it("pads meta description when < 140 chars", () => {
+  it("passes through meta description when < 140 chars (no padding — audit flags it)", () => {
+    // runMechanicalEnforcement intentionally does NOT pad/truncate meta descriptions.
+    // Length enforcement is left to the audit (P8) and the user editor.
+    const shortDesc = "Short desc.";
     const result = runMechanicalEnforcement(
       {
         bodyRewritten:
           "<p>" + keyword + " ".repeat(4) + " word ".repeat(200) + "</p>",
         metaTitleRewritten: "Pool Installation Sydney",
-        metaDescriptionRewritten: "Short desc.",
+        metaDescriptionRewritten: shortDesc,
       },
       keyword
     );
-    expect(result.metaDescriptionRewritten.length).toBeGreaterThanOrEqual(140);
+    // Description is passed through unchanged (audit will flag P8)
+    expect(result.metaDescriptionRewritten).toBe(shortDesc);
   });
 
-  it("truncates meta description when > 160 chars", () => {
+  it("passes through meta description when > 160 chars (no truncation — audit flags it)", () => {
+    // runMechanicalEnforcement intentionally does NOT pad/truncate meta descriptions.
+    const longDesc = "A".repeat(200);
     const result = runMechanicalEnforcement(
       {
         bodyRewritten:
           "<p>" + keyword + " ".repeat(4) + " word ".repeat(200) + "</p>",
         metaTitleRewritten: "Pool Installation Sydney",
-        metaDescriptionRewritten: "A".repeat(200),
+        metaDescriptionRewritten: longDesc,
       },
       keyword
     );
-    expect(result.metaDescriptionRewritten.length).toBeLessThanOrEqual(160);
+    // Description is passed through unchanged (audit will flag P8)
+    expect(result.metaDescriptionRewritten).toBe(longDesc);
   });
 });
 
@@ -821,7 +830,7 @@ describe("rewrite DB helpers", () => {
     const post = await getPostForRewrite(postId);
     expect(post?.rewriteScore).toBe(14);
     expect(post?.rewriteGrade).toBe("optimised");
-    expect(post?.rewriteStatus).toBe("complete");
+    expect(post?.rewriteStatus).toBe("awaiting_review"); // saveRewriteResult always sets awaiting_review
     expect(post?.paaQuestion).toBe("What is the best way to test rewrites?");
     expect(post?.articleType).toBe("cluster");
     expect(post?.rewriteMode).toBe("smart_patch");

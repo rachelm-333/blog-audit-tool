@@ -274,7 +274,7 @@ describe("WordPress post import", () => {
         ],
       },
       meta: {
-        _yoast_wpseo_focuskw: "seo tips",
+        _yoast_wpseo_focuskw: "seo optimisation",
         _yoast_wpseo_title: "SEO Tips | My Site",
         _yoast_wpseo_metadesc: "Learn the best SEO tips.",
       },
@@ -330,7 +330,7 @@ describe("WordPress post import", () => {
     expect(post.status).toBe("published");
     expect(post.authorIdCms).toBe("5");
     expect(post.authorNameCms).toBe("Jane Doe");
-    expect(post.focusKeyword).toBe("seo tips");
+    expect(post.focusKeyword).toBe("seo optimisation");
     expect(post.metaTitle).toBe("SEO Tips | My Site");
     expect(post.metaDescription).toBe("Learn the best SEO tips.");
     expect(post.featuredImageAlt).toBe("Featured image alt");
@@ -362,8 +362,9 @@ describe("WordPress post import", () => {
   });
 
   it("14. extracts focus keyword from Yoast meta (_yoast_wpseo_focuskw)", async () => {
-    const result = await runMockedImport([makeMockPost({ meta: { _yoast_wpseo_focuskw: "best seo tips" } })]);
-    expect(result.posts[0]?.focusKeyword).toBe("best seo tips");
+    // Use a keyword that passes validateKeyword (2-word, no stop words)
+    const result = await runMockedImport([makeMockPost({ meta: { _yoast_wpseo_focuskw: "search optimisation" } })]);
+    expect(result.posts[0]?.focusKeyword).toBe("search optimisation");
   });
 
   it("15. extracts focus keyword from RankMath meta (rank_math_focus_keyword)", async () => {
