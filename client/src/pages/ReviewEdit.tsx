@@ -300,6 +300,7 @@ function SeoScorePanel({
   rewriteScore,
   rewriteGrade,
   auditPoints,
+  hasUnsavedChanges,
 }: {
   currentScore: number | null;
   currentGrade: string | null;
@@ -308,6 +309,7 @@ function SeoScorePanel({
   rewriteScore: number | null;
   rewriteGrade: string | null;
   auditPoints: AuditPoint[];
+  hasUnsavedChanges?: boolean;
 }) {
   const [expanded, setExpanded] = useState(true);
   const failing = auditPoints.filter((p) => p.status === "fail");
@@ -321,12 +323,20 @@ function SeoScorePanel({
       {/* Score header */}
       <div className="p-4 space-y-3">
         <div className="text-sm font-semibold text-foreground">Current Score</div>
+        {hasUnsavedChanges && (
+          <div className="flex items-center gap-1.5 text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded px-2 py-1">
+            <span>⚠</span>
+            <span>Save your changes to update this score.</span>
+          </div>
+        )}
         {currentScore !== null && currentGrade ? (
           <>
             <GradeBadge grade={currentGrade} score={currentScore} />
-            <p className="text-[10px] text-muted-foreground leading-tight">
-              Score of the content in the editor. Updates when you save.
-            </p>
+            {!hasUnsavedChanges && (
+              <p className="text-[10px] text-muted-foreground leading-tight">
+                Score of the content in the editor. Updates when you save.
+              </p>
+            )}
           </>
         ) : (
           <span className="text-xs text-muted-foreground">Save to run re-score</span>
@@ -889,6 +899,7 @@ export default function ReviewEdit() {
   const [saveStatus, setSaveStatus] = useState<
     "idle" | "saving" | "saved" | "error"
   >("idle");
+  const [hasEdits, setHasEdits] = useState(false);
   const [currentScore, setCurrentScore] = useState<number | null>(null);
   const [currentGrade, setCurrentGrade] = useState<string | null>(null);
   const [currentAuditPoints, setCurrentAuditPoints] = useState<Array<{ point: string; name: string; status: string; note: string }>>([]);
@@ -933,6 +944,7 @@ export default function ReviewEdit() {
       Image.configure({}),
     ],
     content: "",
+    onUpdate: () => setHasEdits(true),
     editorProps: {
       attributes: {
         class:
@@ -983,6 +995,7 @@ export default function ReviewEdit() {
   const saveEditsMutation = trpc.review.saveEdits.useMutation({
     onSuccess: (data) => {
       setSaveStatus("saved");
+      setHasEdits(false);
       setCurrentScore(data.score);
       setCurrentGrade(data.grade);
       setWarnings(data.warnings);
@@ -1555,6 +1568,7 @@ ${editor.getHTML()}
             rewriteScore={post.rewriteScore ?? null}
             rewriteGrade={post.rewriteGrade ?? null}
             auditPoints={currentAuditPoints}
+            hasUnsavedChanges={hasEdits}
           />
 
           {/* Post metadata (read-only) */}

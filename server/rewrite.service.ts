@@ -623,25 +623,9 @@ export function runMechanicalEnforcement(
     metaTitleRewritten = `${kwPrefix}${suffix}`.trimEnd();
   }
 
-  // --- P8: Meta description — must be 140–160 chars ---
-  // Rule: NEVER truncate with ellipsis. Trim to last complete sentence/word within 160 chars.
-  if (metaDescriptionRewritten.length > 160) {
-    // Trim to last complete word at or before char 160
-    const trimmed = metaDescriptionRewritten.slice(0, 160);
-    // Prefer trimming at sentence boundary (. ! ?)
-    const lastSentence = Math.max(
-      trimmed.lastIndexOf('. '),
-      trimmed.lastIndexOf('! '),
-      trimmed.lastIndexOf('? ')
-    );
-    if (lastSentence > 100) {
-      metaDescriptionRewritten = trimmed.slice(0, lastSentence + 1).trimEnd();
-    } else {
-      const lastSpace = trimmed.lastIndexOf(' ');
-      metaDescriptionRewritten = (lastSpace > 100 ? trimmed.slice(0, lastSpace) : trimmed).trimEnd();
-    }
-  }
-  // If meta description is too short, leave it as-is for manual correction.
+  // --- P8: Meta description — length is checked by the audit (P8 requires 140–160 chars).
+  // Do NOT truncate here — store whatever the AI wrote so the user can edit it in full.
+  // If too long or too short, the audit will flag it and the user can correct it in the editor.
 
   // --- P9: Opening Answer Block ---
   // Strictly require a STANDALONE bold-only paragraph as the very first non-heading element.
