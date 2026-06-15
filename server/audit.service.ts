@@ -352,7 +352,9 @@ export function runMechanicalChecks(input: PostAuditInput): AuditPoint[] {
   // P7 — Meta Title
   const mt = metaTitle?.trim() ?? "";
   const p7Present = mt.length > 0;
-  const p7HasKw = p7Present && containsKeyword(mt, focusKeyword);
+  // Strip CMS-added brand suffix (e.g. "Title | Brand" or "Title - Brand") before keyword check
+  const metaTitleForCheck = mt.split(' | ')[0].split(' - ')[0].trim();
+  const p7HasKw = p7Present && containsKeyword(metaTitleForCheck, focusKeyword);
   // Google truncates meta titles at ~60 chars, but 10-char buffer is acceptable
   const p7TooLong = mt.length > 70;
   const p7TooShort = mt.length < 10;
@@ -488,6 +490,21 @@ export async function runAiChecks(input: AiAuditInput): Promise<AuditPoint[]> {
     note: p15Pass ? "No AI language patterns detected." : "AI language patterns detected.",
   };
 
+  // ---------------------------------------------------------------------------
+  // P14 — E-E-A-T Signals (deterministic pre-check — broadened signal list)
+  // If the deterministic check passes, we skip asking the LLM about P14.
+  // If it fails, the LLM still scores it (it may find signals the word list misses).
+  // ---------------------------------------------------------------------------
+  const EEAT_SIGNALS = [
+    'year', 'experience', 'client', 'award', 'founded', 'since',
+    'specialist', 'expert', 'certified', 'accredited', 'trusted', 'proven',
+    'established', 'serve', 'helped', 'worked with',
+  ];
+  const deterministicP14Pass = EEAT_SIGNALS.some(signal => bodyLower.includes(signal));
+  const deterministicP14Result: AuditPoint | null = deterministicP14Pass
+    ? { point: "P14", name: "E-E-A-T Signals", status: "pass", note: "E-E-A-T signals detected." }
+    : null; // null means: let the LLM decide
+
   // First 500 words of plain text for P9 opening answer block check
   const opening500Words = bodyText.split(/\s+/).slice(0, 500).join(" ");
 
@@ -547,7 +564,7 @@ P11 - Internal CTA Link: Does the article contain at least one internal link to 
 
 P12 - Internal Blog Link: Does the article contain at least one link to another blog post or article on the same site, using descriptive anchor text (not just "click here" or "read more")? The site domain is ${siteUrl || 'unknown'}. Use the INTERNAL LINKS list provided above — look for links to /blog/, /post/, /article/, /news/ paths on the same domain.
 
-P14 - E-E-A-T Signals: Does the article demonstrate experience, expertise, authority, and trust through specific details? Look for: named credentials, specific data points with sources, years of experience, real case studies, or named professionals.
+P14 - E-E-A-T Signals: Does the article demonstrate experience, expertise, authority, and trust through specific details? Look for: named credentials, specific data points with sources, years of experience, real case studies, or named professionals. Be generous — if any signal words like "experience", "specialist", "certified", "trusted", "established", "helped", "served", or similar are present, mark as pass.
 
 Return this exact JSON structure (notes must be very brief — one short phrase, no thresholds or criteria revealed):
 {
@@ -635,11 +652,12 @@ Return this exact JSON structure (notes must be very brief — one short phrase,
       { point: "P10", name: "External Authority Link", status: parsed.P10.status, note: parsed.P10.note },
       { point: "P11", name: "Internal CTA Link", status: parsed.P11.status, note: parsed.P11.note },
       { point: "P12", name: "Internal Blog Link", status: parsed.P12.status, note: parsed.P12.note },
-      { point: "P14", name: "E-E-A-T Signals", status: parsed.P14.status, note: parsed.P14.note },
+      // P14: use deterministic pass if available, otherwise trust LLM result
+      deterministicP14Result ?? { point: "P14", name: "E-E-A-T Signals", status: parsed.P14.status, note: parsed.P14.note },
       p15Result,
     ];
   } catch {
-    // AI call failed — mark P9–P12, P14 as unable_to_score; P15 is deterministic so always return it
+    // AI call failed — mark P9–P12 as unable_to_score; P14 uses deterministic if available; P15 is always deterministic
     const failureNote =
       "We could not complete the AI portion of this audit. The mechanical checks are shown below. Try re-running the audit.";
     return [
@@ -647,7 +665,7 @@ Return this exact JSON structure (notes must be very brief — one short phrase,
       { point: "P10", name: "External Authority Link", status: "unable_to_score", note: failureNote },
       { point: "P11", name: "Internal CTA Link", status: "unable_to_score", note: failureNote },
       { point: "P12", name: "Internal Blog Link", status: "unable_to_score", note: failureNote },
-      { point: "P14", name: "E-E-A-T Signals", status: "unable_to_score", note: failureNote },
+      deterministicP14Result ?? { point: "P14", name: "E-E-A-T Signals", status: "unable_to_score", note: failureNote },
       p15Result,
     ];
   }

@@ -543,6 +543,10 @@ async function rewriteWithSingleCall(
     `- At least one <h3> tag must contain the primary keyword "${input.focusKeyword}" [P4]\n` +
     `- The first section must open with a bold question and direct 40–60 word answer [P9]\n` +
     `- Section 2 must include one external link to a real .gov.au or industry authority source [P10]\n` +
+    `- When you mention any external website, directory, business tool, government body, or named service BY NAME, you MUST wrap it in a real working hyperlink. Example: <a href="https://www.hotfrog.com.au">Hotfrog</a>, <a href="https://www.yellowpages.com.au">Yellow Pages</a>, <a href="https://www.truelocal.com.au">True Local</a>\n` +
+    `- Never mention an external service or website by name without linking to it\n` +
+    `- Use the real, correct URL for each service — do NOT make up URLs\n` +
+    `- Anchor text must be the brand/service name, not "click here" or "this site"\n` +
     `- Use Australian English spelling throughout\n` +
     `- Vary sentence length — mix short punchy sentences with longer ones\n` +
     `- Sound like a specific human expert, not a generic AI\n` +
@@ -602,8 +606,10 @@ export async function runPass1Rewrite(input: Pass1Input): Promise<Pass1Output> {
   // --- P16 Condensation Pass: if word count exceeds max, run one condensation LLM call ---
   {
     const wc = wordCount(stripHtml(bodyRewritten));
-    // Use the article-type max if available, otherwise fall back to 1800 words
-    const condensationMax = (input.wordCountTarget?.max ?? 1800);
+    // Derive condensation max from pre-rewrite word count tiers when not explicitly set
+    const preRewriteWc = wordCount(stripHtml(input.bodyHtml));
+    const tieredMax = preRewriteWc < 900 ? 1300 : preRewriteWc <= 1600 ? 2200 : 3200;
+    const condensationMax = (input.wordCountTarget?.max ?? tieredMax);
     if (wc > condensationMax) {
       console.log(`[Rewrite] P16 condensation: ${wc} words exceeds max ${condensationMax} — running condensation pass`);
       try {
@@ -897,27 +903,66 @@ export function runMechanicalEnforcement(
   // Pass F — P10: External authority link
   // -----------------------------------------------------------------------
   {
+    // Known external service name → URL mappings
+    const KNOWN_EXTERNAL_URLS: Array<{ name: string; url: string }> = [
+      { name: 'Hotfrog', url: 'https://www.hotfrog.com.au' },
+      { name: 'Yellow Pages', url: 'https://www.yellowpages.com.au' },
+      { name: 'True Local', url: 'https://www.truelocal.com.au' },
+      { name: 'Google Business Profile', url: 'https://business.google.com' },
+      { name: 'ABN Lookup', url: 'https://abr.business.gov.au' },
+      { name: 'ASIC', url: 'https://www.asic.gov.au' },
+      { name: 'Fair Work', url: 'https://www.fairwork.gov.au' },
+      { name: 'ATO', url: 'https://www.ato.gov.au' },
+      { name: 'business.gov.au', url: 'https://business.gov.au' },
+    ];
+
     const hasExternalLink = /<a[^>]+href=["'](https?:\/\/(?!(?:[^"']*\.)?(?:wix\.com|wordpress\.com|blogger\.com))[^"']+)["'][^>]*>/i.test(bodyRewritten);
     if (!hasExternalLink) {
-      // Spec: inject into the second paragraph
-      const secondPMatch = bodyRewritten.match(/(<p[^>]*>[\s\S]*?<\/p>[\s\S]*?)(<p[^>]*>[\s\S]*?<\/p>)/i);
-      const extLinkSentence =
-        ` For more information, visit the <a href="https://www.fairwork.gov.au" target="_blank" rel="noopener">Fair Work Commission</a>` +
-        ` or check current guidelines at <a href="https://www.australia.gov.au" target="_blank" rel="noopener">Australia.gov.au</a>.`;
-      if (secondPMatch && secondPMatch.index !== undefined) {
-        // Find the second <p> close tag
-        const secondPStart = secondPMatch.index + secondPMatch[1].length;
-        const secondPClose = bodyRewritten.indexOf('</p>', secondPStart);
-        if (secondPClose !== -1) {
-          bodyRewritten = bodyRewritten.slice(0, secondPClose) + extLinkSentence + bodyRewritten.slice(secondPClose);
+      // Step 1: Try to convert first occurrence of any known plain-text service name to a hyperlink
+      let converted = false;
+      for (const { name, url: serviceUrl } of KNOWN_EXTERNAL_URLS) {
+        // Only match the name when it is NOT already inside an <a> tag
+        // Strategy: split on HTML tags, find the first text segment containing the name, replace it
+        const parts = bodyRewritten.split(/(<[^>]+>)/g);
+        let found = false;
+        const updated = parts.map((part) => {
+          if (found || part.startsWith('<')) return part;
+          const idx = part.indexOf(name);
+          if (idx === -1) return part;
+          found = true;
+          return (
+            part.slice(0, idx) +
+            `<a href="${serviceUrl}" target="_blank" rel="noopener">${name}</a>` +
+            part.slice(idx + name.length)
+          );
+        });
+        if (found) {
+          bodyRewritten = updated.join('');
+          converted = true;
+          console.log(`[Rewrite] Pass F: converted plain-text "${name}" to hyperlink`);
+          break;
         }
-      } else if (options?.externalAuthorityFallback) {
-        // Fallback to the provided external authority link
-        const { anchor, url: extUrl } = options.externalAuthorityFallback;
-        const firstPClose = bodyRewritten.indexOf('</p>');
-        const extLinkText = ` According to <a href="${extUrl}" target="_blank" rel="noopener">${anchor}</a>, understanding the key requirements is essential for success.`;
-        if (firstPClose !== -1) {
-          bodyRewritten = bodyRewritten.slice(0, firstPClose) + extLinkText + bodyRewritten.slice(firstPClose);
+      }
+
+      // Step 2: If no known service name found, fall back to generic gov.au injection
+      if (!converted) {
+        const secondPMatch = bodyRewritten.match(/(<p[^>]*>[\s\S]*?<\/p>[\s\S]*?)(<p[^>]*>[\s\S]*?<\/p>)/i);
+        const extLinkSentence =
+          ` For more information, visit the <a href="https://www.fairwork.gov.au" target="_blank" rel="noopener">Fair Work Commission</a>` +
+          ` or check current guidelines at <a href="https://www.australia.gov.au" target="_blank" rel="noopener">Australia.gov.au</a>.`;
+        if (secondPMatch && secondPMatch.index !== undefined) {
+          const secondPStart = secondPMatch.index + secondPMatch[1].length;
+          const secondPClose = bodyRewritten.indexOf('</p>', secondPStart);
+          if (secondPClose !== -1) {
+            bodyRewritten = bodyRewritten.slice(0, secondPClose) + extLinkSentence + bodyRewritten.slice(secondPClose);
+          }
+        } else if (options?.externalAuthorityFallback) {
+          const { anchor, url: extUrl } = options.externalAuthorityFallback;
+          const firstPClose = bodyRewritten.indexOf('</p>');
+          const extLinkText = ` According to <a href="${extUrl}" target="_blank" rel="noopener">${anchor}</a>, understanding the key requirements is essential for success.`;
+          if (firstPClose !== -1) {
+            bodyRewritten = bodyRewritten.slice(0, firstPClose) + extLinkText + bodyRewritten.slice(firstPClose);
+          }
         }
       }
     }
