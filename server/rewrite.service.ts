@@ -539,6 +539,7 @@ async function rewriteWithSingleCall(
     `- Total word count: ${wordCountMin}–${wordCountMax} words\n` +
     `- The primary keyword "${input.focusKeyword}" MUST appear in the first 50 words [P5]\n` +
     `- At least one H2 heading must contain the primary keyword [P3]\n` +
+    `- At least one H3 subheading must contain the primary keyword "${input.focusKeyword}" [P4]\n` +
     `- The first section must open with a bold question and direct 40–60 word answer [P9]\n` +
     `- Section 2 must include one external link to a real .gov.au or industry authority source [P10]\n` +
     `- Use Australian English spelling throughout\n` +
@@ -596,6 +597,42 @@ export async function runPass1Rewrite(input: Pass1Input): Promise<Pass1Output> {
   // Step 1B — Single guided rewrite call
   console.log(`[Rewrite] Pass 1B: single guided rewrite call for post with keyword "${input.focusKeyword}"`);
   let bodyRewritten = await rewriteWithSingleCall(outline, input, bannedPhrasesStr);
+
+  // --- P16 Condensation Pass: if word count exceeds max, run one condensation LLM call ---
+  {
+    const wc = wordCount(stripHtml(bodyRewritten));
+    if (wc > input.wordCountTarget.max) {
+      console.log(`[Rewrite] P16 condensation: ${wc} words exceeds max ${input.wordCountTarget.max} — running condensation pass`);
+      try {
+        const condensationResp = await invokeClaude({
+          max_tokens: 32000,
+          system: 'You are an expert content editor. Return ONLY the condensed HTML wrapped in <ARTICLE_HTML>...</ARTICLE_HTML> delimiters. No other text.',
+          messages: [{
+            role: 'user',
+            content:
+              `The following article is ${wc} words, which exceeds the maximum of ${input.wordCountTarget.max} words. ` +
+              `Reduce it to ${input.wordCountTarget.max} words by:\n` +
+              `- Shortening verbose sentences without losing meaning\n` +
+              `- Removing filler phrases and redundant explanations\n` +
+              `- Do NOT remove any headings, lists, links, or key facts\n` +
+              `- Do NOT change the structure or keyword placement\n` +
+              `- Return ONLY the condensed HTML wrapped in <ARTICLE_HTML>...</ARTICLE_HTML>\n\n` +
+              bodyRewritten,
+          }],
+        });
+        const condensedRaw = condensationResp.choices?.[0]?.message?.content ?? '';
+        const condensedMatch = condensedRaw.match(/<ARTICLE_HTML>\s*([\s\S]*?)\s*<\/ARTICLE_HTML>/i);
+        if (condensedMatch?.[1]) {
+          const condensed = condensedMatch[1].trim();
+          const condensedWc = wordCount(stripHtml(condensed));
+          console.log(`[Rewrite] P16 condensation complete: ${condensedWc} words (was ${wc})`);
+          bodyRewritten = condensed;
+        }
+      } catch (err) {
+        console.warn(`[Rewrite] P16 condensation failed — keeping original:`, err);
+      }
+    }
+  }
 
   // --- Safety net: re-append preserved sections if the LLM truncated them ---
   if (input.originalCtaSection) {
@@ -732,6 +769,29 @@ export function runMechanicalEnforcement(
         return `<h2${attrs}>${stripped}: ${focusKeyword}</h2>`;
       }
     );
+  }
+
+  // -----------------------------------------------------------------------
+  // Pass D2 — P4: Keyword in H3
+  // -----------------------------------------------------------------------
+  {
+    const h3Regex = /<h3[^>]*>(.*?)<\/h3>/gi;
+    const h3s: string[] = [];
+    let h3m: RegExpExecArray | null;
+    while ((h3m = h3Regex.exec(bodyRewritten)) !== null) {
+      h3s.push(stripHtml(h3m[1]));
+    }
+    // Only inject if H3 tags exist AND none contain the keyword
+    if (h3s.length > 0 && !h3s.some((h) => containsKeyword(h, focusKeyword))) {
+      bodyRewritten = bodyRewritten.replace(
+        /<h3([^>]*)>(.*?)<\/h3>/i,
+        (match, attrs, content) => {
+          const stripped = stripHtml(content);
+          return `<h3${attrs}>${stripped}: ${focusKeyword}<\/h3>`;
+        }
+      );
+      console.log(`[Rewrite] Pass D2: injected keyword into first H3 for P4`);
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -1290,6 +1350,30 @@ export async function runPass2FingerprintScrub(
         console.log(`[Rewrite] Pass B3: replaced ${rewrittenSentences.length} sentences`);
       }
     }
+  }
+
+  // --- Pass B4: Mechanical hard removal of any surviving banned phrases ---
+  // Last-resort deterministic pass: loop through the 47 banned phrases and strip
+  // any that survived the LLM scrub. Only removes phrase text — never touches HTML tags.
+  {
+    const bannedPhrasesList = BANNED_PHRASES.split('\n- ').map(p => p.replace(/^- /, '').trim()).filter(Boolean);
+    const parts = scrubbed.split(/(<[^>]+>)/g);
+    const cleaned = parts.map((part) => {
+      if (part.startsWith('<')) return part; // HTML tag — leave untouched
+      let text = part;
+      for (const phrase of bannedPhrasesList) {
+        // Case-insensitive replacement, trim surrounding whitespace
+        const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        text = text.replace(new RegExp(escaped, 'gi'), '').replace(/  +/g, ' ');
+      }
+      return text;
+    });
+    const afterB4 = cleaned.join('');
+    const removedCount = bannedPhrasesList.filter(p => scrubbed.toLowerCase().includes(p.toLowerCase()) && !afterB4.toLowerCase().includes(p.toLowerCase())).length;
+    if (removedCount > 0) {
+      console.log(`[Rewrite] Pass B4: mechanically removed ${removedCount} surviving banned phrases`);
+    }
+    scrubbed = afterB4;
   }
 
   return {
