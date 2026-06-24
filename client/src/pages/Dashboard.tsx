@@ -814,10 +814,17 @@ export default function Dashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((row) => (
+                    {rows.map((row) => {
+                      const rowDest = !row.focusKeyword
+                        ? `/posts?highlight=${row.id}`
+                        : row.rewriteStatus === "complete" || row.rewriteStatus === "awaiting_review" || row.auditGrade === "optimised" || row.auditGrade === "strong"
+                        ? `/review/${row.id}`
+                        : `/posts?fix=${row.id}`;
+                      return (
                       <tr
                         key={row.id}
-                        className="border-b border-border/50 hover:bg-accent/20 transition-colors"
+                        className="border-b border-border/50 hover:bg-accent/30 transition-colors cursor-pointer group"
+                        onClick={() => navigate(rowDest)}
                       >
                         {/* Post title */}
                         <td className="px-4 py-3 max-w-xs">
@@ -911,7 +918,7 @@ export default function Dashboard() {
                         </td>
 
                         {/* Action button */}
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                           {!row.focusKeyword ? (
                             <Button
                               variant="ghost"
@@ -951,11 +958,11 @@ export default function Dashboard() {
                               <ExternalLink className="h-3 w-3 mr-1" />
                               View
                             </Button>
-                          ) : row.rewriteStatus === "complete" ? (
+                          ) : row.rewriteStatus === "complete" || row.rewriteStatus === "awaiting_review" ? (
                             <Button
                               variant="outline"
                               size="sm"
-                              className="text-xs h-7"
+                              className="text-xs h-7 border-violet-400/60 text-violet-400 hover:bg-violet-400/10"
                               onClick={() => navigate(`/review/${row.id}`)}
                             >
                               Review Rewrite
@@ -972,7 +979,8 @@ export default function Dashboard() {
                           )}
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
