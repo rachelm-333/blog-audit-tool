@@ -182,7 +182,7 @@ export const dashboardRouter = router({
     .mutation(async ({ input }) => {
       await assertBusinessOwnership(input.businessId, input.iauditUserId);
       const { setRewriteStatus } = await import("../rewrite.db");
-      await setRewriteStatus(input.postId, "not_started");
+      await setRewriteStatus(input.postId, "pending");
       return { success: true };
     }),
 
