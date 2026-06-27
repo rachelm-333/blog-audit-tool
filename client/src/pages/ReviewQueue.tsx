@@ -66,6 +66,12 @@ export default function ReviewQueue() {
   const userId = getIauditUserId();
   const { selectedBusinessId: businessId } = useBusinessContext();
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [showFullArticle, setShowFullArticle] = useState(false);
+
+  const { data: rewriteResult } = trpc.rewrite.getRewriteResult.useQuery(
+    { postId: selectedPostId ?? "", iauditUserId: userId ?? "" },
+    { enabled: !!selectedPostId && !!userId }
+  );
 
   const { data, isLoading, refetch } = trpc.dashboard.getReviewQueue.useQuery(
     { iauditUserId: userId ?? "", businessId: businessId ?? "" },
@@ -361,11 +367,35 @@ export default function ReviewQueue() {
                 </div>
               </div>
 
+              {/* Article body preview */}
+              {rewriteResult?.bodyRewritten ? (
+                <div className="mt-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-slate-700">Rewritten Article</h3>
+                    <button
+                      onClick={() => setShowFullArticle(v => !v)}
+                      className="text-xs text-indigo-600 hover:underline"
+                    >
+                      {showFullArticle ? "Show less" : "Show full article"}
+                    </button>
+                  </div>
+                  <div
+                    className={`prose prose-sm max-w-none rounded-lg border border-slate-200 bg-white px-6 py-5 overflow-hidden transition-all ${showFullArticle ? "" : "max-h-96"}`}
+                    dangerouslySetInnerHTML={{ __html: rewriteResult.bodyRewritten }}
+                  />
+                  {!showFullArticle && (
+                    <div className="h-12 bg-gradient-to-t from-white to-transparent -mt-12 relative rounded-b-lg pointer-events-none" />
+                  )}
+                </div>
+              ) : selectedPostId ? (
+                <div className="mt-6 h-32 rounded-lg border border-slate-200 bg-slate-50 animate-pulse" />
+              ) : null}
+
               <div className="mt-6 rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800">
                 <p className="font-medium mb-1">Ready to approve?</p>
                 <p className="text-xs text-blue-700">
-                  Click <strong>Approve Post</strong> to move this post to the Approved queue, ready to be posted back to your CMS.
-                  Or click <strong>Edit Post</strong> to review and adjust the content first.
+                  Read the article above, then click <strong>Approve Post</strong> to send it live to your CMS.
+                  Or click <strong>Edit Post</strong> to make changes first.
                 </p>
               </div>
             </div>
