@@ -21,6 +21,7 @@ import {
   Layers,
   ClipboardCheck,
   AlertTriangle,
+  Trash2,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -86,6 +87,17 @@ export default function ReviewQueue() {
     },
     onError: (err) => {
       toast.error(err.message ?? "Failed to approve post");
+    },
+  });
+
+  const discardMutation = trpc.dashboard.discardRewrite.useMutation({
+    onSuccess: () => {
+      toast.success("Rewrite discarded — post returned to original");
+      refetch();
+      setSelectedPostId(null);
+    },
+    onError: (err) => {
+      toast.error(err.message ?? "Failed to discard rewrite");
     },
   });
 
@@ -333,6 +345,19 @@ export default function ReviewQueue() {
                 >
                   <Pencil className="w-4 h-4 mr-2" />
                   Edit Post
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-red-200 text-red-500 hover:bg-red-50"
+                  onClick={() => {
+                    if (!userId || !businessId) return;
+                    if (!confirm("Discard this rewrite and keep the original post?")) return;
+                    discardMutation.mutate({ iauditUserId: userId, businessId, postId: selectedPost.id });
+                  }}
+                  disabled={discardMutation.isPending}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Discard Rewrite
                 </Button>
                 <a
                   href={selectedPost.url}

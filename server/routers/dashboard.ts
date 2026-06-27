@@ -168,6 +168,25 @@ export const dashboardRouter = router({
     }),
 
   /**
+   * discardRewrite — resets a post from awaiting_review back to audited,
+   * clearing the rewrite result so it no longer appears in the Review Queue.
+   */
+  discardRewrite: publicProcedure
+    .input(
+      z.object({
+        iauditUserId: z.string().min(1),
+        businessId: z.string().min(1),
+        postId: z.string().min(1),
+      })
+    )
+    .mutation(async ({ input }) => {
+      await assertBusinessOwnership(input.businessId, input.iauditUserId);
+      const { setRewriteStatus } = await import("../rewrite.db");
+      await setRewriteStatus(input.postId, "not_started");
+      return { success: true };
+    }),
+
+  /**
    * listBusinesses — returns all businesses for a user (used by agency
    * business switcher and the "no businesses" empty state check).
    */
