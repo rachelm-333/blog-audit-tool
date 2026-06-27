@@ -379,7 +379,7 @@ export default function ReviewQueue() {
                       {showFullArticle ? "Show less" : "Show full article"}
                     </button>
                   </div>
-                  <div
+                  <article
                     className={`prose prose-sm max-w-none rounded-lg border border-slate-200 bg-white px-6 py-5 overflow-hidden transition-all ${showFullArticle ? "" : "max-h-96"}`}
                     dangerouslySetInnerHTML={{ __html: rewriteResult.bodyRewritten }}
                   />
