@@ -380,7 +380,7 @@ export default function ReviewQueue() {
                     </button>
                   </div>
                   <article
-                    className={`prose prose-sm max-w-none rounded-lg border border-slate-200 bg-white px-6 py-5 overflow-hidden transition-all ${showFullArticle ? "" : "max-h-96"}`}
+                    className={`prose prose-slate max-w-none rounded-lg border border-slate-200 bg-white px-6 py-5 overflow-hidden transition-all prose-h2:text-xl prose-h2:font-bold prose-h3:text-lg prose-h3:font-semibold prose-p:leading-relaxed prose-li:leading-relaxed ${showFullArticle ? "" : "max-h-[600px]"}`}
                     dangerouslySetInnerHTML={{ __html: rewriteResult.bodyRewritten }}
                   />
                   {!showFullArticle && (
