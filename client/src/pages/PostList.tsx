@@ -737,11 +737,13 @@ function RewriteResultPanel({
 // Rewrite Progress Indicator — timed status messages during rewrite
 // ---------------------------------------------------------------------------
 const REWRITE_STEPS = [
-  { at: 0,  label: "Analysing your post…",                   sub: "Reading content, keyword, and audit results." },
-  { at: 10, label: "Running Pass 1 rewrite…",               sub: "AI is rewriting to fix failing SEO points." },
-  { at: 45, label: "Running Pass 2 AI fingerprint scrub…",  sub: "Removing AI-sounding phrases and patterns." },
-  { at: 70, label: "Checking SEO scores…",                  sub: "Re-auditing the rewritten post against all 16 points." },
-  { at: 85, label: "Almost done…",                          sub: "Finalising and saving the result." },
+  { at: 0,   label: "Analysing your post…",                   sub: "Reading content, keyword, and audit results." },
+  { at: 20,  label: "Generating rewrite plan…",               sub: "Planning structure, headings, and meta fields." },
+  { at: 50,  label: "Running Pass 1 rewrite…",               sub: "AI is rewriting to fix failing SEO points." },
+  { at: 140, label: "Running AI fingerprint scrub…",          sub: "Removing AI-sounding phrases and patterns." },
+  { at: 210, label: "Applying SEO enforcement passes…",       sub: "Guaranteeing keyword density, links, and structure." },
+  { at: 250, label: "Checking SEO scores…",                   sub: "Re-auditing the rewritten post against all 16 points." },
+  { at: 280, label: "Almost done…",                           sub: "Finalising and saving the result." },
 ];
 
 function RewriteProgressIndicator() {
@@ -752,7 +754,7 @@ function RewriteProgressIndicator() {
     return () => clearInterval(id);
   }, []);
   const current = [...REWRITE_STEPS].reverse().find((s) => elapsed >= s.at) ?? REWRITE_STEPS[0];
-  const pct = Math.min(Math.round((elapsed / 90) * 100), 95);
+  const pct = Math.min(Math.round((elapsed / 300) * 100), 95);
   return (
     <div className="space-y-4 py-4">
       <div className="flex flex-col items-center gap-3">

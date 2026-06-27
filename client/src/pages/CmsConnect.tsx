@@ -45,7 +45,7 @@ import { HelpTooltip } from "@/components/HelpTooltip";
 
 type Platform = "wordpress" | "wix" | "shopify" | "webflow" | "zapier";
 type StatusFilter = "published" | "scheduled" | "draft" | "all";
-type View = "connections" | "add-platform" | "connect" | "import-options" | "importing" | "results";
+type View = "connections" | "add-platform" | "connect-method" | "connect" | "import-options" | "importing" | "results";
 
 interface ErrorState {
   code: string;
@@ -69,33 +69,46 @@ interface SavedConnection {
 
 // ─── Platform metadata ────────────────────────────────────────────────────────
 
-const PLATFORM_META: Record<Platform, { name: string; description: string; icon: React.ReactNode }> = {
-  wordpress: {
-    name: "WordPress",
-    description: "Connect via Application Password",
-    icon: <Globe className="w-8 h-8" />,
-  },
+const PLATFORM_META: Record<Platform, { name: string; description: string; icon: React.ReactNode; badge: string; badgeColor: string }> = {
   wix: {
     name: "Wix",
-    description: "Connect via Wix Headless API",
-    icon: <Globe className="w-8 h-8" />,
+    description: "Publish directly to your Wix site via API",
+    icon: <Globe className="w-6 h-6" />,
+    badge: "W",
+    badgeColor: "bg-blue-600",
+  },
+  wordpress: {
+    name: "WordPress",
+    description: "REST API + Application Password",
+    icon: <Globe className="w-6 h-6" />,
+    badge: "WP",
+    badgeColor: "bg-indigo-700",
   },
   shopify: {
     name: "Shopify",
-    description: "Connect via Custom App API",
-    icon: <ShoppingBag className="w-8 h-8" />,
+    description: "Publish to your Shopify store blog via Admin API",
+    icon: <ShoppingBag className="w-6 h-6" />,
+    badge: "S",
+    badgeColor: "bg-green-600",
   },
   webflow: {
     name: "Webflow",
-    description: "Connect via Webflow Data API v2",
-    icon: <Layers className="w-8 h-8" />,
+    description: "Publish to Webflow CMS Blog collection",
+    icon: <Layers className="w-6 h-6" />,
+    badge: "W",
+    badgeColor: "bg-indigo-500",
   },
   zapier: {
     name: "Zapier / Other",
     description: "Webhook integration for any platform",
-    icon: <Zap className="w-8 h-8" />,
+    icon: <Zap className="w-6 h-6" />,
+    badge: "Z",
+    badgeColor: "bg-orange-500",
   },
 };
+
+// Platforms shown as main cards (API-first)
+const MAIN_PLATFORMS: Platform[] = ["wix", "wordpress", "shopify", "webflow"];
 
 const PLATFORMS = Object.entries(PLATFORM_META) as Array<[Platform, (typeof PLATFORM_META)[Platform]]>;
 
@@ -161,6 +174,7 @@ export default function CmsConnect() {
 
   const [view, setView] = useState<View>("connections");
   const [selectedPlatform, setSelectedPlatform] = useState<Platform | null>(null);
+  const [connectMethod, setConnectMethod] = useState<"api" | "zapier" | null>(null);
   const [activeConnectionId, setActiveConnectionId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [error, setError] = useState<ErrorState | null>(null);
@@ -383,31 +397,214 @@ export default function CmsConnect() {
           Back to Connections
         </button>
 
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Choose a Platform</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Choose Your Platform</h1>
         <p className="text-gray-500 mb-8">
-          Select your content management platform to get started.
+          Select your content management system. You can connect via API or Zapier — we'll show you both options.
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {PLATFORMS.map(([id, platform]) => (
+        {/* Main platform cards */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          {MAIN_PLATFORMS.map((id) => {
+            const platform = PLATFORM_META[id];
+            return (
+              <button
+                key={id}
+                onClick={() => {
+                  setSelectedPlatform(id);
+                  setConnectMethod(null);
+                  setView("connect-method");
+                  setError(null);
+                }}
+                className="relative flex flex-col items-start gap-4 p-5 rounded-xl border border-gray-200 hover:border-indigo-400 hover:bg-indigo-50/40 cursor-pointer text-left transition-all bg-white shadow-sm"
+              >
+                <div className={`w-10 h-10 rounded-lg ${platform.badgeColor} flex items-center justify-center text-white font-bold text-sm`}>
+                  {platform.badge}
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900">{platform.name}</div>
+                  <div className="text-xs text-gray-500 mt-0.5 leading-snug">{platform.description}</div>
+                </div>
+                <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Website not listed section */}
+        <div className="border border-gray-200 rounded-xl p-5 bg-gray-50">
+          <p className="text-sm font-medium text-gray-700 mb-3">
+            Website not listed? Use one of these options to connect manually or via automation.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button
-              key={id}
               onClick={() => {
-                setSelectedPlatform(id);
+                setSelectedPlatform("zapier");
                 setView("connect");
                 setError(null);
               }}
-              className="relative flex flex-col items-start gap-3 p-6 rounded-xl border border-gray-200 hover:border-indigo-400 hover:bg-indigo-50/50 cursor-pointer text-left transition-all"
+              className="flex items-start gap-3 p-4 rounded-lg border border-gray-200 bg-white hover:border-orange-400 hover:bg-orange-50/40 transition-all text-left"
             >
-              <div className="text-gray-500">{platform.icon}</div>
-              <div>
-                <div className="font-semibold text-gray-900">{platform.name}</div>
-                <div className="text-sm text-gray-500 mt-0.5">{platform.description}</div>
+              <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center shrink-0">
+                <Zap className="w-4 h-4 text-white" />
               </div>
-              <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+              <div>
+                <div className="font-semibold text-sm text-gray-900">Zapier Webhook</div>
+                <div className="text-xs text-gray-500 mt-0.5">Send posts to any platform — Squarespace, Ghost, or any CMS via Zapier automation.</div>
+              </div>
             </button>
-          ))}
+            <div className="flex items-start gap-3 p-4 rounded-lg border border-gray-200 bg-white opacity-60 cursor-not-allowed">
+              <div className="w-8 h-8 rounded-lg bg-gray-400 flex items-center justify-center shrink-0">
+                <FileText className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <div className="font-semibold text-sm text-gray-900">Download ZIP</div>
+                <div className="text-xs text-gray-500 mt-0.5">Coming soon — export posts as HTML + Markdown with all SEO fields.</div>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
+    );
+  }
+
+  // ─── View: Connection method selector ─────────────────────────────────────
+
+  if (view === "connect-method" && selectedPlatform && selectedPlatform !== "zapier") {
+    const platform = PLATFORM_META[selectedPlatform];
+    const API_INSTRUCTIONS: Record<string, { steps: string[]; docsUrl: string; docsLabel: string }> = {
+      wix: {
+        steps: [
+          "Log in to your Wix account and go to wix.com/my-account",
+          "Click API Keys in the left sidebar",
+          "Click + Generate API Key",
+          "Give it a name (e.g. 'iAudit'), select All Site Permissions",
+          "Copy the API Key — paste it below",
+          "Find your Site ID in Settings → General → Site ID",
+        ],
+        docsUrl: "https://support.wix.com/en/article/about-wix-api-keys",
+        docsLabel: "Wix API Key Guide",
+      },
+      wordpress: {
+        steps: [
+          "Log in to your WordPress Admin (yoursite.com/wp-admin)",
+          "Go to Users → Your Profile",
+          "Scroll to Application Passwords at the bottom",
+          "Type 'iAudit' as the name and click Add New",
+          "Copy the generated password — paste it below",
+          "Also note your WordPress username",
+        ],
+        docsUrl: "https://make.wordpress.org/core/2020/11/05/application-passwords-integration-guide/",
+        docsLabel: "WordPress Application Passwords Guide",
+      },
+      shopify: {
+        steps: [
+          "Log in to your Shopify Admin",
+          "Go to Settings → Apps and sales channels",
+          "Click Develop apps → Create an app",
+          "Name it 'iAudit' and click Create app",
+          "Under API credentials, click Configure Admin API scopes",
+          "Enable: read_content, write_content — then Install app",
+          "Copy the Admin API access token — paste it below",
+        ],
+        docsUrl: "https://help.shopify.com/en/manual/apps/app-types/custom-apps",
+        docsLabel: "Shopify Custom App Guide",
+      },
+      webflow: {
+        steps: [
+          "Log in to your Webflow Dashboard",
+          "Click your workspace name → Workspace Settings",
+          "Go to Integrations → API access",
+          "Click Generate API token",
+          "Copy the token — paste it below",
+          "Also find your Collection ID in Designer → CMS → Collections",
+        ],
+        docsUrl: "https://developers.webflow.com/data/docs/getting-started-data-clients",
+        docsLabel: "Webflow API Guide",
+      },
+    };
+    const apiInfo = API_INSTRUCTIONS[selectedPlatform];
+
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-6">
+        <button
+          onClick={() => setView("add-platform")}
+          className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm mb-8 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back
+        </button>
+
+        <div className="flex items-center gap-3 mb-2">
+          <div className={`w-10 h-10 rounded-lg ${platform.badgeColor} flex items-center justify-center text-white font-bold text-sm`}>
+            {platform.badge}
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900">Connect {platform.name}</h1>
+        </div>
+        <p className="text-gray-500 mb-8">Choose how you'd like to connect your {platform.name} site.</p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* API Option */}
+          <button
+            onClick={() => {
+              setConnectMethod("api");
+              setView("connect");
+              setError(null);
+            }}
+            className="flex flex-col items-start gap-3 p-5 rounded-xl border-2 border-indigo-200 hover:border-indigo-500 hover:bg-indigo-50/50 cursor-pointer text-left transition-all bg-white"
+          >
+            <div className="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center">
+              <Lock className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <div className="font-semibold text-gray-900">Connect via API</div>
+              <div className="text-xs text-gray-500 mt-1 leading-relaxed">Direct connection using your {platform.name} API key. Fastest option — posts import in seconds.</div>
+            </div>
+            <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">Recommended</span>
+          </button>
+
+          {/* Zapier Option */}
+          <button
+            onClick={() => {
+              setConnectMethod("zapier");
+              setSelectedPlatform("zapier");
+              setView("connect");
+              setError(null);
+            }}
+            className="flex flex-col items-start gap-3 p-5 rounded-xl border-2 border-gray-200 hover:border-orange-400 hover:bg-orange-50/50 cursor-pointer text-left transition-all bg-white"
+          >
+            <div className="w-9 h-9 rounded-lg bg-orange-500 flex items-center justify-center">
+              <Zap className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <div className="font-semibold text-gray-900">Connect via Zapier</div>
+              <div className="text-xs text-gray-500 mt-1 leading-relaxed">Use a Zapier webhook to send posts automatically. Good if you can't use the API directly.</div>
+            </div>
+          </button>
+        </div>
+
+        {/* How to get API key steps */}
+        {apiInfo && (
+          <div className="mt-8 p-5 rounded-xl bg-gray-50 border border-gray-200">
+            <h3 className="font-semibold text-gray-900 mb-3 text-sm">How to get your {platform.name} API key</h3>
+            <ol className="space-y-2">
+              {apiInfo.steps.map((step, i) => (
+                <li key={i} className="flex gap-3 text-sm text-gray-600">
+                  <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+                  {step}
+                </li>
+              ))}
+            </ol>
+            <a
+              href={apiInfo.docsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-indigo-600 hover:underline mt-4 font-medium"
+            >
+              <Globe className="w-3.5 h-3.5" />
+              {apiInfo.docsLabel} ↗
+            </a>
+          </div>
+        )}
       </div>
     );
   }
@@ -416,7 +613,7 @@ export default function CmsConnect() {
 
   if (view === "connect") {
     const goBack = () => {
-      setView("connections");
+      setView(connectMethod ? "connect-method" : "connections");
       setError(null);
     };
 
