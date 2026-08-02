@@ -295,7 +295,57 @@ function buildPass1SystemPrompt(input: Pass1Input): string {
   const modeInstruction = isSeoRefresh
     ? `REWRITE MODE: SEO REFRESH — READ CAREFULLY\nThis is an SEO Refresh. Do NOT rewrite the body content. Keep every paragraph, fact, example, and sentence as close to the original as possible.\nONLY make these five changes:\n  1. Improve the opening 2 sentences to include the focus keyword naturally.\n  2. Adjust heading tags to follow H1 → H2 → H3 hierarchy.\n  3. Rewrite the meta title to 50–60 characters with the focus keyword.\n  4. Rewrite the meta description to 140–160 characters with the focus keyword.\n  5. Ensure the focus keyword appears naturally in the first 100 words.\nDo not add new paragraphs. Do not remove existing paragraphs. Do not change facts, examples, statistics, or named entities.`
     : isSmartPatch
-    ? `REWRITE MODE: SMART PATCH\nDo NOT rewrite this post. Keep all existing sentences, paragraphs, and the author's voice intact. Make ONLY the minimum changes required to fix the failing points listed below. Weave the primary keyword and secondary keywords into existing sentences naturally where they are absent. Do NOT add new sections unless a failing point specifically requires one.`
+    ? `REWRITE MODE: IMPROVE WRITING — READ EVERY RULE CAREFULLY
+
+Your job is to make this article genuinely easy and enjoyable for a human to read, while fixing all failing SEO points. You are improving the WRITING — not the ideas, not the facts, not the structure.
+
+WHAT YOU MUST KEEP (do not change these under any circumstances):
+  - Every story, anecdote, case study, and real-world example
+  - Every statistic, data point, research finding, and number
+  - Every named person, business, place, or product
+  - The overall structure and order of sections
+  - The heading topics (you may reword headings for clarity but keep the same topics)
+  - All existing hyperlinks (keep every <a href="..."> exactly as-is)
+  - The CTA and FAQ sections (handled separately)
+
+WHAT YOU MUST IMPROVE (rewrite sentence by sentence for human readability):
+  - Sentence length: break up long, complex sentences into short clear ones (aim for 15–20 words per sentence on average)
+  - Sentence variety: mix short punchy sentences with medium-length ones — never three long sentences in a row
+  - Plain language: replace jargon, corporate speak, and abstract nouns with concrete everyday words
+  - Active voice: rewrite passive constructions into active voice ("the team built it" not "it was built by the team")
+  - Conversational tone: write like you're explaining this to a smart friend, not filing a report
+  - Paragraph length: keep paragraphs to 2–4 sentences maximum. Break longer paragraphs apart.
+  - Remove filler: cut throat-clearing phrases, redundant qualifiers, and empty intensifiers
+  - Strong openings: every paragraph should start with a clear, direct sentence — no soft lead-ins
+
+REMOVE ALL EVIDENCE OF AI WRITING — MANDATORY:
+  Rewrite or remove every sentence that contains AI-style language. This includes but is not limited to:
+  - "In today's fast-paced world" / "In the digital age" / "In an era of"
+  - "It's important to note that" / "It's worth noting" / "It's crucial to"
+  - "Leveraging" / "Utilising" / "Harnessing the power of"
+  - "Delve into" / "Deep dive" / "Unpack"
+  - "Streamline" / "Robust" / "Cutting-edge" / "Game-changer" / "Transformative"
+  - "At the end of the day" / "Moving forward" / "Going forward"
+  - "Ensuring that" / "In order to" / "With that in mind"
+  - "This comprehensive guide" / "Ultimate guide" / "Everything you need to know"
+  - Any sentence that starts with "Furthermore," / "Moreover," / "Additionally,"
+  - Any sentence that feels like it was written by a marketing robot
+
+READABILITY RULES (non-negotiable):
+  1. A 12-year-old should be able to read this without a dictionary
+  2. Use contractions naturally ("you'll", "it's", "don't") where appropriate
+  3. No paragraph longer than 4 sentences
+  4. If you can say it in 10 words, don't use 20
+  5. Every section should feel like it was written by the same real human author
+  6. The article should flow naturally from one paragraph to the next — add transitional phrases only where they feel natural, never forced
+
+SEO FIXES (apply these while improving the writing):
+  - Weave the focus keyword and secondary keywords into sentences naturally — never force-fit or repeat awkwardly
+  - Fix heading hierarchy to H1 → H2 → H3
+  - Improve meta title (50–60 chars, keyword first)
+  - Improve meta description (140–160 chars, keyword natural, compelling)
+  - Ensure focus keyword appears naturally in the first 100 words
+  - Fix any other failing points listed below`
     : `REWRITE MODE: FULL REWRITE\nRewrite the entire post from scratch to pass all 16 points. Preserve the URL, author, publish date, and post status.`;
 
   const ctaSection = ctaUrls
@@ -1826,10 +1876,18 @@ export async function runFullRewrite(params: {
     ctaText: businessContext.primaryCtaLabel ?? undefined,
   });
 
+  // --- AI Disclosure Block ---
+  // Append a standardised AI disclosure to the end of the article body.
+  const aiDisclosure = `\n<div class="ai-disclosure" style="margin-top:2rem;padding:1rem 1.25rem;background:#f8f9fa;border-left:3px solid #6b7280;border-radius:4px;font-size:0.85rem;color:#6b7280;line-height:1.5;">
+<strong>AI Disclosure:</strong> This article was researched and refined with the assistance of AI tools and reviewed for accuracy. All facts, statistics, and advice reflect current information as of ${new Date().getFullYear()}.
+</div>`;
+  const bodyWithDisclosure = finalOutput.bodyRewritten.trimEnd() + aiDisclosure;
+  const finalBodyRewritten = bodyWithDisclosure;
+
   // --- Re-scoring ---
   const auditInput = {
     title: post.title,
-    bodyHtml: finalOutput.bodyRewritten,
+    bodyHtml: finalBodyRewritten,
     url: post.url,
     focusKeyword: post.focusKeyword,
     metaTitle: finalOutput.metaTitleRewritten,
@@ -1857,7 +1915,7 @@ export async function runFullRewrite(params: {
   }
 
   return {
-    bodyRewritten: finalOutput.bodyRewritten,
+    bodyRewritten: finalBodyRewritten,
     metaTitleRewritten: finalOutput.metaTitleRewritten,
     metaDescriptionRewritten: finalOutput.metaDescriptionRewritten,
     schemaJson,

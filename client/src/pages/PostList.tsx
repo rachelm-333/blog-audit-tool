@@ -917,10 +917,22 @@ function RewriteModal({
               </div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center mb-1">
                 Choose rewrite mode
-                <HelpTooltip text="SEO Refresh keeps all your content intact and only improves keyword placement, headings, meta title, and meta description — best for posts that are mostly good. Smart Patch makes targeted fixes while keeping your writing style. Full Rewrite rebuilds the entire post from scratch — best for posts scoring below 8/16. All modes use 1 credit." />
+                <HelpTooltip text="Improve Writing keeps all your stories, stats, and examples — just makes the language clearer and more human, and fixes SEO. Full Rewrite rebuilds the entire post from scratch — best for posts scoring below 8/16. Both modes use 1 credit." />
               </div>
+              {/* Score-based recommendation hint */}
+              {post?.auditScore != null && (
+                <div className={`rounded-md px-3 py-2 text-[11px] leading-relaxed mb-1 ${
+                  (post.auditScore ?? 0) < 8
+                    ? "bg-orange-500/10 border border-orange-500/30 text-orange-400"
+                    : "bg-sky-500/10 border border-sky-500/30 text-sky-400"
+                }`}>
+                  {(post.auditScore ?? 0) < 8
+                    ? `This post scores ${post.auditScore}/16 — we recommend a Full Rewrite to fix the structural issues.`
+                    : `This post scores ${post.auditScore}/16 — we recommend Improve Writing to polish the language while keeping your content.`}
+                </div>
+              )}
               <div className="flex flex-col gap-2">
-                {/* SEO Refresh — default */}
+                {/* Improve Writing (smart_patch) */}
                 <button
                   type="button"
                   className={`flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors ${
@@ -929,25 +941,15 @@ function RewriteModal({
                       : "border-sky-400/60 bg-sky-400/8 hover:bg-sky-400/15 cursor-pointer"
                   }`}
                   disabled={!paaQuestion.trim() || paaLoading}
-                  onClick={() => onConfirm("seo_refresh")}
-                >
-                  <span className="text-xs font-semibold text-sky-400 flex items-center gap-1"><Zap size={12} /> SEO Refresh <span className="ml-1 text-[9px] font-bold uppercase tracking-wide bg-sky-400/20 text-sky-400 rounded px-1 py-0.5">Recommended</span></span>
-                  <span className="text-[11px] text-muted-foreground">Keeps all your content, facts, and structure intact. Only improves keyword placement, headings, meta title, meta description, and opening paragraph. Nothing else changes.</span>
-                  <span className="text-[10px] text-muted-foreground mt-0.5">1 Credit</span>
-                </button>
-                {/* Smart Patch */}
-                <button
-                  type="button"
-                  className={`flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors ${
-                    !paaQuestion.trim() || paaLoading
-                      ? "opacity-50 cursor-not-allowed border-border"
-                      : "border-violet-400/60 bg-violet-400/5 hover:bg-violet-400/10 cursor-pointer"
-                  }`}
-                  disabled={!paaQuestion.trim() || paaLoading}
                   onClick={() => onConfirm("smart_patch")}
                 >
-                  <span className="text-xs font-semibold text-violet-400 flex items-center gap-1"><Zap size={12} /> Smart Patch</span>
-                  <span className="text-[11px] text-muted-foreground">Keeps your author's voice. Makes only the minimum changes to fix failing points.</span>
+                  <span className="text-xs font-semibold text-sky-400 flex items-center gap-1">
+                    <Zap size={12} /> Improve Writing
+                    {post?.auditScore != null && (post.auditScore ?? 0) >= 8 && (
+                      <span className="ml-1 text-[9px] font-bold uppercase tracking-wide bg-sky-400/20 text-sky-400 rounded px-1 py-0.5">Recommended</span>
+                    )}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">Keeps every story, statistic, and example exactly as-is. Rewrites sentence style for clarity and human readability. Removes all AI language patterns. Fixes failing SEO points.</span>
                   <span className="text-[10px] text-muted-foreground mt-0.5">1 Credit</span>
                 </button>
                 {/* Full Rewrite */}
@@ -961,8 +963,13 @@ function RewriteModal({
                   disabled={!paaQuestion.trim() || paaLoading}
                   onClick={() => onConfirm("full_rewrite")}
                 >
-                  <span className="text-xs font-semibold text-primary flex items-center gap-1"><Zap size={12} /> Full Rewrite</span>
-                  <span className="text-[11px] text-muted-foreground">AI rewrites the entire post targeting all 16 points. Use only when the post needs significant work.</span>
+                  <span className="text-xs font-semibold text-primary flex items-center gap-1">
+                    <Zap size={12} /> Full Rewrite
+                    {post?.auditScore != null && (post.auditScore ?? 0) < 8 && (
+                      <span className="ml-1 text-[9px] font-bold uppercase tracking-wide bg-primary/20 text-primary rounded px-1 py-0.5">Recommended</span>
+                    )}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">AI rebuilds the entire post from scratch targeting all 16 SEO points. Best for posts scoring below 8/16 or where the original content needs a complete overhaul.</span>
                   <span className="text-[10px] text-muted-foreground mt-0.5">1 Credit</span>
                 </button>
               </div>
