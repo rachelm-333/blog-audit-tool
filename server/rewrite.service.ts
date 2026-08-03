@@ -17,6 +17,7 @@
  */
 import { invokeClaude } from "./_core/claude";
 import { runFullAudit, scoreToGrade } from "./audit.service";
+import { applyFixers } from "./bloginatorFixers";
 import type { AuditResult } from "./audit.service";
 
 // ---------------------------------------------------------------------------
@@ -1882,7 +1883,7 @@ export async function runFullRewrite(params: {
 <strong>AI Disclosure:</strong> This article was researched and refined with the assistance of AI tools and reviewed for accuracy. All facts, statistics, and advice reflect current information as of ${new Date().getFullYear()}.
 </div>`;
   const bodyWithDisclosure = finalOutput.bodyRewritten.trimEnd() + aiDisclosure;
-  const finalBodyRewritten = bodyWithDisclosure;
+  let finalBodyRewritten = bodyWithDisclosure;
 
   // --- Re-scoring ---
   const auditInput = {
@@ -1897,8 +1898,37 @@ export async function runFullRewrite(params: {
   };
   const rescoreStart = Date.now();
   console.log(`[Rewrite] Re-scoring starting — post: ${post.id}`);
-  const auditResult = await runFullAudit(auditInput);
+  let auditResult = await runFullAudit(auditInput);
   console.log(`[Rewrite] Re-scoring complete in ${((Date.now() - rescoreStart) / 1000).toFixed(1)}s — score: ${auditResult.score}`);
+
+  // --- Deterministic fixer pass (refresh mode) ---
+  // Run one round of bloginatorFixers to catch any remaining fixable failures
+  // after the LLM rewrite. For "adjust" mode, callers use applyFixers directly.
+  if (auditResult.normalized_score < 90 && auditResult.failed_checks.length > 0) {
+    console.log(`[Rewrite] Fixer pass starting — ${auditResult.failed_checks.length} checks still failing`);
+    try {
+      const fixerResult = await applyFixers({
+        bodyHtml: finalBodyRewritten,
+        focusKeyword: post.focusKeyword,
+        url: post.url,
+        metaTitle: finalOutput.metaTitleRewritten,
+        metaDescription: finalOutput.metaDescriptionRewritten,
+        businessName: businessContext.businessName ?? undefined,
+        websiteUrl: businessContext.websiteUrl ?? undefined,
+        internalLinks: internalLinks.map(l => ({ url: l.url, title: l.title })),
+        primaryCtaUrl: businessContext.primaryCtaUrl ?? undefined,
+      }, 'refresh');
+      // Use fixer output if it improved the score
+      if (fixerResult.finalAuditResult.normalized_score > auditResult.normalized_score) {
+        auditResult = fixerResult.finalAuditResult;
+        finalBodyRewritten = fixerResult.output.bodyHtml;
+        console.log(`[Rewrite] Fixer pass improved score to ${auditResult.score}`);
+      }
+    } catch (err) {
+      console.warn('[Rewrite] Fixer pass failed:', err instanceof Error ? err.message : err);
+    }
+  }
+
   const rewriteScore = auditResult.score;
   const rewriteGrade = scoreToGrade(rewriteScore);
 

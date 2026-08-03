@@ -35,6 +35,7 @@ import {
   runFullRewrite,
 } from "../rewrite.service";
 import type { BusinessContext } from "../rewrite.service";
+import { applyFixers } from "../bloginatorFixers";
 import { notifyOwner } from "../_core/notification";
 import { logError } from "../admin.db";
 
@@ -256,7 +257,47 @@ export const rewriteRouter = router({
       // --- Deduct 1 credit — only after a successful rewrite result ---
       await deductCredit(input.iauditUserId, post.id);
 
-      // --- Auto-retry if score < 80 ---
+      // --- Fixer loop for smart_patch (Improve Writing) — up to 3 rounds instead of full LLM retry ---
+      if (input.rewriteMode === "smart_patch" && rewriteResult.rewriteScore < 90) {
+        try {
+          const secondaryCtas = (business.secondaryCtas as Array<{ url: string; label: string }> | null) ?? [];
+          const fixerResult = await applyFixers({
+            bodyHtml: rewriteResult.bodyRewritten,
+            focusKeyword: post.focusKeyword,
+            url: post.url,
+            metaTitle: rewriteResult.metaTitleRewritten,
+            metaDescription: rewriteResult.metaDescriptionRewritten,
+            businessName: business.businessName ?? undefined,
+            websiteUrl: business.websiteUrl ?? undefined,
+            internalLinks: internalLinks.map(l => ({ url: l.url, title: l.title })),
+            primaryCtaUrl: business.primaryCtaUrl ?? undefined,
+          }, 'adjust');
+          // Use fixer output if it improved the score
+          if (fixerResult.finalAuditResult.normalized_score > rewriteResult.rewriteScore) {
+            const improved = {
+              ...rewriteResult,
+              bodyRewritten: fixerResult.output.bodyHtml,
+              metaTitleRewritten: fixerResult.output.metaTitle,
+              metaDescriptionRewritten: fixerResult.output.metaDescription,
+              rewriteScore: fixerResult.finalAuditResult.normalized_score,
+              rewriteGrade: fixerResult.finalAuditResult.grade as "optimised"|"strong"|"needs_work"|"poor"|"critical",
+              auditResult: fixerResult.finalAuditResult,
+            };
+            await saveRewriteResult(post.id, improved);
+            return {
+              success: true,
+              rewriteScore: improved.rewriteScore,
+              rewriteGrade: improved.rewriteGrade,
+              needsManualReview: improved.rewriteScore < 80,
+              retried: false,
+            };
+          }
+        } catch (err) {
+          console.warn('[Rewrite] Fixer loop failed, falling through to auto-retry:', err instanceof Error ? err.message : err);
+        }
+      }
+
+      // --- Auto-retry if score < 80 (full_rewrite and seo_refresh modes, or if fixer loop fell through) ---
       if (rewriteResult.rewriteScore < 80) {
         try {
           // CRITICAL: Use the failing points from the FIRST REWRITE audit result (fresh, not original).
