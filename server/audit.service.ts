@@ -56,6 +56,8 @@ export interface PostAuditInput {
   // Business profile fields for P11
   primaryCtaUrl?: string | null;
   secondaryCtaUrls?: string[];
+  // Optional: stored schema object — if present, P13 passes even if bodyHtml has no inline script
+  schemaJson?: object | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -209,10 +211,11 @@ export function runMechanicalChecks(input: PostAuditInput): AuditPoint[] {
     const p8Present = md.length > 0;
     const p8Length = md.length >= 140 && md.length <= 160;
     const p8Pass = p8Present && p8Length;
-    const hasSchema =
+    const hasSchemaInBodyNk =
       /<script[^>]+type=["']application\/ld\+json["'][^>]*>/i.test(bodyHtml) ||
       /"@type"\s*:\s*"Article"/i.test(bodyHtml) ||
       /"@type"\s*:\s*"BlogPosting"/i.test(bodyHtml);
+    const hasSchema = hasSchemaInBodyNk || (!!input.schemaJson && typeof input.schemaJson === 'object');
     const articleType = inferArticleType(wc);
     const target = ARTICLE_TYPE_TARGETS[articleType];
     const p16Pass = wc >= target.min && wc <= target.max;
@@ -396,11 +399,14 @@ export function runMechanicalChecks(input: PostAuditInput): AuditPoint[] {
       : `Meta description meets requirements (${md.length} chars).`,
   });
 
-  // P13 — Schema Markup (look for JSON-LD Article schema in the body HTML)
-  const hasSchema =
+  // P13 — Schema Markup
+  // Pass if: (a) inline JSON-LD in bodyHtml, OR (b) stored schemaJson object (e.g. injected via CMS seoData)
+  const hasSchemaInBody =
     /<script[^>]+type=["']application\/ld\+json["'][^>]*>/i.test(bodyHtml) ||
     /"@type"\s*:\s*"Article"/i.test(bodyHtml) ||
     /"@type"\s*:\s*"BlogPosting"/i.test(bodyHtml);
+  const hasStoredSchema = !!input.schemaJson && typeof input.schemaJson === 'object';
+  const hasSchema = hasSchemaInBody || hasStoredSchema;
   points.push({
     point: "P13",
     name: "Schema Markup",
@@ -558,7 +564,7 @@ Score these 6 points:
 
 P9 - Opening Answer Block: Does the article open with a direct answer block? Look ONLY at the OPENING 500 WORDS provided above. This means: (1) a bold question or standalone question line appears near the top (NOT the article title — look for a question WITHIN the body text), AND (2) the very next paragraph directly answers that question in 40–80 words. The question is typically a "People Also Ask" style question (e.g. "What is...", "How do...", "Why is...", "What's the most..."). IMPORTANT: The article title is NOT the question — look for a question that appears AFTER the title in the body text. If a bold question followed by a direct answer paragraph exists in the opening section, this PASSES. Be generous — if the pattern is clearly there, mark it pass.
 
-P10 - External Authority Link: Is there at least one link to a real external authority source (government, university, industry body, major publication) with relevant anchor text? Do NOT count internal links or generic commercial sites.
+P10 - External Authority Link: Is there at least one HTTPS link to a genuine external authority source? The link MUST be to: a government website (.gov, .gov.au, .gov.uk etc.), a university or research institution (.edu, .edu.au, .ac.uk etc.), a recognised peak industry body or professional association, a major national or international publication (Wikipedia, ABC, BBC, The Guardian, Forbes, Harvard Business Review, etc.), or a widely-recognised standards or accreditation body. FAIL if: the only external links are HTTP (not HTTPS), the link goes to a small local business, a commercial brand, a startup, a personal blog, a social media profile, or any site that would not be considered a credible independent authority. The bar is high — the source must be something a reader would immediately recognise as credible and independent. Do NOT count internal links.
 
 P11 - Internal CTA Link: Does the article contain at least one internal link to a commercial/conversion page — such as a shop, product page, service page, contact page, booking page, or any page that drives a business action? ${ctaUrls ? `Known CTA URLs to look for: ${ctaUrls}. ` : ''}The site domain is ${siteUrl || 'unknown'}. IMPORTANT: Use the INTERNAL LINKS list provided above. Any internal link to a non-blog page (e.g. product pages, shop, store, services, contact, booking) counts as a CTA link. If ANY internal link goes to a commercial-sounding page, mark this as PASS. Be generous — if there is a button or link with text like "Get your...", "Buy now", "Shop", "Book", "Contact us", "View product", or any call-to-action wording that links internally, this PASSES.
 

@@ -105,6 +105,7 @@ export const auditRouter = router({
           metaDescription: post.metaDescriptionOriginal,
           primaryCtaUrl: business.primaryCtaUrl,
           secondaryCtaUrls,
+          schemaJson: post.schemaJson as object | null | undefined,
         });
 
         await saveAuditResults(post.id, result.score, result.grade, {
@@ -187,6 +188,7 @@ export const auditRouter = router({
                       metaDescription: fullPost.metaDescriptionOriginal,
                       primaryCtaUrl: business.primaryCtaUrl,
                       secondaryCtaUrls,
+                      schemaJson: fullPost.schemaJson as object | null | undefined,
                     });
                   })(),
                   new Promise<never>((_, reject) =>

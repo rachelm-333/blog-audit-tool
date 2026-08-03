@@ -48,6 +48,7 @@ export async function getPostForAudit(postId: string) {
       focusKeyword: posts.focusKeyword,
       metaTitleOriginal: posts.metaTitleOriginal,
       metaDescriptionOriginal: posts.metaDescriptionOriginal,
+      schemaJson: posts.schemaJson,
       auditStatus: posts.auditStatus,
       auditScore: posts.auditScore,
       auditGrade: posts.auditGrade,
