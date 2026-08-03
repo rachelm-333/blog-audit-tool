@@ -97,7 +97,6 @@ export const auditRouter = router({
         const secondaryCtaUrls = secondaryCtas.map((c) => c.url);
 
         const result = await runFullAudit({
-          title: post.title,
           bodyHtml: post.bodyOriginal,
           url: post.url,
           focusKeyword: post.focusKeyword,
@@ -108,7 +107,7 @@ export const auditRouter = router({
           schemaJson: post.schemaJson as object | null | undefined,
         });
 
-        await saveAuditResults(post.id, result.score, result.grade, {
+        await saveAuditResults(post.id, result.score, result.grade as "optimised" | "strong" | "needs_work" | "poor" | "critical", {
           points: result.points,
           potentialScore: result.potentialScore,
         });
@@ -180,7 +179,6 @@ export const auditRouter = router({
                     const fullPost = await getPostForAudit(p.id);
                     if (!fullPost) throw new Error("Post not found");
                     return runFullAudit({
-                      title: fullPost.title,
                       bodyHtml: fullPost.bodyOriginal,
                       url: fullPost.url,
                       focusKeyword: fullPost.focusKeyword,
@@ -198,7 +196,7 @@ export const auditRouter = router({
 
                 const fullPost = await getPostForAudit(p.id);
                 if (fullPost) {
-                  await saveAuditResults(fullPost.id, result.score, result.grade, {
+                  await saveAuditResults(fullPost.id, result.score, result.grade as "optimised" | "strong" | "needs_work" | "poor" | "critical", {
                     points: result.points,
                     potentialScore: result.potentialScore,
                   });

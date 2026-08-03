@@ -107,7 +107,7 @@ export const publicAuditRouter = router({
         url: scrape.url,
         title: scrape.title,
         score: audit.score,
-        grade: audit.grade,
+        grade: audit.grade as "optimised" | "strong" | "needs_work" | "poor" | "critical",
         potentialScore: audit.potentialScore,
         points: audit.points.map((p: AuditPoint) => ({
           point: p.point,

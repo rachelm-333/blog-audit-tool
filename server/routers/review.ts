@@ -140,7 +140,6 @@ export const reviewRouter = router({
         }
 
         const auditResult = await runFullAudit({
-          title: post.title,
           bodyHtml: bodyForScoring,
           focusKeyword: post.focusKeyword,
           url: post.url,
@@ -216,7 +215,6 @@ export const reviewRouter = router({
 
       // Run re-score against the saved content
       const auditResult = await runFullAudit({
-        title: post.title,
         bodyHtml: bodyForScoring,
         focusKeyword: post.focusKeyword,
         url: post.url,

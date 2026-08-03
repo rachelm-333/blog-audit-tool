@@ -155,7 +155,7 @@ function extractExternalDomains(html: string, siteUrl?: string): string[] {
       domains.add(domain);
     }
   }
-  return [...domains];
+  return Array.from(domains);
 }
 
 /** Get plain text of the first paragraph immediately following a given h2 index */

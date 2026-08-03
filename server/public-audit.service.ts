@@ -453,7 +453,6 @@ export async function auditPublicPost(
   const keyword = focusKeyword?.trim() || scrape.focusKeyword || null;
 
   const auditInput: PostAuditInput = {
-    title: scrape.title,
     bodyHtml: scrape.bodyHtml,
     url: scrape.url,
     focusKeyword: keyword,
