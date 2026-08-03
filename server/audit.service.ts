@@ -1,27 +1,11 @@
 /**
- * iAudit — Audit Engine Service (Layer 6 / Section 10)
+ * iAudit — Audit Engine Service
  *
- * Implements the 16-Point Authority Standard scoring engine.
+ * Implements the 29-Check / 100-Point Authority Standard scoring engine.
  *
- * Mechanical points (no AI required):
- *   P1  Keyword Density      — 0.5%–2.5% of word count, min 4 occurrences
- *   P2  Keyword in H1        — exact or near-exact match
- *   P3  Keyword in H2        — keyword or close variant in at least one H2
- *   P4  Keyword in H3        — keyword or variant in at least one H3 (if H3s exist)
- *   P5  Keyword in First 100 Words — first 150 words checked for flexibility
- *   P6  Keyword in URL       — keyword words appear in slug in sequence
- *   P7  Meta Title           — present, contains keyword, max 60 chars
- *   P8  Meta Description     — present, 140–160 chars
- *   P13 Schema Markup        — JSON-LD Article schema in page source
- *   P16 Word Count           — within target range for inferred article type
- *
- * AI-scored points (single LLM call per post):
- *   P9  Opening Answer Block — 40–60 word direct answer in opening
- *   P10 External Authority Link
- *   P11 Internal CTA Link    — uses CTA URLs from Business Profile
- *   P12 Internal Blog Link
- *   P14 E-E-A-T Signals
- *   P15 Human Authenticity
+ * Macro Architecture (40 pts): MAC-01 through MAC-13
+ * Micro Architecture (35 pts): MIC-01 through MIC-08
+ * E-E-A-T & Voice (25 pts):   EAT-01 through EAT-08
  */
 
 import { invokeClaude } from "./_core/claude";
@@ -32,36 +16,100 @@ import { invokeClaude } from "./_core/claude";
 
 export type AuditPointStatus = "pass" | "fail" | "na" | "unable_to_score";
 
+/** Backward-compat point shape used by the UI */
 export interface AuditPoint {
-  point: string; // e.g. "P1"
+  point: string; // e.g. "MAC-01"
   name: string;
   status: AuditPointStatus;
-  note: string; // Plain-English explanation
+  note: string;
+}
+
+export interface AuditCheck {
+  id: string;
+  parameter: string;
+  phase: 'macro' | 'micro' | 'eat';
+  passed: boolean | null; // null = N/A
+  points: number;
+  maxPoints: number;
+  detail: string;
 }
 
 export interface AuditResult {
-  points: AuditPoint[];
-  score: number; // 0–16
-  grade: "optimised" | "strong" | "needs_work" | "poor" | "critical";
-  potentialScore: number; // Max achievable if all fixable points pass
+  normalized_score: number;
+  total_score: number;
+  applicable_max: number;
+  checks: AuditCheck[];
+  failed_checks: { id: string; parameter: string }[];
+  score: number; // = normalized_score (backward compat)
+  grade: string;
+  points: AuditPoint[]; // backward compat — mapped from checks
+  potentialScore: number; // = applicable_max (backward compat)
 }
 
 export interface PostAuditInput {
-  title: string;
-  bodyHtml: string; // Original HTML body
-  url: string; // Full permalink
-  focusKeyword: string | null; // Null = no keyword set; keyword checks auto-fail
+  bodyHtml: string;
+  focusKeyword: string | null;
+  url: string;
   metaTitle: string | null;
   metaDescription: string | null;
-  // Business profile fields for P11
+  hubKeyword?: string | null;
+  isHub?: boolean;
+  liveChecks?: { coreWebVitalsPass?: boolean; llmsTxtPresent?: boolean };
+  schemaJson?: object | null;
   primaryCtaUrl?: string | null;
   secondaryCtaUrls?: string[];
-  // Optional: stored schema object — if present, P13 passes even if bodyHtml has no inline script
-  schemaJson?: object | null;
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Check definitions (id, parameter, phase, maxPoints)
+// ---------------------------------------------------------------------------
+
+interface CheckDef {
+  id: string;
+  parameter: string;
+  phase: 'macro' | 'micro' | 'eat';
+  maxPoints: number;
+}
+
+const CHECK_DEFS: CheckDef[] = [
+  // Macro Architecture — 40 pts
+  { id: 'MAC-01', parameter: 'URL Silo',                         phase: 'macro', maxPoints: 3 },
+  { id: 'MAC-02', parameter: 'Meta Title Length',                phase: 'macro', maxPoints: 2 },
+  { id: 'MAC-03', parameter: 'Meta Description Length',          phase: 'macro', maxPoints: 1 },
+  { id: 'MAC-04', parameter: 'Keyword in Meta Title & Description', phase: 'macro', maxPoints: 4 },
+  { id: 'MAC-05', parameter: 'Article / BlogPosting Schema',     phase: 'macro', maxPoints: 3 },
+  { id: 'MAC-06', parameter: 'FAQPage Schema',                   phase: 'macro', maxPoints: 4 },
+  { id: 'MAC-07', parameter: 'Organization Schema',              phase: 'macro', maxPoints: 2 },
+  { id: 'MAC-08', parameter: 'Author / Person Schema',           phase: 'macro', maxPoints: 3 },
+  { id: 'MAC-09', parameter: 'Internal Pillar Link (hub keyword in anchor)', phase: 'macro', maxPoints: 5 },
+  { id: 'MAC-10', parameter: 'Internal Child Link (hub pages only)', phase: 'macro', maxPoints: 2 },
+  { id: 'MAC-11', parameter: 'Internal Sibling Link',            phase: 'macro', maxPoints: 2 },
+  { id: 'MAC-12', parameter: 'Core Web Vitals Pass',             phase: 'macro', maxPoints: 4 },
+  { id: 'MAC-13', parameter: 'llms.txt Present',                 phase: 'macro', maxPoints: 5 },
+  // Micro Architecture — 35 pts
+  { id: 'MIC-01', parameter: 'Exactly One H1',                   phase: 'micro', maxPoints: 3 },
+  { id: 'MIC-02', parameter: 'Focus Keyword in H1',              phase: 'micro', maxPoints: 5 },
+  { id: 'MIC-03', parameter: 'H2s Are Questions (≥ 50%)',        phase: 'micro', maxPoints: 5 },
+  { id: 'MIC-04', parameter: 'At Least One H3',                  phase: 'micro', maxPoints: 3 },
+  { id: 'MIC-05', parameter: 'Direct Answer After H2 (≤ 60 words)', phase: 'micro', maxPoints: 5 },
+  { id: 'MIC-06', parameter: 'List Present (ul or ol)',          phase: 'micro', maxPoints: 5 },
+  { id: 'MIC-07', parameter: 'Comparison Data (table or bold-label list)', phase: 'micro', maxPoints: 4 },
+  { id: 'MIC-08', parameter: 'No Paragraph Exceeds ~100 Words',  phase: 'micro', maxPoints: 5 },
+  // E-E-A-T & Voice — 25 pts
+  { id: 'EAT-01', parameter: 'Concrete Stats / Case Study Data', phase: 'eat', maxPoints: 5 },
+  { id: 'EAT-02', parameter: 'First-Hand Experience Phrasing',   phase: 'eat', maxPoints: 4 },
+  { id: 'EAT-03', parameter: 'Acknowledges Failed Approach',     phase: 'eat', maxPoints: 2 },
+  { id: 'EAT-04', parameter: 'Attributed Expert Blockquote',     phase: 'eat', maxPoints: 4 },
+  { id: 'EAT-05', parameter: 'Outbound Link to .gov or .edu',   phase: 'eat', maxPoints: 3 },
+  { id: 'EAT-06', parameter: 'Two Unique External Domains',      phase: 'eat', maxPoints: 2 },
+  { id: 'EAT-07', parameter: 'Majority Active Voice',            phase: 'eat', maxPoints: 2 },
+  { id: 'EAT-08', parameter: 'No AI Buzzwords',                  phase: 'eat', maxPoints: 3 },
+];
+
+const CHECK_DEF_MAP = new Map(CHECK_DEFS.map(d => [d.id, d]));
+
+// ---------------------------------------------------------------------------
+// Helpers (kept from original for compatibility)
 // ---------------------------------------------------------------------------
 
 /** Strip HTML tags and return plain text */
@@ -79,11 +127,9 @@ function normalise(s: string): string {
   return s.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-/** Check if text contains the keyword (case-insensitive, whole-word flexible) */
+/** Check if text contains the keyword (case-insensitive) */
 function containsKeyword(text: string, keyword: string): boolean {
-  const kw = normalise(keyword);
-  const t = normalise(text);
-  return t.includes(kw);
+  return normalise(text).includes(normalise(keyword));
 }
 
 /** Extract all headings of a given level from HTML */
@@ -107,22 +153,6 @@ function extractSlug(url: string): string {
   }
 }
 
-/** Check if keyword words appear in sequence in the slug */
-function keywordInSlug(url: string, keyword: string): boolean {
-  const slug = extractSlug(url);
-  const kwWords = normalise(keyword).split(" ");
-  // Build a regex that matches the words in sequence (separated by hyphens or slashes)
-  const pattern = kwWords.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("[\\-\\/]+");
-  return new RegExp(pattern).test(slug);
-}
-
-/** Infer article type from word count */
-function inferArticleType(wc: number): "cornerstone" | "pillar" | "cluster" {
-  if (wc >= 2450) return "cornerstone"; // ~2500 ±50
-  if (wc >= 1450) return "pillar";       // ~1500 ±50
-  return "cluster";                      // ~1000–1200 ±50
-}
-
 /** Extract all external links from HTML as a plain list */
 export function extractExternalLinks(html: string, siteUrl?: string): string[] {
   const links: string[] = [];
@@ -130,16 +160,16 @@ export function extractExternalLinks(html: string, siteUrl?: string): string[] {
   let m: RegExpExecArray | null;
   while ((m = re.exec(html)) !== null) {
     const href = m[1].trim();
-    if (!href.startsWith('http')) continue; // skip relative links
+    if (!href.startsWith('http')) continue;
     if (siteUrl) {
       try {
         const linkDomain = new URL(href).hostname;
         const siteDomain = new URL(siteUrl).hostname;
-        if (linkDomain === siteDomain || linkDomain.endsWith('.' + siteDomain)) continue; // skip internal
+        if (linkDomain === siteDomain || linkDomain.endsWith('.' + siteDomain)) continue;
       } catch { /* ignore malformed URLs */ }
     }
     const anchor = m[2].replace(/<[^>]+>/g, '').trim();
-    links.push(`${anchor} \u2192 ${href}`);
+    links.push(`${anchor} → ${href}`);
   }
   return links;
 }
@@ -159,561 +189,631 @@ export function extractInternalLinks(html: string, siteUrl: string, currentUrl?:
     if (!anchor) continue;
     let path = '';
     if (href.startsWith('/')) {
-      // Relative link — always internal
       path = href;
     } else if (href.startsWith('http')) {
       try {
         const u = new URL(href);
-        if (u.hostname !== siteDomain && !u.hostname.endsWith('.' + siteDomain)) continue; // external
+        if (u.hostname !== siteDomain && !u.hostname.endsWith('.' + siteDomain)) continue;
         path = u.pathname;
       } catch { continue; }
     } else {
-      continue; // skip mailto:, javascript:, etc.
+      continue;
     }
-    // Skip if it points to the current page
     if (currentPath && path === currentPath) continue;
     links.push({ anchor, href, path });
   }
   return links;
 }
 
-/** Word count targets per article type (±50 words tolerance built into ranges) */
-const ARTICLE_TYPE_TARGETS: Record<string, { min: number; max: number }> = {
-  cornerstone: { min: 2450, max: 3250 }, // ~2500–3200 ±50
-  pillar: { min: 1450, max: 1850 },       // ~1500–1800 ±50
-  cluster: { min: 950, max: 1250 },       // ~1000–1200 ±50
-};
+// ---------------------------------------------------------------------------
+// Grade helper
+// ---------------------------------------------------------------------------
 
-/** Compute grade from score */
 export function scoreToGrade(
   score: number
 ): "optimised" | "strong" | "needs_work" | "poor" | "critical" {
-  if (score >= 15) return "optimised";
-  if (score >= 13) return "strong";
-  if (score >= 10) return "needs_work";
-  if (score >= 6) return "poor";
+  if (score >= 90) return "optimised";
+  if (score >= 75) return "strong";
+  if (score >= 60) return "needs_work";
+  if (score >= 40) return "poor";
   return "critical";
 }
 
 // ---------------------------------------------------------------------------
-// Mechanical audit checks (P1–P8, P13, P16)
+// AI buzzwords list (EAT-08)
 // ---------------------------------------------------------------------------
 
-export function runMechanicalChecks(input: PostAuditInput): AuditPoint[] {
-  const { title, bodyHtml, url, focusKeyword, metaTitle, metaDescription } = input;
+const AI_BUZZWORDS = [
+  'delve', 'tapestry', 'seamlessly', 'multifaceted', 'nuanced', 'game-changer',
+  'transformative', 'leveraging', 'harnessing', 'cutting-edge', 'streamline',
+  'unprecedented', 'paradigm', 'synergy', 'holistic', 'empower', 'spearhead',
+  'meticulous', 'crucial', 'pivotal', 'intricate', 'embark', 'realm',
+  'fostering', 'unleash', 'elevating', 'revolutionize', 'bespoke',
+];
 
-  // When no keyword is set, auto-fail all keyword-dependent checks (P1–P7)
-  if (!focusKeyword) {
-    const noKwNote = "No focus keyword set — unable to score.";
-    const bodyText = stripHtml(bodyHtml);
-    const wc = wordCount(bodyText);
-    const md = metaDescription?.trim() ?? "";
-    const p8Present = md.length > 0;
-    const p8Length = md.length >= 140 && md.length <= 160;
-    const p8Pass = p8Present && p8Length;
-    const hasSchemaInBodyNk =
-      /<script[^>]+type=["']application\/ld\+json["'][^>]*>/i.test(bodyHtml) ||
-      /"@type"\s*:\s*"Article"/i.test(bodyHtml) ||
-      /"@type"\s*:\s*"BlogPosting"/i.test(bodyHtml);
-    const hasSchema = hasSchemaInBodyNk || (!!input.schemaJson && typeof input.schemaJson === 'object');
-    const articleType = inferArticleType(wc);
-    const target = ARTICLE_TYPE_TARGETS[articleType];
-    const p16Pass = wc >= target.min && wc <= target.max;
-    return [
-      { point: "P1", name: "Keyword Density", status: "fail", note: noKwNote },
-      { point: "P2", name: "Keyword in H1", status: "fail", note: noKwNote },
-      { point: "P3", name: "Keyword in H2", status: "fail", note: noKwNote },
-      { point: "P4", name: "Keyword in H3", status: "na", note: "Not applicable." },
-      { point: "P5", name: "Keyword in First 100 Words", status: "fail", note: noKwNote },
-      { point: "P6", name: "Keyword in URL", status: "fail", note: noKwNote },
-      { point: "P7", name: "Meta Title", status: "fail", note: noKwNote },
-      {
-        point: "P8", name: "Meta Description", status: p8Pass ? "pass" : "fail",
-        note: !p8Present ? "Meta description is missing." : !p8Length ? "Meta description does not meet the required length." : "Meta description meets requirements.",
-      },
-      { point: "P13", name: "Schema Markup", status: hasSchema ? "pass" : "fail", note: hasSchema ? "Schema markup detected." : "No article schema found." },
-      { point: "P16", name: "Article Type Structure", status: p16Pass ? "pass" : "fail", note: p16Pass ? "Word count is within the required range." : wc < target.min ? "Word count is below the minimum for this article type." : "Word count is above the maximum for this article type." },
-    ];
-  }
-
-  const kw = normalise(focusKeyword);
-  const bodyText = stripHtml(bodyHtml);
-  const wc = wordCount(bodyText);
-  const points: AuditPoint[] = [];
-
-  // P1 — Keyword Density
-  const kwWords = kw.split(" ");
-  // Count non-overlapping occurrences of the full keyword phrase
-  let kwCount = 0;
-  const bodyLower = normalise(bodyText);
-  let searchPos = 0;
-  while (true) {
-    const idx = bodyLower.indexOf(kw, searchPos);
-    if (idx === -1) break;
-    kwCount++;
-    searchPos = idx + kw.length;
-  }
-  const density = wc > 0 ? (kwCount / wc) * 100 : 0;
-  const p1Pass = kwCount >= 4 && density >= 0.5 && density <= 2.5;
-  points.push({
-    point: "P1",
-    name: "Keyword Density",
-    status: p1Pass ? "pass" : "fail",
-    note: p1Pass
-      ? "Keyword density is within the required range."
-      : kwCount < 4
-      ? "Keyword appears too infrequently — below the minimum."
-      : density > 2.5
-      ? "Keyword density is above the maximum — reduce repetition."
-      : "Keyword density is below the minimum for SEO.",
-  });
-
-  // P2 — Keyword in H1
-  const h1s = extractHeadings(bodyHtml, 1);
-  // Also check the post title as H1
-  const allH1s = [...h1s, title];
-  const p2Pass = allH1s.some((h) => containsKeyword(h, focusKeyword));
-  points.push({
-    point: "P2",
-    name: "Keyword in H1",
-    status: p2Pass ? "pass" : "fail",
-    note: p2Pass
-      ? "Keyword found in H1."
-      : "Keyword not found in H1 heading.",
-  });
-
-  // P3 — Keyword in H2
-  const h2s = extractHeadings(bodyHtml, 2);
-  const p3Pass = h2s.length === 0 ? false : h2s.some((h) => containsKeyword(h, focusKeyword));
-  points.push({
-    point: "P3",
-    name: "Keyword in H2",
-    status: h2s.length === 0 ? "fail" : p3Pass ? "pass" : "fail",
-    note:
-      h2s.length === 0
-        ? "No H2 headings found."
-        : p3Pass
-        ? "Keyword found in H2."
-        : "Keyword not found in any H2 heading.",
-  });
-
-  // P4 — Keyword in H3 (only scored if H3s exist)
-  const h3s = extractHeadings(bodyHtml, 3);
-  if (h3s.length === 0) {
-    points.push({
-      point: "P4",
-      name: "Keyword in H3",
-      status: "na",
-      note: "Not applicable — no H3 headings found.",
-    });
-  } else {
-    const p4Pass = h3s.some((h) => containsKeyword(h, focusKeyword));
-    points.push({
-      point: "P4",
-      name: "Keyword in H3",
-      status: p4Pass ? "pass" : "fail",
-      note: p4Pass
-        ? "Keyword found in H3."
-        : "Keyword not found in any H3 heading.",
-    });
-  }
-
-  // P5 — Keyword in First 100 Words (exact 100 words)
-  const first100Words = bodyText.split(/\s+/).slice(0, 100).join(" ");
-  const p5Pass = containsKeyword(first100Words, focusKeyword);
-  points.push({
-    point: "P5",
-    name: "Keyword in First 100 Words",
-    status: p5Pass ? "pass" : "fail",
-    note: p5Pass
-      ? "Keyword found in the opening section."
-      : "Keyword not found in the opening section.",
-  });
-
-  // P6 — Keyword in URL
-  // If no URL is stored (empty string), mark as na rather than falsely failing
-  const urlTrimmed = url?.trim() ?? "";
-  if (!urlTrimmed) {
-    points.push({
-      point: "P6",
-      name: "Keyword in URL",
-      status: "na",
-      note: "URL not available — unable to check. Re-import the post or update the URL in your CMS.",
-    });
-  } else {
-    const p6Pass = keywordInSlug(urlTrimmed, focusKeyword);
-    points.push({
-      point: "P6",
-      name: "Keyword in URL",
-      status: p6Pass ? "pass" : "fail",
-      note: p6Pass
-        ? "Keyword found in URL slug."
-        : `Keyword not found in URL slug. Current slug: ${urlTrimmed}`,
-    });
-  }
-
-  // P7 — Meta Title
-  const mt = metaTitle?.trim() ?? "";
-  const p7Present = mt.length > 0;
-  // Strip CMS-added brand suffix (e.g. "Title | Brand" or "Title - Brand") before keyword check
-  const metaTitleForCheck = mt.split(' | ')[0].split(' - ')[0].trim();
-  const p7HasKw = p7Present && containsKeyword(metaTitleForCheck, focusKeyword);
-  // Google truncates meta titles at ~60 chars, but 10-char buffer is acceptable
-  const p7TooLong = mt.length > 70;
-  const p7TooShort = mt.length < 10;
-  const p7LengthOk = !p7TooLong && !p7TooShort;
-  const p7Pass = p7Present && p7HasKw && p7LengthOk;
-  points.push({
-    point: "P7",
-    name: "Meta Title",
-    status: p7Pass ? "pass" : "fail",
-    note: !p7Present
-      ? "Meta title is missing."
-      : !p7HasKw
-      ? `Meta title does not contain the keyword. Title: "${mt}"`
-      : p7TooLong
-      ? `Meta title is too long (${mt.length} chars, max 70). Shorten it to avoid truncation.`
-      : p7TooShort
-      ? "Meta title is too short."
-      : `Meta title meets requirements (${mt.length} chars).`,
-  });
-
-  // P8 — Meta Description
-  const md = metaDescription?.trim() ?? "";
-  const p8Present = md.length > 0;
-  // Standard: 140–160 chars
-  const p8TooShort = md.length < 140;
-  const p8TooLong = md.length > 160;
-  const p8LengthOk = !p8TooShort && !p8TooLong;
-  const p8Pass = p8Present && p8LengthOk;
-  points.push({
-    point: "P8",
-    name: "Meta Description",
-    status: p8Pass ? "pass" : "fail",
-    note: !p8Present
-      ? "Meta description is missing."
-      : p8TooShort
-      ? `Meta description is too short (${md.length} chars, min 140). Expand it.`
-      : p8TooLong
-      ? `Meta description is too long (${md.length} chars, max 160). Google will truncate it.`
-      : `Meta description meets requirements (${md.length} chars).`,
-  });
-
-  // P13 — Schema Markup
-  // Pass if: (a) inline JSON-LD in bodyHtml, OR (b) stored schemaJson object (e.g. injected via CMS seoData)
-  const hasSchemaInBody =
-    /<script[^>]+type=["']application\/ld\+json["'][^>]*>/i.test(bodyHtml) ||
-    /"@type"\s*:\s*"Article"/i.test(bodyHtml) ||
-    /"@type"\s*:\s*"BlogPosting"/i.test(bodyHtml);
-  const hasStoredSchema = !!input.schemaJson && typeof input.schemaJson === 'object';
-  const hasSchema = hasSchemaInBody || hasStoredSchema;
-  points.push({
-    point: "P13",
-    name: "Schema Markup",
-    status: hasSchema ? "pass" : "fail",
-    note: hasSchema
-      ? "Schema markup detected."
-      : "No article schema found.",
-  });
-
-  // P16 — Word Count / Article Type
-  const articleType = inferArticleType(wc);
-  const target = ARTICLE_TYPE_TARGETS[articleType];
-  const p16Pass = wc >= target.min && wc <= target.max;
-  points.push({
-    point: "P16",
-    name: "Article Type Structure",
-    status: p16Pass ? "pass" : "fail",
-    note: p16Pass
-      ? "Word count is within the required range."
-      : wc < target.min
-      ? "Word count is below the minimum for this article type."
-      : "Word count is above the maximum for this article type.",
-  });
-
-  return points;
-}
+// Question starters for MIC-03
+const QUESTION_STARTERS = /^(what|how|why|is|are|can|should|does|do|when|where|which)\b/i;
 
 // ---------------------------------------------------------------------------
-// AI audit scorer (P9–P12, P14–P15) — single LLM call
+// Build a single AuditCheck from raw data
 // ---------------------------------------------------------------------------
 
-interface AiAuditInput {
-  title: string;
-  bodyHtml: string;
-  focusKeyword: string | null;
-  primaryCtaUrl?: string | null;
-  secondaryCtaUrls?: string[];
-  siteUrl?: string; // For P11/P12 internal link checks
-  currentUrl?: string; // Full URL of the current post (to exclude self-links)
-}
-
-interface AiAuditOutput {
-  P9: { status: AuditPointStatus; note: string };
-  P10: { status: AuditPointStatus; note: string };
-  P11: { status: AuditPointStatus; note: string };
-  P12: { status: AuditPointStatus; note: string };
-  P14: { status: AuditPointStatus; note: string };
-}
-
-export async function runAiChecks(input: AiAuditInput): Promise<AuditPoint[]> {
-  const { title, bodyHtml, focusKeyword, primaryCtaUrl, secondaryCtaUrls = [], siteUrl } = input;
-
-  const ctaUrls = [primaryCtaUrl, ...secondaryCtaUrls].filter(Boolean).join(", ");
-
-  // Strip HTML to plain text for AI analysis — avoids feeding CSS/JS noise to the AI
-  const bodyText = stripHtml(bodyHtml);
-
-  // ---------------------------------------------------------------------------
-  // P15 — Human Authenticity (deterministic banned-phrase check, no LLM)
-  // ---------------------------------------------------------------------------
-  const P15_BANNED_PHRASES = [
-    "in today's world", "it's important to note", "it is important to note",
-    "delve into", "game-changer", "game changer", "leverage", "synergy",
-    "transformative", "it's crucial to", "it is crucial to",
-    "one of the most important", "at the end of the day",
-    "according to research", "studies show", "it has been shown",
-    "navigating the complexities", "in today's competitive landscape",
-    "in today's fast-paced", "in today's digital", "look no further",
-    "cutting-edge", "state-of-the-art", "seamlessly", "robust solution",
-    "tailored solutions", "tailored to your needs", "unlock your potential",
-    "unlock the power", "empower your", "elevate your",
-    "take your business to the next level", "in conclusion,", "to summarize,",
-    "to summarise,", "it goes without saying", "needless to say",
-    "as we all know", "the bottom line is", "at its core",
-    "furthermore,", "moreover,", "essentially,", "ultimately,",
-  ];
-  const bodyLower = bodyText.toLowerCase();
-  const p15FailingPhrase = P15_BANNED_PHRASES.find(p => bodyLower.includes(p));
-  if (p15FailingPhrase) {
-    console.log('[Audit] P15 failing phrase:', p15FailingPhrase);
-  }
-  const p15Pass = !p15FailingPhrase;
-  const p15Result: AuditPoint = {
-    point: "P15",
-    name: "Human Authenticity",
-    status: p15Pass ? "pass" : "fail",
-    note: p15Pass ? "No AI language patterns detected." : "AI language patterns detected.",
+function makeCheck(
+  id: string,
+  passed: boolean | null,
+  detail: string
+): AuditCheck {
+  const def = CHECK_DEF_MAP.get(id)!;
+  const points = passed === true ? def.maxPoints : 0;
+  return {
+    id,
+    parameter: def.parameter,
+    phase: def.phase,
+    passed,
+    points,
+    maxPoints: def.maxPoints,
+    detail,
   };
+}
 
-  // ---------------------------------------------------------------------------
-  // P14 — E-E-A-T Signals (deterministic pre-check — broadened signal list)
-  // If the deterministic check passes, we skip asking the LLM about P14.
-  // If it fails, the LLM still scores it (it may find signals the word list misses).
-  // ---------------------------------------------------------------------------
-  const EEAT_SIGNALS = [
-    'year', 'experience', 'client', 'award', 'founded', 'since',
-    'specialist', 'expert', 'certified', 'accredited', 'trusted', 'proven',
-    'established', 'serve', 'helped', 'worked with',
-  ];
-  const deterministicP14Pass = EEAT_SIGNALS.some(signal => bodyLower.includes(signal));
-  const deterministicP14Result: AuditPoint | null = deterministicP14Pass
-    ? { point: "P14", name: "E-E-A-T Signals", status: "pass", note: "E-E-A-T signals detected." }
-    : null; // null means: let the LLM decide
+// ---------------------------------------------------------------------------
+// Run all mechanical checks (MAC + MIC + mechanical EAT)
+// Returns AuditCheck[] for those checks
+// ---------------------------------------------------------------------------
 
-  // First 500 words of plain text for P9 opening answer block check
-  const opening500Words = bodyText.split(/\s+/).slice(0, 500).join(" ");
+function runMechanicalCheckItems(input: PostAuditInput): AuditCheck[] {
+  const { bodyHtml, focusKeyword, url, metaTitle, metaDescription, hubKeyword, isHub, liveChecks, schemaJson } = input;
+  const results: AuditCheck[] = [];
 
-  // Pre-extract external links mechanically for P10 — more reliable than asking AI to find them in raw HTML
-  const externalLinks = extractExternalLinks(bodyHtml, siteUrl);
-  const externalLinksText = externalLinks.length > 0
-    ? `External links found in article:\n${externalLinks.slice(0, 20).join('\n')}`
-    : "No external links detected in the article HTML.";
+  const bodyText = stripHtml(bodyHtml);
+  const siteUrl = url?.trim() ? (() => { try { return new URL(url).origin; } catch { return ''; } })() : '';
 
-  // Pre-extract internal links mechanically for P11 and P12
-  const internalLinks = siteUrl ? extractInternalLinks(bodyHtml, siteUrl, input.currentUrl) : [];
-  // Categorise: blog links (path contains /blog/, /post/, /article/, /news/) vs other internal (CTA/shop/service)
-  // Match blog paths including Wix-style /post/slug (no trailing slash required)
-  const blogLinkPatterns = /\/blog\/|\/post\/|\/posts\/|\/article\/|\/articles\/|\/news\/|\/insights\/|\/post\b/i;
-  const ctaLinkPatterns = /\/shop\/|\/store\/|\/product\/|\/product-page\/|\/services\/|\/service\/|\/contact\/|\/contact$|\/book\/|\/booking\/|\/buy\/|\/cart\/|\/checkout\/|\/order\//i;
-  const internalBlogLinks = internalLinks.filter(l => blogLinkPatterns.test(l.path));
-  const internalCtaLinks = internalLinks.filter(l => ctaLinkPatterns.test(l.path));
-  // Any internal link that isn't a blog link is a potential CTA/navigation link
-  const internalNonBlogLinks = internalLinks.filter(l => !blogLinkPatterns.test(l.path));
+  // ── MAC-01: URL silo (no date patterns in path) ──────────────────────────
+  {
+    const slug = extractSlug(url ?? '');
+    const hasDatePattern = /\/\d{4}\/\d{2}\/\d{2}\//.test(slug) ||    // YYYY/MM/DD
+                           /\/\d{4}\/\d{2}\//.test(slug) ||            // YYYY/MM
+                           /\/20\d{2}\//.test(slug);                   // /2024/, /2025/ etc
+    results.push(makeCheck('MAC-01',
+      !url?.trim() ? null : !hasDatePattern,
+      !url?.trim()
+        ? 'URL not available — unable to check.'
+        : hasDatePattern
+          ? `Date pattern found in URL: ${slug}. Use subdirectory-based URLs without dates.`
+          : `URL path is clean: ${slug}`
+    ));
+  }
 
-  const internalLinksText = internalLinks.length > 0
-    ? `Internal links found in article (${internalLinks.length} total):\n` +
-      internalLinks.slice(0, 30).map(l => `  "${l.anchor}" → ${l.href}`).join('\n')
-    : "No internal links detected in the article HTML.";
+  // ── MAC-02: Meta title ≤ 60 chars ────────────────────────────────────────
+  {
+    const mt = metaTitle?.trim() ?? '';
+    results.push(makeCheck('MAC-02',
+      mt.length > 0 && mt.length <= 60,
+      !mt.length
+        ? 'Meta title is missing.'
+        : mt.length > 60
+          ? `Meta title is ${mt.length} chars — exceeds 60-char limit.`
+          : `Meta title is ${mt.length} chars — within limit.`
+    ));
+  }
 
-  // Use plain text body (truncated to ~6000 words) for the main AI analysis
-  const bodyForAi = bodyText.slice(0, 30000); // ~6000 words of plain text
+  // ── MAC-03: Meta description ≤ 160 chars ─────────────────────────────────
+  {
+    const md = metaDescription?.trim() ?? '';
+    results.push(makeCheck('MAC-03',
+      md.length > 0 && md.length <= 160,
+      !md.length
+        ? 'Meta description is missing.'
+        : md.length > 160
+          ? `Meta description is ${md.length} chars — exceeds 160-char limit.`
+          : `Meta description is ${md.length} chars — within limit.`
+    ));
+  }
 
-  const systemPrompt = `You are an expert SEO auditor. You will analyse a blog post and score it on 6 specific criteria. 
-Return ONLY valid JSON matching the exact schema provided. Do not fabricate links, statistics, or credentials.
-Be strict but fair. Each point must have a "status" of "pass" or "fail" and a brief "note" (one short phrase only — do NOT reveal specific thresholds, counts, character limits, or scoring criteria). Keep notes minimal: for pass use phrases like "Found" or "Detected"; for fail use phrases like "Not found", "Missing", or "Not detected".`;
+  // ── MAC-04: Keyword in both meta title AND meta description ──────────────
+  {
+    if (!focusKeyword) {
+      results.push(makeCheck('MAC-04', false, 'No focus keyword set.'));
+    } else {
+      const mt = metaTitle?.trim() ?? '';
+      const md = metaDescription?.trim() ?? '';
+      const inTitle = containsKeyword(mt, focusKeyword);
+      const inDesc = containsKeyword(md, focusKeyword);
+      const passed = inTitle && inDesc;
+      results.push(makeCheck('MAC-04',
+        passed,
+        passed
+          ? 'Keyword found in both meta title and description.'
+          : !inTitle && !inDesc
+            ? 'Keyword missing from both meta title and description.'
+            : !inTitle
+              ? 'Keyword missing from meta title.'
+              : 'Keyword missing from meta description.'
+      ));
+    }
+  }
 
-  const userPrompt = `Analyse this blog post and score it on the following 6 points. Return JSON only.
+  // ── MAC-05: Article or BlogPosting schema ────────────────────────────────
+  {
+    const hasSchemaInBody =
+      /<script[^>]+type=["']application\/ld\+json["'][^>]*>/i.test(bodyHtml) &&
+      (/"@type"\s*:\s*"Article"/i.test(bodyHtml) || /"@type"\s*:\s*"BlogPosting"/i.test(bodyHtml));
+    const hasStoredSchema = !!schemaJson && typeof schemaJson === 'object' &&
+      (JSON.stringify(schemaJson).includes('"Article"') || JSON.stringify(schemaJson).includes('"BlogPosting"'));
+    const passed = hasSchemaInBody || hasStoredSchema;
+    results.push(makeCheck('MAC-05',
+      passed,
+      passed ? 'Article/BlogPosting schema detected.' : 'No Article or BlogPosting JSON-LD schema found.'
+    ));
+  }
 
-FOCUS KEYWORD: "${focusKeyword ?? "(not set — ignore keyword references)"}"
-POST TITLE: "${title}"
-CTA URLS (for P11): ${ctaUrls || "none provided"}
-SITE URL (for P12): ${siteUrl || "unknown"}
+  // ── MAC-06: FAQPage schema ───────────────────────────────────────────────
+  {
+    const hasInBody = /"@type"\s*:\s*"FAQPage"/i.test(bodyHtml);
+    const hasStored = !!schemaJson && JSON.stringify(schemaJson).includes('"FAQPage"');
+    const passed = hasInBody || hasStored;
+    results.push(makeCheck('MAC-06',
+      passed,
+      passed ? 'FAQPage schema detected.' : 'No FAQPage schema found.'
+    ));
+  }
 
-OPENING 500 WORDS (plain text — use this for P9):
-${opening500Words}
+  // ── MAC-07: Organization schema ──────────────────────────────────────────
+  {
+    const hasInBody = /"@type"\s*:\s*"Organization"/i.test(bodyHtml);
+    const hasStored = !!schemaJson && JSON.stringify(schemaJson).includes('"Organization"');
+    const passed = hasInBody || hasStored;
+    results.push(makeCheck('MAC-07',
+      passed,
+      passed ? 'Organization schema detected.' : 'No Organization schema found.'
+    ));
+  }
 
-${externalLinksText}
+  // ── MAC-08: Author / Person schema ───────────────────────────────────────
+  {
+    const hasInBody = /"@type"\s*:\s*"Person"/i.test(bodyHtml) || /"@type"\s*:\s*"Author"/i.test(bodyHtml);
+    const hasStored = !!schemaJson && (JSON.stringify(schemaJson).includes('"Person"') || JSON.stringify(schemaJson).includes('"Author"'));
+    const passed = hasInBody || hasStored;
+    results.push(makeCheck('MAC-08',
+      passed,
+      passed ? 'Author/Person schema detected.' : 'No Author or Person schema found.'
+    ));
+  }
 
-${internalLinksText}
+  // ── MAC-09: Internal link with anchor containing hubKeyword ──────────────
+  {
+    if (!hubKeyword) {
+      results.push(makeCheck('MAC-09', null, 'N/A — no hubKeyword provided.'));
+    } else if (!siteUrl) {
+      results.push(makeCheck('MAC-09', false, 'URL not available — unable to check internal links.'));
+    } else {
+      const internalLinks = extractInternalLinks(bodyHtml, siteUrl, url);
+      const pillarLink = internalLinks.find(l => containsKeyword(l.anchor, hubKeyword));
+      results.push(makeCheck('MAC-09',
+        !!pillarLink,
+        pillarLink
+          ? `Internal pillar link found: "${pillarLink.anchor}" → ${pillarLink.href}`
+          : `No internal link with anchor text containing "${hubKeyword}" found.`
+      ));
+    }
+  }
 
-FULL ARTICLE (plain text — use this for P14, P15):
-${bodyForAi}
+  // ── MAC-10: Internal link DOWN to child page (hub/pillar only) ───────────
+  {
+    if (!isHub) {
+      results.push(makeCheck('MAC-10', null, 'N/A — not a hub/pillar page.'));
+    } else if (!siteUrl) {
+      results.push(makeCheck('MAC-10', false, 'URL not available — unable to check internal links.'));
+    } else {
+      const internalLinks = extractInternalLinks(bodyHtml, siteUrl, url);
+      // A "child" link goes to a deeper path (URL has more segments than current)
+      const currentPath = url ? (() => { try { return new URL(url).pathname; } catch { return ''; } })() : '';
+      const childLink = internalLinks.find(l => l.path.startsWith(currentPath.replace(/\/$/, '') + '/') || l.path.length > currentPath.length);
+      results.push(makeCheck('MAC-10',
+        !!childLink,
+        childLink
+          ? `Internal child link found: "${childLink.anchor}" → ${childLink.href}`
+          : 'No internal link to a child page found.'
+      ));
+    }
+  }
 
-Score these 6 points:
+  // ── MAC-11: At least one internal link to sibling post ───────────────────
+  {
+    if (!siteUrl) {
+      results.push(makeCheck('MAC-11', false, 'URL not available — unable to check internal links.'));
+    } else {
+      const internalLinks = extractInternalLinks(bodyHtml, siteUrl, url);
+      results.push(makeCheck('MAC-11',
+        internalLinks.length > 0,
+        internalLinks.length > 0
+          ? `${internalLinks.length} internal link(s) found.`
+          : 'No internal links to other pages on the same domain found.'
+      ));
+    }
+  }
 
-P9 - Opening Answer Block: Does the article open with a direct answer block? Look ONLY at the OPENING 500 WORDS provided above. This means: (1) a bold question or standalone question line appears near the top (NOT the article title — look for a question WITHIN the body text), AND (2) the very next paragraph directly answers that question in 40–80 words. The question is typically a "People Also Ask" style question (e.g. "What is...", "How do...", "Why is...", "What's the most..."). IMPORTANT: The article title is NOT the question — look for a question that appears AFTER the title in the body text. If a bold question followed by a direct answer paragraph exists in the opening section, this PASSES. Be generous — if the pattern is clearly there, mark it pass.
+  // ── MAC-12: Core Web Vitals pass (live check) ────────────────────────────
+  {
+    if (!liveChecks || liveChecks.coreWebVitalsPass === undefined) {
+      results.push(makeCheck('MAC-12', null, 'N/A — live check data not provided.'));
+    } else {
+      results.push(makeCheck('MAC-12',
+        liveChecks.coreWebVitalsPass,
+        liveChecks.coreWebVitalsPass ? 'Core Web Vitals pass.' : 'Core Web Vitals do not pass.'
+      ));
+    }
+  }
 
-P10 - External Authority Link: Is there at least one HTTPS external link to a credible source that a reader would trust? This includes: government sites, universities, industry bodies, major publications, well-known brands, research organisations, or any established website relevant to the article topic. FAIL only if: all external links use HTTP (not HTTPS), or the only external links go to the same business's own website or social media profiles. Be generous — if there is a real external HTTPS link to any credible website (not just the author's own site), mark this as PASS. Do NOT count internal links to the same domain.
+  // ── MAC-13: llms.txt present (live check) ────────────────────────────────
+  {
+    if (!liveChecks || liveChecks.llmsTxtPresent === undefined) {
+      results.push(makeCheck('MAC-13', null, 'N/A — live check data not provided.'));
+    } else {
+      results.push(makeCheck('MAC-13',
+        liveChecks.llmsTxtPresent,
+        liveChecks.llmsTxtPresent ? 'llms.txt file detected.' : 'No llms.txt file detected.'
+      ));
+    }
+  }
 
-P11 - Internal CTA Link: Does the article contain at least one internal link to a commercial/conversion page — such as a shop, product page, service page, contact page, booking page, or any page that drives a business action? ${ctaUrls ? `Known CTA URLs to look for: ${ctaUrls}. ` : ''}The site domain is ${siteUrl || 'unknown'}. IMPORTANT: Use the INTERNAL LINKS list provided above. Any internal link to a non-blog page (e.g. product pages, shop, store, services, contact, booking) counts as a CTA link. If ANY internal link goes to a commercial-sounding page, mark this as PASS. Be generous — if there is a button or link with text like "Get your...", "Buy now", "Shop", "Book", "Contact us", "View product", or any call-to-action wording that links internally, this PASSES.
+  // ── MIC-01: Exactly one H1 ───────────────────────────────────────────────
+  {
+    const h1s = extractHeadings(bodyHtml, 1);
+    results.push(makeCheck('MIC-01',
+      h1s.length === 1,
+      h1s.length === 0
+        ? 'No H1 heading found.'
+        : h1s.length === 1
+          ? 'Exactly one H1 heading found.'
+          : `${h1s.length} H1 headings found — should be exactly one.`
+    ));
+  }
 
-P12 - Internal Blog Link: Does the article contain at least one link to another blog post or article on the same site, using descriptive anchor text (not just "click here" or "read more")? The site domain is ${siteUrl || 'unknown'}. Use the INTERNAL LINKS list provided above — look for links to /blog/, /post/, /article/, /news/ paths on the same domain.
+  // ── MIC-02: Focus keyword in H1 ──────────────────────────────────────────
+  {
+    if (!focusKeyword) {
+      results.push(makeCheck('MIC-02', false, 'No focus keyword set.'));
+    } else {
+      const h1s = extractHeadings(bodyHtml, 1);
+      const passed = h1s.some(h => containsKeyword(h, focusKeyword));
+      results.push(makeCheck('MIC-02',
+        passed,
+        passed ? 'Focus keyword found in H1.' : 'Focus keyword not found in H1.'
+      ));
+    }
+  }
 
-P14 - E-E-A-T Signals: Does the article demonstrate experience, expertise, authority, and trust through specific details? Look for: named credentials, specific data points with sources, years of experience, real case studies, or named professionals. Be generous — if any signal words like "experience", "specialist", "certified", "trusted", "established", "helped", "served", or similar are present, mark as pass.
+  // ── MIC-03: ≥ 50% of H2s are questions ──────────────────────────────────
+  {
+    const h2s = extractHeadings(bodyHtml, 2);
+    if (h2s.length === 0) {
+      results.push(makeCheck('MIC-03', false, 'No H2 headings found.'));
+    } else {
+      const questionH2s = h2s.filter(h => h.trim().endsWith('?') || QUESTION_STARTERS.test(h.trim()));
+      const ratio = questionH2s.length / h2s.length;
+      results.push(makeCheck('MIC-03',
+        ratio >= 0.5,
+        `${questionH2s.length} of ${h2s.length} H2s are questions (${Math.round(ratio * 100)}% — need ≥ 50%).`
+      ));
+    }
+  }
 
-Return this exact JSON structure (notes must be very brief — one short phrase, no thresholds or criteria revealed):
+  // ── MIC-04: At least one H3 ──────────────────────────────────────────────
+  {
+    const h3s = extractHeadings(bodyHtml, 3);
+    results.push(makeCheck('MIC-04',
+      h3s.length > 0,
+      h3s.length > 0 ? `${h3s.length} H3 heading(s) found.` : 'No H3 headings found.'
+    ));
+  }
+
+  // ── MIC-05: First paragraph after each H2 is ≤ 60 words ─────────────────
+  {
+    const h2Regex = /<h2[^>]*>.*?<\/h2>/gi;
+    const h2Matches = Array.from(bodyHtml.matchAll(/<h2[^>]*>.*?<\/h2>/gi));
+    if (h2Matches.length === 0) {
+      results.push(makeCheck('MIC-05', false, 'No H2 headings found.'));
+    } else {
+      let allPass = true;
+      let failDetail = '';
+      for (const h2Match of h2Matches) {
+        const afterH2 = bodyHtml.slice((h2Match.index ?? 0) + h2Match[0].length);
+        const firstPMatch = afterH2.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
+        if (firstPMatch) {
+          const text = stripHtml(firstPMatch[1]);
+          const wc = wordCount(text);
+          if (wc > 60) {
+            allPass = false;
+            failDetail = `Found paragraph with ${wc} words after an H2 (limit: 60).`;
+            break;
+          }
+        }
+      }
+      results.push(makeCheck('MIC-05',
+        allPass,
+        allPass ? 'All first paragraphs after H2s are ≤ 60 words.' : failDetail
+      ));
+    }
+  }
+
+  // ── MIC-06: At least one ul or ol ────────────────────────────────────────
+  {
+    const hasUl = /<ul[^>]*>/i.test(bodyHtml);
+    const hasOl = /<ol[^>]*>/i.test(bodyHtml);
+    results.push(makeCheck('MIC-06',
+      hasUl || hasOl,
+      hasUl || hasOl ? 'List element found.' : 'No <ul> or <ol> list found.'
+    ));
+  }
+
+  // ── MIC-07: Comparison data (table or bold-label list) ───────────────────
+  {
+    const hasTable = /<table[^>]*>/i.test(bodyHtml);
+    // Bold-label list: li that starts with <strong> or <b>
+    const hasBoldLabel = /<li[^>]*>\s*<(?:strong|b)[^>]*>/i.test(bodyHtml);
+    results.push(makeCheck('MIC-07',
+      hasTable || hasBoldLabel,
+      hasTable ? 'Table element found.' :
+      hasBoldLabel ? 'Bold-label list items found.' :
+      'No comparison data element (table or bold-label list) found.'
+    ));
+  }
+
+  // ── MIC-08: No paragraph longer than ~100 words ──────────────────────────
+  {
+    const paraRegex = /<p[^>]*>([\s\S]*?)<\/p>/gi;
+    let m: RegExpExecArray | null;
+    let maxWc = 0;
+    while ((m = paraRegex.exec(bodyHtml)) !== null) {
+      const text = stripHtml(m[1]);
+      const wc = wordCount(text);
+      if (wc > maxWc) maxWc = wc;
+    }
+    results.push(makeCheck('MIC-08',
+      maxWc <= 100,
+      maxWc === 0
+        ? 'No paragraphs found.'
+        : maxWc <= 100
+          ? `Longest paragraph is ${maxWc} words — within limit.`
+          : `Paragraph found with ${maxWc} words — exceeds 100-word limit.`
+    ));
+  }
+
+  // ── EAT-05: Outbound link to .gov or .edu ───────────────────────────────
+  {
+    const extLinkRe = /<a[^>]+href=["'](https?:\/\/[^"']+)["'][^>]*>/gi;
+    let m: RegExpExecArray | null;
+    let hasGovEdu = false;
+    while ((m = extLinkRe.exec(bodyHtml)) !== null) {
+      const href = m[1];
+      try {
+        const hostname = new URL(href).hostname;
+        if (hostname.endsWith('.gov') || hostname.endsWith('.gov.au') ||
+            hostname.endsWith('.edu') || hostname.endsWith('.edu.au') ||
+            hostname.includes('.gov.') || hostname.includes('.edu.')) {
+          hasGovEdu = true;
+          break;
+        }
+      } catch { /* ignore */ }
+    }
+    results.push(makeCheck('EAT-05',
+      hasGovEdu,
+      hasGovEdu ? 'Outbound link to a .gov or .edu domain found.' : 'No outbound link to a .gov or .edu domain found.'
+    ));
+  }
+
+  // ── EAT-06: At least TWO unique external domains ────────────────────────
+  {
+    const extDomains = new Set<string>();
+    const extLinkRe2 = /<a[^>]+href=["'](https?:\/\/[^"']+)["'][^>]*>/gi;
+    let m2: RegExpExecArray | null;
+    const siteDomain = siteUrl ? (() => { try { return new URL(siteUrl).hostname; } catch { return ''; } })() : '';
+    while ((m2 = extLinkRe2.exec(bodyHtml)) !== null) {
+      const href = m2[1];
+      try {
+        const hostname = new URL(href).hostname;
+        if (siteDomain && (hostname === siteDomain || hostname.endsWith('.' + siteDomain))) continue;
+        extDomains.add(hostname);
+      } catch { /* ignore */ }
+    }
+    results.push(makeCheck('EAT-06',
+      extDomains.size >= 2,
+      extDomains.size >= 2
+        ? `${extDomains.size} unique external domains linked.`
+        : `Only ${extDomains.size} unique external domain(s) linked — need at least 2.`
+    ));
+  }
+
+  // ── EAT-08: No AI buzzwords ──────────────────────────────────────────────
+  {
+    const bodyLower = bodyText.toLowerCase();
+    const foundBuzzword = AI_BUZZWORDS.find(word => {
+      const re = new RegExp(`\\b${word.replace(/-/g, '[\\s-]')}\\b`, 'i');
+      return re.test(bodyLower);
+    });
+    results.push(makeCheck('EAT-08',
+      !foundBuzzword,
+      foundBuzzword
+        ? `AI buzzword detected: "${foundBuzzword}". Remove or replace it.`
+        : 'No AI buzzwords detected.'
+    ));
+  }
+
+  return results;
+}
+
+// ---------------------------------------------------------------------------
+// LLM-based checks (EAT-01 through EAT-04, EAT-07)
+// ---------------------------------------------------------------------------
+
+interface LlmEatResult {
+  EAT01: { passed: boolean; detail: string };
+  EAT02: { passed: boolean; detail: string };
+  EAT03: { passed: boolean; detail: string };
+  EAT04: { passed: boolean; detail: string };
+  EAT07: { passed: boolean; detail: string };
+}
+
+async function runLlmEatChecks(bodyHtml: string): Promise<LlmEatResult | null> {
+  const bodyText = stripHtml(bodyHtml);
+  // First 4000 words
+  const articleText = bodyText.split(/\s+/).slice(0, 4000).join(' ');
+
+  const systemPrompt = 'You are an expert content analyst. Return only valid JSON.';
+  const userPrompt = `Analyse this article excerpt and assess the following 5 checks. Return a JSON object with keys EAT01, EAT02, EAT03, EAT04, EAT07.
+
+ARTICLE TEXT (first 4000 words):
+${articleText}
+
+Assess these checks:
+EAT01: Does the article contain concrete stats, numbers, percentages, or case study data (not vague claims like "many studies show")?
+EAT02: Does the article use first-hand experience phrasing ("I found", "we tried", "in my experience", "when I", "our team")?
+EAT03: Does the article acknowledge a failed approach, mistake, or thing that didn't work?
+EAT04: Is there an attributed expert blockquote (a <blockquote> with attribution, or text like "according to [Name]" with a specific person or org named)?
+EAT07: Is the article written in majority active voice (most sentences have subject doing the action, not passive constructions)?
+
+Return exactly:
 {
-  "P9": {"status": "pass|fail", "note": "e.g. \"Opening answer block found.\" or \"Opening answer block not detected.\""},
-  "P10": {"status": "pass|fail", "note": "e.g. \"External authority link found.\" or \"No external authority link found.\""},
-  "P11": {"status": "pass|fail", "note": "e.g. \"Internal CTA link found.\" or \"No internal CTA link found.\""},
-  "P12": {"status": "pass|fail", "note": "e.g. \"Internal blog link found.\" or \"No internal blog link found.\""},
-  "P14": {"status": "pass|fail", "note": "e.g. \"E-E-A-T signals detected.\" or \"E-E-A-T signals not detected.\""}
+  "EAT01": { "passed": true/false, "detail": "brief explanation" },
+  "EAT02": { "passed": true/false, "detail": "brief explanation" },
+  "EAT03": { "passed": true/false, "detail": "brief explanation" },
+  "EAT04": { "passed": true/false, "detail": "brief explanation" },
+  "EAT07": { "passed": true/false, "detail": "brief explanation" }
 }`;
 
   try {
     const response = await invokeClaude({
       system: systemPrompt,
-      messages: [
-        { role: "user" as const, content: userPrompt },
-      ],
+      messages: [{ role: 'user' as const, content: userPrompt }],
       response_format: {
-        type: "json_schema",
+        type: 'json_schema',
         json_schema: {
-          name: "audit_ai_scores",
+          name: 'eat_checks',
           strict: true,
           schema: {
-            type: "object",
+            type: 'object',
             properties: {
-              P9: {
-                type: "object",
-                properties: {
-                  status: { type: "string", enum: ["pass", "fail"] },
-                  note: { type: "string" },
-                },
-                required: ["status", "note"],
-                additionalProperties: false,
-              },
-              P10: {
-                type: "object",
-                properties: {
-                  status: { type: "string", enum: ["pass", "fail"] },
-                  note: { type: "string" },
-                },
-                required: ["status", "note"],
-                additionalProperties: false,
-              },
-              P11: {
-                type: "object",
-                properties: {
-                  status: { type: "string", enum: ["pass", "fail"] },
-                  note: { type: "string" },
-                },
-                required: ["status", "note"],
-                additionalProperties: false,
-              },
-              P12: {
-                type: "object",
-                properties: {
-                  status: { type: "string", enum: ["pass", "fail"] },
-                  note: { type: "string" },
-                },
-                required: ["status", "note"],
-                additionalProperties: false,
-              },
-              P14: {
-                type: "object",
-                properties: {
-                  status: { type: "string", enum: ["pass", "fail"] },
-                  note: { type: "string" },
-                },
-                required: ["status", "note"],
-                additionalProperties: false,
-              },
+              EAT01: { type: 'object', properties: { passed: { type: 'boolean' }, detail: { type: 'string' } }, required: ['passed', 'detail'], additionalProperties: false },
+              EAT02: { type: 'object', properties: { passed: { type: 'boolean' }, detail: { type: 'string' } }, required: ['passed', 'detail'], additionalProperties: false },
+              EAT03: { type: 'object', properties: { passed: { type: 'boolean' }, detail: { type: 'string' } }, required: ['passed', 'detail'], additionalProperties: false },
+              EAT04: { type: 'object', properties: { passed: { type: 'boolean' }, detail: { type: 'string' } }, required: ['passed', 'detail'], additionalProperties: false },
+              EAT07: { type: 'object', properties: { passed: { type: 'boolean' }, detail: { type: 'string' } }, required: ['passed', 'detail'], additionalProperties: false },
             },
-            required: ["P9", "P10", "P11", "P12", "P14"],
+            required: ['EAT01', 'EAT02', 'EAT03', 'EAT04', 'EAT07'],
             additionalProperties: false,
           },
         },
       },
     });
-
-        const rawContent = response.choices?.[0]?.message?.content;
-    if (!rawContent) throw new Error("Empty AI response");
-    const content = typeof rawContent === "string" ? rawContent : JSON.stringify(rawContent);
-    const parsed: AiAuditOutput = JSON.parse(content);
-
-    return [
-      { point: "P9", name: "Opening Answer Block", status: parsed.P9.status, note: parsed.P9.note },
-      { point: "P10", name: "External Authority Link", status: parsed.P10.status, note: parsed.P10.note },
-      { point: "P11", name: "Internal CTA Link", status: parsed.P11.status, note: parsed.P11.note },
-      { point: "P12", name: "Internal Blog Link", status: parsed.P12.status, note: parsed.P12.note },
-      // P14: use deterministic pass if available, otherwise trust LLM result
-      deterministicP14Result ?? { point: "P14", name: "E-E-A-T Signals", status: parsed.P14.status, note: parsed.P14.note },
-      p15Result,
-    ];
+    const rawContent = response.choices?.[0]?.message?.content;
+    if (!rawContent) return null;
+    const content = typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent);
+    return JSON.parse(content) as LlmEatResult;
   } catch {
-    // AI call failed — mark P9–P12 as unable_to_score; P14 uses deterministic if available; P15 is always deterministic
-    const failureNote =
-      "We could not complete the AI portion of this audit. The mechanical checks are shown below. Try re-running the audit.";
-    return [
-      { point: "P9", name: "Opening Answer Block", status: "unable_to_score", note: failureNote },
-      { point: "P10", name: "External Authority Link", status: "unable_to_score", note: failureNote },
-      { point: "P11", name: "Internal CTA Link", status: "unable_to_score", note: failureNote },
-      { point: "P12", name: "Internal Blog Link", status: "unable_to_score", note: failureNote },
-      deterministicP14Result ?? { point: "P14", name: "E-E-A-T Signals", status: "unable_to_score", note: failureNote },
-      p15Result,
-    ];
+    return null;
   }
 }
 
 // ---------------------------------------------------------------------------
-// Full audit runner
+// Convert checks to backward-compat AuditPoint[]
+// ---------------------------------------------------------------------------
+
+function checksToPoints(checks: AuditCheck[]): AuditPoint[] {
+  return checks.map(c => ({
+    point: c.id,
+    name: c.parameter,
+    status: c.passed === true ? 'pass' : c.passed === false ? 'fail' : 'na',
+    note: c.detail,
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// runMechanicalChecks — MAC + MIC checks only, no LLM (backward compat)
+// ---------------------------------------------------------------------------
+
+export function runMechanicalChecks(input: PostAuditInput): AuditPoint[] {
+  const mechanicalChecks = runMechanicalCheckItems(input);
+  return checksToPoints(mechanicalChecks);
+}
+
+// ---------------------------------------------------------------------------
+// runFullAudit — full 29-check audit with LLM
 // ---------------------------------------------------------------------------
 
 export async function runFullAudit(input: PostAuditInput): Promise<AuditResult> {
-  const mechanicalPoints = runMechanicalChecks(input);
+  // Run mechanical checks (MAC + MIC + mechanical EAT)
+  const mechanicalChecks = runMechanicalCheckItems(input);
 
-  const aiPoints = await runAiChecks({
-    title: input.title,
-    bodyHtml: input.bodyHtml,
-    focusKeyword: input.focusKeyword,
-    primaryCtaUrl: input.primaryCtaUrl,
-    secondaryCtaUrls: input.secondaryCtaUrls,
-    siteUrl: input.url ? new URL(input.url).origin : undefined,
-    currentUrl: input.url, // Pass full URL so self-links are excluded from internal link list
+  // Run LLM EAT checks
+  const llmResult = await runLlmEatChecks(input.bodyHtml);
+
+  // Build EAT-01 through EAT-04 and EAT-07 checks
+  const eatLlmChecks: AuditCheck[] = [];
+  const llmIds: Array<[string, keyof LlmEatResult]> = [
+    ['EAT-01', 'EAT01'], ['EAT-02', 'EAT02'], ['EAT-03', 'EAT03'],
+    ['EAT-04', 'EAT04'], ['EAT-07', 'EAT07'],
+  ];
+
+  for (const [checkId, llmKey] of llmIds) {
+    if (llmResult) {
+      const r = llmResult[llmKey];
+      eatLlmChecks.push(makeCheck(checkId, r.passed, r.detail));
+    } else {
+      // LLM failed — mark as unable_to_score in the points compat layer
+      const def = CHECK_DEF_MAP.get(checkId)!;
+      eatLlmChecks.push({
+        id: checkId,
+        parameter: def.parameter,
+        phase: 'eat',
+        passed: false, // treat as fail for scoring
+        points: 0,
+        maxPoints: def.maxPoints,
+        detail: 'AI scoring unavailable. Re-run the audit to score this check.',
+      });
+    }
+  }
+
+  // Combine all checks in order
+  const allChecks: AuditCheck[] = [...mechanicalChecks, ...eatLlmChecks];
+  // Sort by CHECK_DEFS order
+  const checkOrder = new Map(CHECK_DEFS.map((d, i) => [d.id, i]));
+  allChecks.sort((a, b) => (checkOrder.get(a.id) ?? 99) - (checkOrder.get(b.id) ?? 99));
+
+  // Compute scoring
+  const applicableChecks = allChecks.filter(c => c.passed !== null);
+  const total_score = applicableChecks.reduce((sum, c) => sum + c.points, 0);
+  const applicable_max = applicableChecks.reduce((sum, c) => sum + c.maxPoints, 0);
+  const normalized_score = applicable_max > 0 ? Math.round(total_score / applicable_max * 100) : 0;
+
+  const grade = scoreToGrade(normalized_score);
+  const failed_checks = allChecks
+    .filter(c => c.passed === false)
+    .map(c => ({ id: c.id, parameter: c.parameter }));
+
+  // Backward compat points — if LLM failed, mark those as unable_to_score
+  const points: AuditPoint[] = allChecks.map(c => {
+    const isLlmCheck = llmIds.some(([id]) => id === c.id);
+    if (isLlmCheck && !llmResult) {
+      return { point: c.id, name: c.parameter, status: 'unable_to_score' as AuditPointStatus, note: c.detail };
+    }
+    return {
+      point: c.id,
+      name: c.parameter,
+      status: c.passed === true ? 'pass' : c.passed === false ? 'fail' : 'na',
+      note: c.detail,
+    };
   });
 
-  // Merge: mechanical order is P1–P8, P13, P16; AI order is P9–P12, P14–P15
-  // Final order: P1–P16
-  const allPoints: AuditPoint[] = [];
-  const byPoint: Record<string, AuditPoint> = {};
-  for (const p of [...mechanicalPoints, ...aiPoints]) {
-    byPoint[p.point] = p;
-  }
-  for (let i = 1; i <= 16; i++) {
-    const key = `P${i}`;
-    if (byPoint[key]) allPoints.push(byPoint[key]);
-  }
-
-  // Score: count pass (na counts as pass for scoring purposes — not applicable = not penalised)
-  const score = allPoints.filter((p) => p.status === "pass" || p.status === "na").length;
-  const grade = scoreToGrade(score);
-
-  // Potential score: assume all fail/unable_to_score points could be fixed
-  const potentialScore = allPoints.filter(
-    (p) => p.status === "pass" || p.status === "na" || p.status === "unable_to_score"
-  ).length;
-
-  return { points: allPoints, score, grade, potentialScore };
+  return {
+    normalized_score,
+    total_score,
+    applicable_max,
+    checks: allChecks,
+    failed_checks,
+    score: normalized_score,
+    grade,
+    points,
+    potentialScore: applicable_max,
+  };
 }

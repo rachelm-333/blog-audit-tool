@@ -343,11 +343,11 @@ function AuditResultsPanel({
       <div className="flex items-center gap-3 pb-3 border-b border-border">
         <div className="text-3xl font-extrabold text-foreground">
           {auditScore ?? 0}
-          <span className="text-lg font-normal text-muted-foreground">/16</span>
+          <span className="text-lg font-normal text-muted-foreground">/100</span>
         </div>
         <GradeBadge grade={auditGrade} />
         <div className="ml-auto text-xs text-muted-foreground">
-          Potential: {auditResults.potentialScore}/16
+          Potential: {auditResults.potentialScore}/100
         </div>
       </div>
 
@@ -551,7 +551,7 @@ function DashboardOverview({
             <span className="text-3xl font-extrabold text-foreground">
               {healthScore ?? "—"}
             </span>
-            <span className="text-sm text-muted-foreground">/16</span>
+            <span className="text-sm text-muted-foreground">/100</span>
             <GradeBadge grade={healthGrade} />
           </div>
           <div className="text-xs text-muted-foreground mt-1">
@@ -653,7 +653,7 @@ function RewriteResultPanel({
           <div className="text-xs text-muted-foreground mb-0.5">Before</div>
           <div className="flex items-center gap-1.5">
             <span className="text-xl font-bold text-muted-foreground">
-              {auditScore ?? "—"}/16
+              {auditScore ?? "—"}/100
             </span>
             <GradeBadge grade={auditGrade} />
           </div>
@@ -665,7 +665,7 @@ function RewriteResultPanel({
           <div className="text-xs text-muted-foreground mb-0.5">After</div>
           <div className="flex items-center gap-1.5">
             <span className="text-xl font-bold text-foreground">
-              {data.rewriteScore ?? "—"}/16
+              {data.rewriteScore ?? "—"}/100
             </span>
             <GradeBadge grade={data.rewriteGrade} />
           </div>
@@ -917,18 +917,18 @@ function RewriteModal({
               </div>
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center mb-1">
                 Choose rewrite mode
-                <HelpTooltip text="Improve Writing keeps all your stories, stats, and examples — just makes the language clearer and more human, and fixes SEO. Full Rewrite rebuilds the entire post from scratch — best for posts scoring below 8/16. Both modes use 1 credit." />
+                <HelpTooltip text="Improve Writing keeps all your stories, stats, and examples — just makes the language clearer and more human, and fixes SEO. Full Rewrite rebuilds the entire post from scratch — best for posts scoring below 50/100. Both modes use 1 credit." />
               </div>
               {/* Score-based recommendation hint */}
               {post?.auditScore != null && (
                 <div className={`rounded-md px-3 py-2 text-[11px] leading-relaxed mb-1 ${
-                  (post.auditScore ?? 0) < 8
+                  (post.auditScore ?? 0) < 50
                     ? "bg-orange-500/10 border border-orange-500/30 text-orange-400"
                     : "bg-sky-500/10 border border-sky-500/30 text-sky-400"
                 }`}>
-                  {(post.auditScore ?? 0) < 8
-                    ? `This post scores ${post.auditScore}/16 — we recommend a Full Rewrite to fix the structural issues.`
-                    : `This post scores ${post.auditScore}/16 — we recommend Improve Writing to polish the language while keeping your content.`}
+                  {(post.auditScore ?? 0) < 50
+                    ? `This post scores ${post.auditScore}/100 — we recommend a Full Rewrite to fix the structural issues.`
+                    : `This post scores ${post.auditScore}/100 — we recommend Improve Writing to polish the language while keeping your content.`}
                 </div>
               )}
               <div className="flex flex-col gap-2">
@@ -945,7 +945,7 @@ function RewriteModal({
                 >
                   <span className="text-xs font-semibold text-sky-400 flex items-center gap-1">
                     <Zap size={12} /> Improve Writing
-                    {post?.auditScore != null && (post.auditScore ?? 0) >= 8 && (
+                    {post?.auditScore != null && (post.auditScore ?? 0) >= 50 && (
                       <span className="ml-1 text-[9px] font-bold uppercase tracking-wide bg-sky-400/20 text-sky-400 rounded px-1 py-0.5">Recommended</span>
                     )}
                   </span>
@@ -965,11 +965,11 @@ function RewriteModal({
                 >
                   <span className="text-xs font-semibold text-primary flex items-center gap-1">
                     <Zap size={12} /> Full Rewrite
-                    {post?.auditScore != null && (post.auditScore ?? 0) < 8 && (
+                    {post?.auditScore != null && (post.auditScore ?? 0) < 50 && (
                       <span className="ml-1 text-[9px] font-bold uppercase tracking-wide bg-primary/20 text-primary rounded px-1 py-0.5">Recommended</span>
                     )}
                   </span>
-                  <span className="text-[11px] text-muted-foreground">AI rebuilds the entire post from scratch targeting all 16 SEO points. Best for posts scoring below 8/16 or where the original content needs a complete overhaul.</span>
+                  <span className="text-[11px] text-muted-foreground">AI rebuilds the entire post from scratch targeting all SEO points. Best for posts scoring below 50/100 or where the original content needs a complete overhaul.</span>
                   <span className="text-[10px] text-muted-foreground mt-0.5">1 Credit</span>
                 </button>
               </div>
@@ -997,7 +997,7 @@ function RewriteModal({
                 <div>
                   <div className="font-semibold mb-0.5">Needs Manual Review</div>
                   <div className="text-xs">
-                    {rewriteResult.message ?? "The rewrite scored below 13/16 after two attempts. Your credit has been refunded."}
+                    {rewriteResult.message ?? "The rewrite scored below 80/100 after two attempts. Your credit has been refunded."}
                   </div>
                 </div>
               </div>
@@ -1007,7 +1007,7 @@ function RewriteModal({
                 <div>
                   <div className="font-semibold mb-0.5">Rewrite Complete</div>
                   <div className="text-xs">
-                    Scored {rewriteResult.rewriteScore}/16
+                    Scored {rewriteResult.rewriteScore}/100
                     ({GRADE_CONFIG[rewriteResult.rewriteGrade]?.label ?? rewriteResult.rewriteGrade}).
                     The rewritten content is ready to review.
                   </div>
@@ -1189,7 +1189,7 @@ function PostContentPanel({
             )}
             {post?.auditScore !== null && post?.auditScore !== undefined && (
               <span className="text-xs font-semibold text-foreground">
-                {post.auditScore}/16
+                {post.auditScore}/100
               </span>
             )}
             {post?.url && (
@@ -1313,7 +1313,7 @@ export default function PostList() {
           setSavingKeywordId(null);
           refetch();
           if (result.rescored) {
-            toast.success(`Keyword saved and SEO score updated to ${result.score}/16 (${result.grade?.replace("_", " ")}).`);
+            toast.success(`Keyword saved and SEO score updated to ${result.score}/100 (${result.grade?.replace("_", " ")}).`);
           } else {
             toast.success("Keyword saved. Run an audit to update the SEO score.");
           }
@@ -1594,7 +1594,7 @@ export default function PostList() {
           refetch();
           setExpandedAuditPostId(post.id);
           toast.success(
-            `Audit complete — ${result.score}/16 (${GRADE_CONFIG[result.grade]?.label ?? result.grade})`
+            `Audit complete — ${result.score}/100 (${GRADE_CONFIG[result.grade]?.label ?? result.grade})`
           );
         },
         onError: () => {
@@ -1645,7 +1645,7 @@ export default function PostList() {
             );
           } else {
             toast.success(
-              `Rewrite complete — ${result.rewriteScore}/16 (${GRADE_CONFIG[result.rewriteGrade]?.label ?? result.rewriteGrade})`
+              `Rewrite complete — ${result.rewriteScore}/100 (${GRADE_CONFIG[result.rewriteGrade]?.label ?? result.rewriteGrade})`
             );
           }
         },
@@ -2139,7 +2139,7 @@ export default function PostList() {
                       <div className="shrink-0 flex flex-col items-end gap-0.5">
                         <div className="flex items-center gap-1.5">
                           <span className="text-xs font-bold text-foreground">
-                            {post.auditScore}/16
+                            {post.auditScore}/100
                           </span>
                           <GradeBadge grade={post.auditGrade} />
                         </div>
@@ -2370,7 +2370,7 @@ export default function PostList() {
                 onSuccess: (result) => {
                   refetch();
                   toast.success(
-                    `Audit updated — ${result.score}/16 (${GRADE_CONFIG[result.grade]?.label ?? result.grade})`
+                    `Audit updated — ${result.score}/100 (${GRADE_CONFIG[result.grade]?.label ?? result.grade})`
                   );
                 },
               }

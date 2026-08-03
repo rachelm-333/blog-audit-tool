@@ -27,8 +27,7 @@ import {
 import { detectCannibalisation, detectKeywordWithAI, extractKeywordFromTitle, suggestKeywordsForPost } from "../keyword.service";
 import { getPostForAudit, saveAuditResults } from "../audit.db";
 import type { AuditResultsJson } from "../audit.db";
-import { runMechanicalChecks, scoreToGrade } from "../audit.service";
-import type { AuditPoint } from "../audit.service";
+import { runFullAudit, scoreToGrade } from "../audit.service";
 
 // ---------------------------------------------------------------------------
 // Ownership helpers
@@ -416,46 +415,24 @@ export const keywordRouter = router({
         return { success: true, rescored: false };
       }
 
-      // 4. Re-run mechanical checks with the new keyword
-      const mechanicalPoints = runMechanicalChecks({
-        title: auditPost.title,
+      // 4. Re-run full audit with the new keyword
+      const business = await getBusinessById(auditPost.businessId);
+      const result = await runFullAudit({
         bodyHtml: auditPost.bodyOriginal ?? "",
-        url: auditPost.url ?? "",
         focusKeyword: input.keyword,
+        url: auditPost.url ?? "",
         metaTitle: auditPost.metaTitleOriginal ?? null,
         metaDescription: auditPost.metaDescriptionOriginal ?? null,
+        schemaJson: (auditPost as any).schemaJson as object | null | undefined,
+        primaryCtaUrl: business?.primaryCtaUrl,
       });
+      const score = result.normalized_score;
+      const grade = result.grade;
+      const potentialScore = result.applicable_max;
 
-      // 5. Extract stored AI points from the previous audit results
-      const storedResults = auditPost.auditResults as unknown as AuditResultsJson;
-      const aiPointIds = new Set(["P9", "P10", "P11", "P12", "P14", "P15"]);
-      const storedAiPoints: AuditPoint[] = (storedResults?.points ?? []).filter(
-        (p: AuditPoint) => aiPointIds.has(p.point)
-      );
-
-      // 6. Merge mechanical + AI points in P1–P16 order
-      const byPoint: Record<string, AuditPoint> = {};
-      for (const p of [...mechanicalPoints, ...storedAiPoints]) {
-        byPoint[p.point] = p;
-      }
-      const allPoints: AuditPoint[] = [];
-      for (let i = 1; i <= 16; i++) {
-        const key = `P${i}`;
-        if (byPoint[key]) allPoints.push(byPoint[key]);
-      }
-
-      // 7. Compute new score and grade
-      const score = allPoints.filter(
-        (p) => p.status === "pass" || p.status === "na"
-      ).length;
-      const grade = scoreToGrade(score);
-      const potentialScore = allPoints.filter(
-        (p) => p.status === "pass" || p.status === "na" || p.status === "unable_to_score"
-      ).length;
-
-      // 8. Persist updated audit results
-      await saveAuditResults(input.postId, score, grade, {
-        points: allPoints,
+      // 5. Persist updated audit results
+      await saveAuditResults(input.postId, score, grade as any, {
+        points: result.points,
         potentialScore,
       });
 
@@ -465,7 +442,7 @@ export const keywordRouter = router({
         score,
         grade,
         potentialScore,
-        points: allPoints,
+        points: result.points,
       };
     }),
 

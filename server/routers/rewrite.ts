@@ -10,8 +10,8 @@
  *   1. Check credits_remaining > 0 (throw INSUFFICIENT_CREDITS if not)
  *   2. Deduct 1 credit before Pass 1
  *   3. Run full rewrite pipeline
- *   4. If rewrite_score < 13 → auto-retry once from Pass 1
- *   5. If retry also scores < 13 → refund 1 credit, set rewrite_status = needs_manual_review,
+ *   4. If rewrite_score < 80 → auto-retry once from Pass 1
+ *   5. If retry also scores < 80 → refund 1 credit, set rewrite_status = needs_manual_review,
  *      notify user
  *
  * Auth: publicProcedure + manual iauditUserId ownership validation.
@@ -103,7 +103,7 @@ export const rewriteRouter = router({
    *   3. Deduct 1 credit
    *   4. Set rewrite_status = 'running'
    *   5. Run Pass 1 → Mechanical Enforcement → Pass 2 → Schema → Re-score
-   *   6. If score < 13 → auto-retry once
+   *   6. If score < 80 → auto-retry once
    *   7. If retry also fails → refund credit, set needs_manual_review, notify user
    *   8. Save result
    */
@@ -256,8 +256,8 @@ export const rewriteRouter = router({
       // --- Deduct 1 credit — only after a successful rewrite result ---
       await deductCredit(input.iauditUserId, post.id);
 
-      // --- Auto-retry if score < 14 ---
-      if (rewriteResult.rewriteScore < 14) {
+      // --- Auto-retry if score < 80 ---
+      if (rewriteResult.rewriteScore < 80) {
         try {
           // CRITICAL: Use the failing points from the FIRST REWRITE audit result (fresh, not original).
           // The original pre-rewrite audit may have different failures than the rewrite output.
@@ -302,7 +302,7 @@ export const rewriteRouter = router({
             ? retryResult
             : rewriteResult;
 
-          if (bestResult.rewriteScore >= 14) {
+          if (bestResult.rewriteScore >= 80) {
             // Retry succeeded — save and return
             // saveRewriteResult sets rewriteStatus to awaiting_review automatically
             await saveRewriteResult(post.id, bestResult);
@@ -321,7 +321,7 @@ export const rewriteRouter = router({
             await setRewriteStatus(post.id, "needs_manual_review");
             await notifyOwner({
               title: "iAudit — Rewrite Needs Review",
-              content: `The rewrite for "${post.title}" scored ${bestResult.rewriteScore}/16 after two attempts. Credit refunded. The best version has been saved for manual review.`,
+              content: `The rewrite for "${post.title}" scored ${bestResult.rewriteScore}/100 after two attempts. Credit refunded. The best version has been saved for manual review.`,
             });
             return {
               success: true, // Still true — article IS delivered
@@ -330,7 +330,7 @@ export const rewriteRouter = router({
               needsManualReview: true,
               retried: true,
               message:
-                `The rewrite scored ${bestResult.rewriteScore}/16 after two attempts. Your credit has been refunded. The best version is shown below — please review and adjust the highlighted points before publishing.`,
+                `The rewrite scored ${bestResult.rewriteScore}/100 after two attempts. Your credit has been refunded. The best version is shown below — please review and adjust the highlighted points before publishing.`,
             };
           }
         } catch {
@@ -340,7 +340,7 @@ export const rewriteRouter = router({
           await setRewriteStatus(post.id, "needs_manual_review");
           await notifyOwner({
             title: "iAudit — Rewrite Needs Review",
-            content: `The auto-retry for "${post.title}" encountered an error. The first attempt (${rewriteResult.rewriteScore}/16) has been saved. Credit refunded.`,
+            content: `The auto-retry for "${post.title}" encountered an error. The first attempt (${rewriteResult.rewriteScore}/100) has been saved. Credit refunded.`,
           });
           return {
             success: true, // Article IS delivered — first attempt result
@@ -349,7 +349,7 @@ export const rewriteRouter = router({
             needsManualReview: true,
             retried: true,
             message:
-              `The rewrite scored ${rewriteResult.rewriteScore}/16. Your credit has been refunded. The best version is shown below — please review the highlighted points before publishing.`,
+              `The rewrite scored ${rewriteResult.rewriteScore}/100. Your credit has been refunded. The best version is shown below — please review the highlighted points before publishing.`,
           };
         }
       }
@@ -486,8 +486,8 @@ export const rewriteRouter = router({
           return;
         }
 
-        // Auto-retry once if score < 14
-        if (rewriteResult.rewriteScore < 14) {
+        // Auto-retry once if score < 80
+        if (rewriteResult.rewriteScore < 80) {
           try {
             const retryFailingPoints: string[] = [];
             if (rewriteResult.auditResult?.points) {
@@ -524,7 +524,7 @@ export const rewriteRouter = router({
         }
 
         await saveRewriteResult(post.id, rewriteResult);
-        const needsManualReview = rewriteResult.rewriteScore < 14;
+        const needsManualReview = rewriteResult.rewriteScore < 80;
         if (needsManualReview) {
           await refundCredit(input.iauditUserId, post.id);
           await setRewriteStatus(post.id, "needs_manual_review");

@@ -283,7 +283,7 @@ function buildPass1SystemPrompt(input: Pass1Input): string {
   const failingPointsText =
     input.failingPoints.length > 0
       ? `The following points are currently FAILING and must be addressed:\n${input.failingPoints.map((p) => `  - ${p}`).join("\n")}`
-      : "All 16 points are currently passing — preserve all of them.";
+      : "All audit points are currently passing — preserve all of them.";
 
   const secondaryKeywordsText =
     input.secondaryKeywords.length > 0
@@ -1904,13 +1904,13 @@ export async function runFullRewrite(params: {
 
   // --- Change 5: Score regression prevention ---
   // If the rewrite scores lower than the original, reject it and keep the original.
-  if (params.originalScore !== undefined && rewriteScore < params.originalScore - 1) {
+  if (params.originalScore !== undefined && rewriteScore < params.originalScore - 5) {
     console.warn(
-      `[Rewrite] Score regression detected — rewrite: ${rewriteScore}/16, original: ${params.originalScore}/16. Rejecting rewrite.`
+      `[Rewrite] Score regression detected — rewrite: ${rewriteScore}/100, original: ${params.originalScore}/100. Rejecting rewrite.`
     );
     throw new Error(
       `Rewrite quality check failed — the rewritten post scored lower than the original ` +
-      `(${rewriteScore}/16 vs ${params.originalScore}/16). The original has been kept. Please try again or use manual editing.`
+      `(${rewriteScore}/100 vs ${params.originalScore}/100). The original has been kept. Please try again or use manual editing.`
     );
   }
 

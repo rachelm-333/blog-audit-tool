@@ -19,13 +19,13 @@ import { posts } from "../drizzle/schema";
 // ---------------------------------------------------------------------------
 
 export interface DashboardStats {
-  /** Average audit_score across all audited posts (0–16), or null if none audited */
+  /** Average audit_score across all audited posts (0–100 scale), or null if none audited */
   healthScore: number | null;
   /** Corresponding grade label for healthScore */
   healthGrade: "optimised" | "strong" | "needs_work" | "poor" | "critical" | null;
   /**
    * Average additional points that could be gained if all Poor and Critical
-   * posts were rewritten to 15/16 (the minimum "Optimised" threshold is 15).
+   * posts were rewritten to 90/100 (the minimum "Optimised" threshold).
    * Shown as "+X pts".
    */
   scorePotential: number | null;
@@ -100,10 +100,11 @@ export type SortDir = "asc" | "desc";
 function scoreToGrade(
   avg: number
 ): "optimised" | "strong" | "needs_work" | "poor" | "critical" {
-  if (avg >= 15) return "optimised";
-  if (avg >= 13) return "strong";
-  if (avg >= 10) return "needs_work";
-  if (avg >= 6) return "poor";
+  // 0-100 scale
+  if (avg >= 90) return "optimised";
+  if (avg >= 75) return "strong";
+  if (avg >= 60) return "needs_work";
+  if (avg >= 40) return "poor";
   return "critical";
 }
 
@@ -180,7 +181,7 @@ export async function getDashboardStats(
     }
   }
 
-  // Health score = average audit score across all audited posts (0–16 scale)
+  // Health score = average audit score across all audited posts (0–100 scale)
   const healthScore =
     auditedPostCount > 0
       ? Math.round((scoreSum / auditedPostCount) * 10) / 10
@@ -189,15 +190,15 @@ export async function getDashboardStats(
   const healthGrade = healthScore !== null ? scoreToGrade(healthScore) : null;
 
   // Score potential: average additional points if all Poor/Critical posts were
-  // rewritten to 15/16 (the minimum Optimised threshold).
+  // rewritten to 90/100 (the minimum Optimised threshold on 0-100 scale).
   let scorePotential: number | null = null;
   let projectedHealthScore: number | null = null;
 
   if (auditedPostCount > 0 && poorAndCriticalCount > 0) {
-    // If we fix all poor/critical to 15, the new average becomes:
-    // (scoreSum - poorCriticalScoreSum + poorAndCriticalCount * 15) / auditedPostCount
+    // If we fix all poor/critical to 90, the new average becomes:
+    // (scoreSum - poorCriticalScoreSum + poorAndCriticalCount * 90) / auditedPostCount
     const projectedSum =
-      scoreSum - poorCriticalScoreSum + poorAndCriticalCount * 15;
+      scoreSum - poorCriticalScoreSum + poorAndCriticalCount * 90;
     const projected = projectedSum / auditedPostCount;
     projectedHealthScore = Math.round(projected * 10) / 10;
     scorePotential = Math.round((projected - (scoreSum / auditedPostCount)) * 10) / 10;
