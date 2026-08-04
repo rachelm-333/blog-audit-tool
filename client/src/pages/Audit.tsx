@@ -1,7 +1,7 @@
 /**
  * Audit.tsx — Layer 10: Free Public Audit Tool (/audit)
  *
- * Stage 1: URL input → 29-point audit results
+ * Stage 1: URL input → 27-point audit results
  * Stage 2: Free rewrite unlock form → rewrite delivery in 3 formats + Blog Batcher upsell
  *
  * No login required. Accessible to anyone.
@@ -599,7 +599,6 @@ function AuditResults({
               <span className="text-base flex-shrink-0">❌</span>
               <div>
                 <span className="text-xs font-bold text-white">{p.point} {p.name}</span>
-                <p className="text-xs text-[#8892A4] mt-0.5">{p.note}</p>
               </div>
             </div>
           ))}
@@ -734,7 +733,7 @@ export default function AuditPage() {
             <span className="text-[#4A90D9]">ranking on Google?</span>
           </h1>
           <p className="text-[#8892A4] text-base mb-8 max-w-lg mx-auto">
-            Paste any blog post URL and get an instant 29-point score with specific fixes.
+            Paste any blog post URL and get an instant 27-point score with specific fixes.
             Free, no account needed.
           </p>
 
@@ -769,7 +768,7 @@ export default function AuditPage() {
 
           {/* Trust signals */}
           <div className="flex items-center justify-center gap-6 mt-5 text-xs text-[#8892A4]">
-            <span>✓ 29-point SEO check</span>
+            <span>✓ 27-point SEO check</span>
             <span>✓ Instant results</span>
             <span>✓ No credit card</span>
           </div>
