@@ -118,11 +118,11 @@ const ARTICLES: Article[] = [
           </thead>
           <tbody className="space-y-1">
             {[
-              ["Great Score", "90–100", "Your post is fully optimised. Minor improvements only."],
-              ["Good Score", "75–89", "Good post. A few things to tighten up to reach the top."],
-              ["Needs a Refresh", "60–74", "Several issues. A targeted refresh will make a big difference."],
-              ["Needs Improvement", "40–59", "Many issues. This post needs significant work."],
-              ["Requires Full Rewrite", "0–39", "This post is unlikely to rank. A full rewrite is recommended."],
+              ["Great Score", "85–100", "Your post is fully optimised. Minor improvements only."],
+              ["Good Score", "70–84", "Good post. A few things to tighten up to reach the top."],
+              ["Needs a Refresh", "55–69", "Several issues. A targeted refresh will make a big difference."],
+              ["Needs Improvement", "35–54", "Many issues. This post needs significant work."],
+              ["Requires Full Rewrite", "0–34", "This post is unlikely to rank. A full rewrite is recommended."],
             ].map(([grade, score, meaning]) => (
               <tr key={grade} className="border-b border-border/50">
                 <td className="py-1 pr-4 font-medium">{grade}</td>

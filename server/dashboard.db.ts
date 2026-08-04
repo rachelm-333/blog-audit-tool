@@ -101,10 +101,10 @@ function scoreToGrade(
   avg: number
 ): "optimised" | "strong" | "needs_work" | "poor" | "critical" {
   // 0-100 scale
-  if (avg >= 90) return "optimised";
-  if (avg >= 75) return "strong";
-  if (avg >= 60) return "needs_work";
-  if (avg >= 40) return "poor";
+  if (avg >= 85) return "optimised";
+  if (avg >= 70) return "strong";
+  if (avg >= 55) return "needs_work";
+  if (avg >= 35) return "poor";
   return "critical";
 }
 

@@ -922,11 +922,11 @@ function RewriteModal({
               {/* Score-based recommendation hint */}
               {post?.auditScore != null && (
                 <div className={`rounded-md px-3 py-2 text-[11px] leading-relaxed mb-1 ${
-                  (post.auditScore ?? 0) < 50
+                  (post.auditScore ?? 0) < 55
                     ? "bg-orange-500/10 border border-orange-500/30 text-orange-400"
                     : "bg-sky-500/10 border border-sky-500/30 text-sky-400"
                 }`}>
-                  {(post.auditScore ?? 0) < 50
+                  {(post.auditScore ?? 0) < 55
                     ? `This post scores ${post.auditScore}/100 — we recommend a Full Rewrite to fix the structural issues.`
                     : `This post scores ${post.auditScore}/100 — we recommend Improve Writing to polish the language while keeping your content.`}
                 </div>

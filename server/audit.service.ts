@@ -213,10 +213,10 @@ export function extractInternalLinks(html: string, siteUrl: string, currentUrl?:
 export function scoreToGrade(
   score: number
 ): "optimised" | "strong" | "needs_work" | "poor" | "critical" {
-  if (score >= 90) return "optimised";
-  if (score >= 75) return "strong";
-  if (score >= 60) return "needs_work";
-  if (score >= 40) return "poor";
+  if (score >= 85) return "optimised";
+  if (score >= 70) return "strong";
+  if (score >= 55) return "needs_work";
+  if (score >= 35) return "poor";
   return "critical";
 }
 
