@@ -576,7 +576,6 @@ export async function applyFixers(
     metaDescription: out.metaDescription,
     hubKeyword: ctx.hubKeyword,
     isHub: ctx.isHub,
-    liveChecks: ctx.liveChecks,
     schemaJson: out.schemaJson,
     primaryCtaUrl: ctx.primaryCtaUrl,
   };
