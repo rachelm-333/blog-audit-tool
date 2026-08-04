@@ -17,7 +17,7 @@ import { useLocation } from "wouter";
 const features = [
   {
     icon: BarChart3,
-    title: "16-Point SEO Audit",
+    title: "29-Point SEO Audit",
     description:
       "Every post is scored against our Authority Standard — keyword density, meta tags, internal links, schema markup, and more.",
   },
@@ -54,7 +54,7 @@ const features = [
 ];
 
 const stats = [
-  { value: "16", label: "SEO checkpoints" },
+  { value: "29", label: "SEO checkpoints" },
   { value: "2×", label: "AI rewrite passes" },
   { value: "4", label: "CMS integrations" },
   { value: "< 60s", label: "per audit" },
@@ -133,7 +133,7 @@ export default function Home() {
 
           {/* Sub */}
           <p className="text-xl text-[var(--fg-3)] max-w-2xl mx-auto leading-relaxed">
-            iAudit audits every post against our 16-Point Authority Standard, rewrites the ones that fail, and pushes the result straight back to your CMS — all in minutes.
+            iAudit scores every post against our 29-point Authority Standard, rewrites the ones that fail, and pushes the result straight back to your CMS — all in minutes.
           </p>
 
           {/* CTAs */}
@@ -216,7 +216,7 @@ export default function Home() {
           <div className="grid md:grid-cols-4 gap-8">
             {[
               { step: "01", title: "Connect your CMS", desc: "Link WordPress, Wix, Shopify, or Webflow in under 2 minutes." },
-              { step: "02", title: "Run the audit", desc: "iAudit scores every post against 16 SEO checkpoints instantly." },
+              { step: "02", title: "Run the audit", desc: "iAudit scores every post against 29 SEO checkpoints instantly." },
               { step: "03", title: "Rewrite failing posts", desc: "One click triggers a two-pass AI rewrite that fixes every issue." },
               { step: "04", title: "Push back live", desc: "Approve the result and post it back to your CMS — done." },
             ].map((item) => (

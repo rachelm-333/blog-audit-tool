@@ -12,8 +12,8 @@ import { toast } from "sonner";
 import { Loader2, Eye, EyeOff, Zap, CheckCircle2 } from "lucide-react";
 
 const benefits = [
-  "16-point SEO audit on every post",
-  "Two-pass AI rewrite engine",
+  "29-point SEO audit — scored out of 100",
+  "AI rewrite engine fixes every failing check",
   "Direct CMS push-back (WordPress, Wix, Shopify, Webflow)",
   "Free audit on any URL — no account needed",
 ];
