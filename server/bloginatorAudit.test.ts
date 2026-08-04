@@ -63,7 +63,7 @@ const BAD_HTML = `
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe("AUDIT_RULES and AUDIT_MAX_POINTS", () => {
-  it("has 29 rules", () => expect(AUDIT_RULES).toHaveLength(29));
+  it("has 27 rules", () => expect(AUDIT_RULES).toHaveLength(27));
   it("sums to 100 points", () => expect(AUDIT_MAX_POINTS).toBe(100));
 });
 
@@ -74,7 +74,6 @@ describe("GOOD_HTML — fully optimised post", () => {
     url: "https://example.com/blog/brand-strategy-guide",
     hubKeyword: "brand strategy",
     isHub: true,
-    liveChecks: { coreWebVitalsPass: true, llmsTxtPresent: true },
   });
 
   it("scores ≥ 90 / 100", () => {
@@ -90,7 +89,6 @@ describe("GOOD_HTML — fully optimised post", () => {
   it("MAC-09 passes (hub keyword in anchor)", () => expect(checkMap["MAC-09"].passed).toBe(true));
   it("EAT-05 passes (.gov link)", () => expect(checkMap["EAT-05"].passed).toBe(true));
   it("EAT-06 passes (two external domains)", () => expect(checkMap["EAT-06"].passed).toBe(true));
-  it("MAC-13 passes (llmsTxt live check)", () => expect(checkMap["MAC-13"].passed).toBe(true));
 });
 
 describe("BAD_HTML — weak post", () => {

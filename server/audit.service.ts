@@ -55,7 +55,6 @@ export interface PostAuditInput {
   metaDescription: string | null;
   hubKeyword?: string | null;
   isHub?: boolean;
-  liveChecks?: { coreWebVitalsPass?: boolean; llmsTxtPresent?: boolean };
   schemaJson?: object | null;
   primaryCtaUrl?: string | null;
   secondaryCtaUrls?: string[];
@@ -82,26 +81,24 @@ const CHECK_DEFS: CheckDef[] = [
   { id: 'MAC-06', parameter: 'FAQPage Schema',                   phase: 'macro', maxPoints: 4 },
   { id: 'MAC-07', parameter: 'Organization Schema',              phase: 'macro', maxPoints: 2 },
   { id: 'MAC-08', parameter: 'Author / Person Schema',           phase: 'macro', maxPoints: 3 },
-  { id: 'MAC-09', parameter: 'Internal Pillar Link (hub keyword in anchor)', phase: 'macro', maxPoints: 5 },
-  { id: 'MAC-10', parameter: 'Internal Child Link (hub pages only)', phase: 'macro', maxPoints: 2 },
-  { id: 'MAC-11', parameter: 'Internal Sibling Link',            phase: 'macro', maxPoints: 2 },
-  { id: 'MAC-12', parameter: 'Core Web Vitals Pass',             phase: 'macro', maxPoints: 4 },
-  { id: 'MAC-13', parameter: 'llms.txt Present',                 phase: 'macro', maxPoints: 5 },
-  // Micro Architecture — 35 pts
+  { id: 'MAC-09', parameter: 'Internal Pillar Link (hub keyword in anchor)', phase: 'macro', maxPoints: 7 },
+  { id: 'MAC-10', parameter: 'Internal Child Link (hub pages only)', phase: 'macro', maxPoints: 3 },
+  { id: 'MAC-11', parameter: 'Internal Sibling Link',            phase: 'macro', maxPoints: 3 },
+  // Micro Architecture — 37 pts
   { id: 'MIC-01', parameter: 'Exactly One H1',                   phase: 'micro', maxPoints: 3 },
-  { id: 'MIC-02', parameter: 'Focus Keyword in H1',              phase: 'micro', maxPoints: 5 },
-  { id: 'MIC-03', parameter: 'H2s Are Questions (≥ 50%)',        phase: 'micro', maxPoints: 5 },
+  { id: 'MIC-02', parameter: 'Focus Keyword in H1',              phase: 'micro', maxPoints: 6 },
+  { id: 'MIC-03', parameter: 'H2s Are Questions (≥ 50%)',        phase: 'micro', maxPoints: 6 },
   { id: 'MIC-04', parameter: 'At Least One H3',                  phase: 'micro', maxPoints: 3 },
   { id: 'MIC-05', parameter: 'Direct Answer After H2 (≤ 60 words)', phase: 'micro', maxPoints: 5 },
   { id: 'MIC-06', parameter: 'List Present (ul or ol)',          phase: 'micro', maxPoints: 5 },
   { id: 'MIC-07', parameter: 'Comparison Data (table or bold-label list)', phase: 'micro', maxPoints: 4 },
   { id: 'MIC-08', parameter: 'No Paragraph Exceeds ~100 Words',  phase: 'micro', maxPoints: 5 },
-  // E-E-A-T & Voice — 25 pts
-  { id: 'EAT-01', parameter: 'Concrete Stats / Case Study Data', phase: 'eat', maxPoints: 5 },
+  // E-E-A-T & Voice — 28 pts
+  { id: 'EAT-01', parameter: 'Concrete Stats / Case Study Data', phase: 'eat', maxPoints: 6 },
   { id: 'EAT-02', parameter: 'First-Hand Experience Phrasing',   phase: 'eat', maxPoints: 4 },
   { id: 'EAT-03', parameter: 'Acknowledges Failed Approach',     phase: 'eat', maxPoints: 2 },
-  { id: 'EAT-04', parameter: 'Attributed Expert Blockquote',     phase: 'eat', maxPoints: 4 },
-  { id: 'EAT-05', parameter: 'Outbound Link to .gov or .edu',   phase: 'eat', maxPoints: 3 },
+  { id: 'EAT-04', parameter: 'Attributed Expert Blockquote',     phase: 'eat', maxPoints: 5 },
+  { id: 'EAT-05', parameter: 'Outbound Link to .gov or .edu',   phase: 'eat', maxPoints: 4 },
   { id: 'EAT-06', parameter: 'Two Unique External Domains',      phase: 'eat', maxPoints: 2 },
   { id: 'EAT-07', parameter: 'Majority Active Voice',            phase: 'eat', maxPoints: 2 },
   { id: 'EAT-08', parameter: 'No AI Buzzwords',                  phase: 'eat', maxPoints: 3 },
@@ -263,7 +260,7 @@ function makeCheck(
 // ---------------------------------------------------------------------------
 
 function runMechanicalCheckItems(input: PostAuditInput): AuditCheck[] {
-  const { bodyHtml, pageSource, focusKeyword, url, metaTitle, metaDescription, hubKeyword, isHub, liveChecks, schemaJson } = input;
+  const { bodyHtml, pageSource, focusKeyword, url, metaTitle, metaDescription, hubKeyword, isHub, schemaJson } = input;
   const schemaSource = pageSource || bodyHtml; // prefer full page HTML for schema detection
   const results: AuditCheck[] = [];
 
@@ -430,30 +427,6 @@ function runMechanicalCheckItems(input: PostAuditInput): AuditCheck[] {
         internalLinks.length > 0
           ? `${internalLinks.length} internal link(s) found.`
           : 'No internal links to other pages on the same domain found.'
-      ));
-    }
-  }
-
-  // ── MAC-12: Core Web Vitals pass (live check) ────────────────────────────
-  {
-    if (!liveChecks || liveChecks.coreWebVitalsPass === undefined) {
-      results.push(makeCheck('MAC-12', null, 'N/A — live check data not provided.'));
-    } else {
-      results.push(makeCheck('MAC-12',
-        liveChecks.coreWebVitalsPass,
-        liveChecks.coreWebVitalsPass ? 'Core Web Vitals pass.' : 'Core Web Vitals do not pass.'
-      ));
-    }
-  }
-
-  // ── MAC-13: llms.txt present (live check) ────────────────────────────────
-  {
-    if (!liveChecks || liveChecks.llmsTxtPresent === undefined) {
-      results.push(makeCheck('MAC-13', null, 'N/A — live check data not provided.'));
-    } else {
-      results.push(makeCheck('MAC-13',
-        liveChecks.llmsTxtPresent,
-        liveChecks.llmsTxtPresent ? 'llms.txt file detected.' : 'No llms.txt file detected.'
       ));
     }
   }

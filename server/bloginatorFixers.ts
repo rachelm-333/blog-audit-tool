@@ -47,8 +47,6 @@ export interface FixerContext {
   authorName?: string;
   /** schemaJson already stored on this post */
   schemaJson?: object | null;
-  /** Live check values (passed in; fixers can't change these) */
-  liveChecks?: { coreWebVitalsPass?: boolean; llmsTxtPresent?: boolean };
   /** Primary CTA URL for MAC-11 internal linking */
   primaryCtaUrl?: string | null;
 }
@@ -73,8 +71,6 @@ export interface FixerResult {
 
 const UNFIXABLE: Record<string, string> = {
   'MAC-01': 'URL structure cannot be changed after publishing. Ensure the slug uses subdirectories and no date segments.',
-  'MAC-12': 'Core Web Vitals are measured by Google PageSpeed Insights — fix performance issues in your CMS/hosting settings.',
-  'MAC-13': 'Add an /llms.txt file to your domain root to pass this AI-citation check.',
 };
 
 // ---------------------------------------------------------------------------

@@ -30,26 +30,24 @@ export const AUDIT_RULES: AuditRule[] = [
   { id: "MAC-06", parameter: "FAQPage Schema",                              phase: "macro", maxPoints: 4 },
   { id: "MAC-07", parameter: "Organization Schema",                         phase: "macro", maxPoints: 2 },
   { id: "MAC-08", parameter: "Author / Person Schema",                      phase: "macro", maxPoints: 3 },
-  { id: "MAC-09", parameter: "Internal Pillar Link (hub keyword in anchor)", phase: "macro", maxPoints: 5 },
-  { id: "MAC-10", parameter: "Internal Child Link (hub pages only)",        phase: "macro", maxPoints: 2 },
-  { id: "MAC-11", parameter: "Internal Sibling Link",                       phase: "macro", maxPoints: 2 },
-  { id: "MAC-12", parameter: "Core Web Vitals Pass",                        phase: "macro", maxPoints: 4 },
-  { id: "MAC-13", parameter: "llms.txt Present",                            phase: "macro", maxPoints: 5 },
+  { id: "MAC-09", parameter: "Internal Pillar Link (hub keyword in anchor)", phase: "macro", maxPoints: 7 },
+  { id: "MAC-10", parameter: "Internal Child Link (hub pages only)",        phase: "macro", maxPoints: 3 },
+  { id: "MAC-11", parameter: "Internal Sibling Link",                       phase: "macro", maxPoints: 3 },
   // Micro Architecture — 35 pts
   { id: "MIC-01", parameter: "Exactly One H1",                             phase: "micro", maxPoints: 3 },
-  { id: "MIC-02", parameter: "Focus Keyword in H1",                        phase: "micro", maxPoints: 5 },
-  { id: "MIC-03", parameter: "H2s Are Questions (≥ 50%)",                  phase: "micro", maxPoints: 5 },
+  { id: "MIC-02", parameter: "Focus Keyword in H1",                        phase: "micro", maxPoints: 6 },
+  { id: "MIC-03", parameter: "H2s Are Questions (≥ 50%)",                  phase: "micro", maxPoints: 6 },
   { id: "MIC-04", parameter: "At Least One H3",                            phase: "micro", maxPoints: 3 },
   { id: "MIC-05", parameter: "Direct Answer After H2 (≤ 60 words)",        phase: "micro", maxPoints: 5 },
   { id: "MIC-06", parameter: "List Present (ul or ol)",                    phase: "micro", maxPoints: 5 },
   { id: "MIC-07", parameter: "Comparison Data (table or bold-label list)", phase: "micro", maxPoints: 4 },
   { id: "MIC-08", parameter: "No Paragraph Exceeds ~100 Words",            phase: "micro", maxPoints: 5 },
   // E-E-A-T & Voice — 25 pts
-  { id: "EAT-01", parameter: "Concrete Stats / Case Study Data",           phase: "eat",   maxPoints: 5 },
+  { id: "EAT-01", parameter: "Concrete Stats / Case Study Data",           phase: "eat",   maxPoints: 6 },
   { id: "EAT-02", parameter: "First-Hand Experience Phrasing",             phase: "eat",   maxPoints: 4 },
   { id: "EAT-03", parameter: "Acknowledges Failed Approach",               phase: "eat",   maxPoints: 2 },
-  { id: "EAT-04", parameter: "Attributed Expert Blockquote",               phase: "eat",   maxPoints: 4 },
-  { id: "EAT-05", parameter: "Outbound Link to .gov or .edu",             phase: "eat",   maxPoints: 3 },
+  { id: "EAT-04", parameter: "Attributed Expert Blockquote",               phase: "eat",   maxPoints: 5 },
+  { id: "EAT-05", parameter: "Outbound Link to .gov or .edu",             phase: "eat",   maxPoints: 4 },
   { id: "EAT-06", parameter: "Two Unique External Domains",                phase: "eat",   maxPoints: 2 },
   { id: "EAT-07", parameter: "Majority Active Voice",                      phase: "eat",   maxPoints: 2 },
   { id: "EAT-08", parameter: "No AI Buzzwords",                            phase: "eat",   maxPoints: 3 },
@@ -69,10 +67,6 @@ export interface AuditHtmlParams {
   isHub?: boolean;
   metaTitle?: string | null;
   metaDescription?: string | null;
-  liveChecks?: {
-    coreWebVitalsPass?: boolean;
-    llmsTxtPresent?: boolean;
-  };
 }
 
 export interface AuditCheckResult {
@@ -192,7 +186,7 @@ const AI_BUZZWORDS = [
 // ---------------------------------------------------------------------------
 
 export function auditHtml(params: AuditHtmlParams): AuditResultSync {
-  const { html, primaryKeyword, url, hubKeyword, isHub, liveChecks } = params;
+  const { html, primaryKeyword, url, hubKeyword, isHub } = params;
   const kw = primaryKeyword;
 
   // Parse meta title and description from HTML if not provided
@@ -304,20 +298,6 @@ export function auditHtml(params: AuditHtmlParams): AuditResultSync {
     if (sm[1] !== currentPath) { siblingFound = true; break; }
   }
   siblingFound ? pass("MAC-11", "Internal sibling link found.") : fail("MAC-11", "No internal sibling link found.");
-
-  // MAC-12: Core Web Vitals (live check)
-  if (liveChecks?.coreWebVitalsPass !== undefined) {
-    liveChecks.coreWebVitalsPass ? pass("MAC-12", "Core Web Vitals pass.") : fail("MAC-12", "Core Web Vitals failing.");
-  } else {
-    na("MAC-12", "Live check not run.");
-  }
-
-  // MAC-13: llms.txt (live check)
-  if (liveChecks?.llmsTxtPresent !== undefined) {
-    liveChecks.llmsTxtPresent ? pass("MAC-13", "llms.txt present.") : fail("MAC-13", "llms.txt not found.");
-  } else {
-    na("MAC-13", "Live check not run.");
-  }
 
   // ── MICRO ARCHITECTURE ─────────────────────────────────────────────────────
 
