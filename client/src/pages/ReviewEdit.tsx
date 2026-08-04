@@ -157,7 +157,7 @@ function MetaTitleField({
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-foreground flex items-center">
+        <label className="text-sm font-medium text-[var(--fg-1)] flex items-center">
           Meta Title
           <HelpTooltip text="The Meta Title is the headline that appears in Google search results. It should be 50–60 characters long and include your focus keyword. Keep it clear and descriptive — this is what people see before they click." />
         </label>
@@ -169,7 +169,7 @@ function MetaTitleField({
                 ? "text-red-400 font-bold"
                 : isShort
                   ? "text-amber-400"
-                  : "text-muted-foreground"
+                  : "text-[var(--fg-3)]"
           }`}
         >
           {len}/60
@@ -181,7 +181,7 @@ function MetaTitleField({
       <Input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`bg-card border-border text-foreground ${
+        className={`bg-[var(--bg-card)] border-[var(--border-1)] text-[var(--fg-1)] ${
           isOver
             ? "border-red-500 focus-visible:ring-red-500"
             : isShort
@@ -213,7 +213,7 @@ function MetaDescriptionField({
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-foreground flex items-center">
+        <label className="text-sm font-medium text-[var(--fg-1)] flex items-center">
           Meta Description
           <HelpTooltip text="The Meta Description is the short paragraph that appears under your title in Google search results. It should be 140–160 characters and include your focus keyword. It does not directly affect your ranking, but a good description gets more people to click." />
         </label>
@@ -225,7 +225,7 @@ function MetaDescriptionField({
                 ? "text-red-400 font-bold"
                 : isShort
                   ? "text-amber-400"
-                  : "text-muted-foreground"
+                  : "text-[var(--fg-3)]"
           }`}
         >
           {len}/1000
@@ -238,7 +238,7 @@ function MetaDescriptionField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         rows={3}
-        className={`bg-card border-border text-foreground resize-none ${
+        className={`bg-[var(--bg-card)] border-[var(--border-1)] text-[var(--fg-1)] resize-none ${
           isOver
             ? "border-red-500 focus-visible:ring-red-500"
             : isShort
@@ -270,16 +270,16 @@ function ScoreComparison({
   return (
     <div className="space-y-1.5">
       <div className="flex items-center gap-2">
-        <div className="text-[10px] text-muted-foreground w-24 shrink-0">Before rewrite:</div>
+        <div className="text-[10px] text-[var(--fg-3)] w-24 shrink-0">Before rewrite:</div>
         {auditScore !== null && auditGrade ? (
           <GradeBadge grade={auditGrade} score={auditScore} />
         ) : (
-          <span className="text-xs text-muted-foreground">Not audited</span>
+          <span className="text-xs text-[var(--fg-3)]">Not audited</span>
         )}
       </div>
       {rewriteScore !== null && rewriteGrade && (
         <div className="flex items-center gap-2">
-          <div className="text-[10px] text-muted-foreground w-24 shrink-0">After AI rewrite:</div>
+          <div className="text-[10px] text-[var(--fg-3)] w-24 shrink-0">After AI rewrite:</div>
           <GradeBadge grade={rewriteGrade} score={rewriteScore} />
         </div>
       )}
@@ -319,10 +319,10 @@ function SeoScorePanel({
   );
 
   return (
-    <div className="bg-card border border-border rounded-lg overflow-hidden">
+    <div className="bg-[var(--bg-card)] border border-[var(--border-1)] rounded-[var(--r-md)] overflow-hidden">
       {/* Score header */}
       <div className="p-4 space-y-3">
-        <div className="text-sm font-semibold text-foreground">Current Score</div>
+        <div className="text-sm font-semibold text-[var(--fg-1)]">Current Score</div>
         {hasUnsavedChanges && (
           <div className="flex items-center gap-1.5 text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded px-2 py-1">
             <span>⚠</span>
@@ -333,13 +333,13 @@ function SeoScorePanel({
           <>
             <GradeBadge grade={currentGrade} score={currentScore} />
             {!hasUnsavedChanges && (
-              <p className="text-[10px] text-muted-foreground leading-tight">
+              <p className="text-[10px] text-[var(--fg-3)] leading-tight">
                 Score of the content in the editor. Updates when you save.
               </p>
             )}
           </>
         ) : (
-          <span className="text-xs text-muted-foreground">Save to run re-score</span>
+          <span className="text-xs text-[var(--fg-3)]">Save to run re-score</span>
         )}
         <Separator />
         <ScoreComparison
@@ -352,9 +352,9 @@ function SeoScorePanel({
 
       {/* 16-point breakdown */}
       {auditPoints.length > 0 && (
-        <div className="border-t border-border">
+        <div className="border-t border-[var(--border-1)]">
           <button
-            className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+            className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-semibold text-[var(--fg-3)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-inset)]/30 transition-colors"
             onClick={() => setExpanded((v) => !v)}
           >
             <span>Point Breakdown ({auditPoints.length})</span>
@@ -369,20 +369,20 @@ function SeoScorePanel({
               {/* Failing */}
               {failing.length > 0 && (
                 <div>
-                  <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 mt-1">
+                  <div className="text-[10px] font-semibold text-[var(--fg-3)] uppercase tracking-wide mb-1.5 mt-1">
                     Failing ({failing.length})
                   </div>
                   <div className="space-y-1.5">
                     {failing.map((p) => (
                       <div key={p.point}>
-                        <div className="flex items-start gap-2 bg-red-500/5 border border-red-500/20 rounded-lg px-2.5 py-2">
+                        <div className="flex items-start gap-2 bg-red-500/5 border border-red-500/20 rounded-[var(--r-md)] px-2.5 py-2">
                           <XCircle size={12} className="text-red-400 shrink-0 mt-0.5" />
                           <div className="min-w-0">
-                            <div className="text-xs font-semibold text-foreground leading-tight">
+                            <div className="text-xs font-semibold text-[var(--fg-1)] leading-tight">
                               {p.point} — {p.name}
                             </div>
                             {p.note && (
-                              <div className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
+                              <div className="text-[10px] text-[var(--fg-3)] mt-0.5 leading-snug">
                                 {p.note}
                               </div>
                             )}
@@ -390,25 +390,25 @@ function SeoScorePanel({
                         </div>
                         {/* P6 manual action callout */}
                         {p.point === "P6" && (
-                          <div className="mt-1 ml-1 bg-amber-500/8 border border-amber-500/30 rounded-lg px-2.5 py-2 space-y-1">
+                          <div className="mt-1 ml-1 bg-amber-500/8 border border-amber-500/30 rounded-[var(--r-md)] px-2.5 py-2 space-y-1">
                             <div className="flex items-center gap-1.5">
                               <AlertTriangle size={11} className="text-amber-400 shrink-0" />
                               <span className="text-[10px] font-semibold text-amber-400 uppercase tracking-wide">Manual action required after publishing</span>
                             </div>
-                            <p className="text-[10px] text-muted-foreground leading-snug">
-                              The URL slug cannot be changed here — it must be updated directly in your CMS after publishing. A keyword-rich slug looks like: <span className="font-mono text-foreground/80">/blog/your-focus-keyword-here</span>. Once updated, re-run the audit to confirm P6 passes.
+                            <p className="text-[10px] text-[var(--fg-3)] leading-snug">
+                              The URL slug cannot be changed here — it must be updated directly in your CMS after publishing. A keyword-rich slug looks like: <span className="font-mono text-[var(--fg-1)]/80">/blog/your-focus-keyword-here</span>. Once updated, re-run the audit to confirm P6 passes.
                             </p>
                           </div>
                         )}
                         {/* P12 manual action callout */}
                         {p.point === "P12" && (
-                          <div className="mt-1 ml-1 bg-amber-500/8 border border-amber-500/30 rounded-lg px-2.5 py-2 space-y-1">
+                          <div className="mt-1 ml-1 bg-amber-500/8 border border-amber-500/30 rounded-[var(--r-md)] px-2.5 py-2 space-y-1">
                             <div className="flex items-center gap-1.5">
                               <AlertTriangle size={11} className="text-amber-400 shrink-0" />
                               <span className="text-[10px] font-semibold text-amber-400 uppercase tracking-wide">Manual action required — internal linking</span>
                             </div>
-                            <p className="text-[10px] text-muted-foreground leading-snug">
-                              Add a link in the body to a related post that is already live and published. Follow the content hierarchy: <span className="font-semibold text-foreground/80">Cluster → Pillar → Cornerstone</span>. Cluster posts link up to their pillar; pillar posts link up to the cornerstone. Never link to a draft or unpublished page — broken links hurt SEO.
+                            <p className="text-[10px] text-[var(--fg-3)] leading-snug">
+                              Add a link in the body to a related post that is already live and published. Follow the content hierarchy: <span className="font-semibold text-[var(--fg-1)]/80">Cluster → Pillar → Cornerstone</span>. Cluster posts link up to their pillar; pillar posts link up to the cornerstone. Never link to a draft or unpublished page — broken links hurt SEO.
                             </p>
                           </div>
                         )}
@@ -421,18 +421,18 @@ function SeoScorePanel({
               {/* Unable to score */}
               {unscored.length > 0 && (
                 <div>
-                  <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 mt-1">
+                  <div className="text-[10px] font-semibold text-[var(--fg-3)] uppercase tracking-wide mb-1.5 mt-1">
                     Unable to Score ({unscored.length})
                   </div>
                   <div className="space-y-1.5">
                     {unscored.map((p) => (
                       <div
                         key={p.point}
-                        className="flex items-start gap-2 bg-amber-500/5 border border-amber-500/20 rounded-lg px-2.5 py-2"
+                        className="flex items-start gap-2 bg-amber-500/5 border border-amber-500/20 rounded-[var(--r-md)] px-2.5 py-2"
                       >
                         <AlertTriangle size={12} className="text-amber-400 shrink-0 mt-0.5" />
                         <div className="min-w-0">
-                          <div className="text-xs font-semibold text-foreground leading-tight">
+                          <div className="text-xs font-semibold text-[var(--fg-1)] leading-tight">
                             {p.point} — {p.name}
                           </div>
                         </div>
@@ -445,20 +445,20 @@ function SeoScorePanel({
               {/* Passing */}
               {passing.length > 0 && (
                 <div>
-                  <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 mt-1">
+                  <div className="text-[10px] font-semibold text-[var(--fg-3)] uppercase tracking-wide mb-1.5 mt-1">
                     Passing ({passing.length})
                   </div>
                   <div className="space-y-1">
                     {passing.map((p) => (
                       <div
                         key={p.point}
-                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-emerald-500/5 border border-emerald-500/15"
+                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-[var(--r-md)] bg-emerald-500/5 border border-emerald-500/15"
                       >
                         <CheckCircle2 size={12} className="text-emerald-400 shrink-0" />
-                        <div className="text-xs text-foreground leading-tight">
+                        <div className="text-xs text-[var(--fg-1)] leading-tight">
                           {p.point} — {p.name}
                           {p.status === "na" && (
-                            <span className="text-muted-foreground font-normal ml-1">(N/A)</span>
+                            <span className="text-[var(--fg-3)] font-normal ml-1">(N/A)</span>
                           )}
                         </div>
                       </div>
@@ -480,7 +480,7 @@ function SeoScorePanel({
 function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
   if (!editor) return null;
   return (
-    <div className="flex flex-wrap gap-1 p-2 border-b border-border bg-card/50">
+    <div className="flex flex-wrap gap-1 p-2 border-b border-[var(--border-1)] bg-[var(--bg-card)]/50">
       {[
         {
           label: "B",
@@ -540,8 +540,8 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
           onClick={btn.action}
           className={`px-2 py-1 text-xs rounded font-mono transition-colors ${
             btn.active
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted text-muted-foreground hover:bg-muted/80"
+              ? "bg-[var(--volt)] text-[var(--ink)]-foreground"
+              : "bg-[var(--bg-inset)] text-[var(--fg-3)] hover:bg-[var(--bg-inset)]/80"
           }`}
         >
           {btn.label}
@@ -604,26 +604,26 @@ function PostBackConfirmation({
               <PartyPopper size={32} className="text-emerald-400" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-foreground">
+          <h1 className="text-2xl font-bold text-[var(--fg-1)]">
             Post published successfully!
           </h1>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-[var(--fg-3)] text-sm">
             Your optimised content is now live on your website.
           </p>
         </div>
 
         {/* Post details card */}
-        <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+        <div className="bg-[var(--bg-card)] border border-[var(--border-1)] rounded-[var(--r-md)] p-5 space-y-4">
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground uppercase tracking-wide">
+            <div className="text-xs text-[var(--fg-3)] uppercase tracking-wide">
               Post
             </div>
-            <div className="font-semibold text-foreground">{postTitle}</div>
+            <div className="font-semibold text-[var(--fg-1)]">{postTitle}</div>
           </div>
 
           {rewriteScore !== null && rewriteGrade && (
             <div className="space-y-1">
-              <div className="text-xs text-muted-foreground uppercase tracking-wide">
+              <div className="text-xs text-[var(--fg-3)] uppercase tracking-wide">
                 Final SEO Score
               </div>
               <GradeBadge grade={rewriteGrade} score={rewriteScore} />
@@ -631,7 +631,7 @@ function PostBackConfirmation({
           )}
 
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground uppercase tracking-wide">
+            <div className="text-xs text-[var(--fg-3)] uppercase tracking-wide">
               Live URL
             </div>
             <a
@@ -656,7 +656,7 @@ function PostBackConfirmation({
 
         {/* Image placement notice — shown whenever the post had images */}
         {hasImages && (
-          <div className="bg-blue-500/5 border border-blue-500/30 rounded-xl p-4 flex items-start gap-3">
+          <div className="bg-[var(--volt)]/100/5 border border-blue-500/30 rounded-[var(--r-md)] p-4 flex items-start gap-3">
             <div className="mt-0.5 shrink-0 text-blue-400">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
             </div>
@@ -670,7 +670,7 @@ function PostBackConfirmation({
 
         {/* Schema fallback — shown if injection failed */}
         {!schemaInjected && schemaFallbackJson && (
-          <div className="bg-amber-500/5 border border-amber-500/30 rounded-xl p-5 space-y-3">
+          <div className="bg-amber-500/5 border border-amber-500/30 rounded-[var(--r-md)] p-5 space-y-3">
             <div className="flex items-start gap-2">
               <AlertTriangle
                 size={14}
@@ -682,7 +682,7 @@ function PostBackConfirmation({
               </p>
             </div>
             <div className="relative">
-              <pre className="text-[10px] text-muted-foreground bg-muted/30 rounded p-3 overflow-auto max-h-48 whitespace-pre-wrap break-all font-mono">
+              <pre className="text-[10px] text-[var(--fg-3)] bg-[var(--bg-inset)]/30 rounded p-3 overflow-auto max-h-48 whitespace-pre-wrap break-all font-mono">
                 {schemaFallbackJson}
               </pre>
               <Button
@@ -708,14 +708,14 @@ function PostBackConfirmation({
 
         {/* Blog Batcher upsell — shown when credits = 0 */}
         {showBlogBatcherUpsell && (
-          <div className="bg-blue-500/5 border border-blue-500/30 rounded-xl p-5 space-y-3">
+          <div className="bg-[var(--volt)]/100/5 border border-blue-500/30 rounded-[var(--r-md)] p-5 space-y-3">
             <div className="text-sm font-semibold text-blue-300">
               You've used all your credits
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-[var(--fg-3)]">
               All your existing posts are now optimised. Ready to create
               brand-new, SEO-optimised posts from scratch?{" "}
-              <strong className="text-foreground">Blog Batcher</strong> is
+              <strong className="text-[var(--fg-1)]">Blog Batcher</strong> is
               Noize's companion tool for building high-converting blog content
               from the start.
             </p>
@@ -733,32 +733,32 @@ function PostBackConfirmation({
 
         {/* P6 manual action banner */}
         {p6Failing && (
-          <div className="bg-amber-500/8 border border-amber-500/40 rounded-xl p-4 space-y-2">
+          <div className="bg-amber-500/8 border border-amber-500/40 rounded-[var(--r-md)] p-4 space-y-2">
             <div className="flex items-center gap-2">
               <AlertTriangle size={14} className="text-amber-400 shrink-0" />
               <span className="text-sm font-semibold text-amber-300">Action needed — Update the URL slug in your CMS</span>
             </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              <strong className="text-foreground">P6 (Keyword in URL)</strong> is still failing. The URL slug must be updated manually in your CMS — it cannot be changed from here. A keyword-rich slug improves click-through rates and signals relevance to search engines.
+            <p className="text-xs text-[var(--fg-3)] leading-relaxed">
+              <strong className="text-[var(--fg-1)]">P6 (Keyword in URL)</strong> is still failing. The URL slug must be updated manually in your CMS — it cannot be changed from here. A keyword-rich slug improves click-through rates and signals relevance to search engines.
             </p>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Example: change <span className="font-mono text-foreground/70">/blog/post-123</span> to <span className="font-mono text-foreground/70">/blog/your-focus-keyword</span>. After updating, re-run the audit in iAudit to confirm P6 passes.
+            <p className="text-xs text-[var(--fg-3)] leading-relaxed">
+              Example: change <span className="font-mono text-[var(--fg-1)]/70">/blog/post-123</span> to <span className="font-mono text-[var(--fg-1)]/70">/blog/your-focus-keyword</span>. After updating, re-run the audit in iAudit to confirm P6 passes.
             </p>
           </div>
         )}
 
         {/* P12 manual action banner */}
         {p12Failing && (
-          <div className="bg-amber-500/8 border border-amber-500/40 rounded-xl p-4 space-y-2">
+          <div className="bg-amber-500/8 border border-amber-500/40 rounded-[var(--r-md)] p-4 space-y-2">
             <div className="flex items-center gap-2">
               <AlertTriangle size={14} className="text-amber-400 shrink-0" />
               <span className="text-sm font-semibold text-amber-300">Action needed — Add an internal blog link</span>
             </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              <strong className="text-foreground">P12 (Internal Blog Link)</strong> is still failing. Go back and add a link in the body to a related post that is <strong className="text-foreground">already live and published</strong>. Linking to a draft or unpublished page creates a broken link and hurts SEO.
+            <p className="text-xs text-[var(--fg-3)] leading-relaxed">
+              <strong className="text-[var(--fg-1)]">P12 (Internal Blog Link)</strong> is still failing. Go back and add a link in the body to a related post that is <strong className="text-[var(--fg-1)]">already live and published</strong>. Linking to a draft or unpublished page creates a broken link and hurts SEO.
             </p>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Follow the content hierarchy: <strong className="text-foreground">Cluster → Pillar → Cornerstone</strong>. A cluster post should link up to its pillar page; a pillar post should link up to the cornerstone. This structure passes authority upward and strengthens the whole topic cluster.
+            <p className="text-xs text-[var(--fg-3)] leading-relaxed">
+              Follow the content hierarchy: <strong className="text-[var(--fg-1)]">Cluster → Pillar → Cornerstone</strong>. A cluster post should link up to its pillar page; a pillar post should link up to the cornerstone. This structure passes authority upward and strengthens the whole topic cluster.
             </p>
           </div>
         )}
@@ -802,14 +802,14 @@ function PartialFailureAlert({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-6">
-      <div className="max-w-md w-full bg-[#16213E] border border-amber-500/40 rounded-xl p-6 space-y-4">
+      <div className="max-w-md w-full bg-[#16213E] border border-amber-500/40 rounded-[var(--r-md)] p-6 space-y-4">
         <div className="flex items-start gap-3">
           <AlertTriangle size={20} className="text-amber-400 mt-0.5 shrink-0" />
           <div className="space-y-1">
-            <div className="font-semibold text-foreground">
+            <div className="font-semibold text-[var(--fg-1)]">
               Partial post-back
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-[var(--fg-3)]">
               Post body updated successfully, but meta title and meta description
               could not be written. Please update them manually in your CMS.
             </p>
@@ -818,9 +818,9 @@ function PartialFailureAlert({
 
         <div className="space-y-3">
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">Meta Title</div>
+            <div className="text-xs text-[var(--fg-3)]">Meta Title</div>
             <div className="flex items-center gap-2">
-              <code className="flex-1 text-xs bg-muted/30 rounded px-2 py-1 text-foreground break-all">
+              <code className="flex-1 text-xs bg-[var(--bg-inset)]/30 rounded px-2 py-1 text-[var(--fg-1)] break-all">
                 {metaTitle}
               </code>
               <Button
@@ -843,11 +843,11 @@ function PartialFailureAlert({
           </div>
 
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">
+            <div className="text-xs text-[var(--fg-3)]">
               Meta Description
             </div>
             <div className="flex items-start gap-2">
-              <code className="flex-1 text-xs bg-muted/30 rounded px-2 py-1 text-foreground break-all">
+              <code className="flex-1 text-xs bg-[var(--bg-inset)]/30 rounded px-2 py-1 text-[var(--fg-1)] break-all">
                 {metaDescription}
               </code>
               <Button
@@ -948,7 +948,7 @@ export default function ReviewEdit() {
     editorProps: {
       attributes: {
         class:
-          "prose prose-invert prose-sm max-w-none min-h-[400px] p-4 focus:outline-none text-foreground",
+          "prose prose-invert prose-sm max-w-none min-h-[400px] p-4 focus:outline-none text-[var(--fg-1)]",
       },
     },
   });
@@ -1302,7 +1302,7 @@ ${editor.getHTML()}
   if (!iauditUserId) {
     return (
       <div className="flex items-center justify-center py-16">
-        <p className="text-muted-foreground">
+        <p className="text-[var(--fg-3)]">
           Please log in to review posts.
         </p>
       </div>
@@ -1312,7 +1312,7 @@ ${editor.getHTML()}
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <Loader2 className="animate-spin text-primary" size={32} />
+        <Loader2 className="animate-spin text-[var(--ink)]" size={32} />
       </div>
     );
   }
@@ -1320,7 +1320,7 @@ ${editor.getHTML()}
   if (!post) {
     return (
       <div className="flex items-center justify-center py-16">
-        <p className="text-muted-foreground">Post not found.</p>
+        <p className="text-[var(--fg-3)]">Post not found.</p>
       </div>
     );
   }
@@ -1342,12 +1342,12 @@ ${editor.getHTML()}
       )}
 
       {/* Top bar */}
-      <div className="sticky top-0 z-30 bg-[#16213E] border-b border-border px-6 py-3 flex items-center justify-between gap-4">
+      <div className="sticky top-0 z-30 bg-[#16213E] border-b border-[var(--border-1)] px-6 py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <Button
             variant="ghost"
             size="sm"
-            className="gap-1 text-muted-foreground hover:text-foreground"
+            className="gap-1 text-[var(--fg-3)] hover:text-[var(--fg-1)]"
             onClick={() => navigate("/posts")}
           >
             <ArrowLeft size={14} />
@@ -1361,7 +1361,7 @@ ${editor.getHTML()}
 
         <div className="flex items-center gap-2 shrink-0">
           {/* Save status indicator */}
-          <span className="text-xs text-muted-foreground mr-1">
+          <span className="text-xs text-[var(--fg-3)] mr-1">
             {saveStatus === "saving" && (
               <span className="flex items-center gap-1">
                 <Loader2 size={12} className="animate-spin" /> Saving…
@@ -1383,7 +1383,7 @@ ${editor.getHTML()}
           <Button
             variant="outline"
             size="sm"
-            className="gap-1 text-xs text-slate-200 border-slate-600 hover:bg-slate-700 hover:text-white bg-slate-800"
+            className="gap-1 text-xs text-slate-200 border-slate-600 hover:bg-slate-700 hover:text-white bg-[var(--ink-80)]"
             onClick={handleExportPlainText}
             title="Export as plain text"
           >
@@ -1393,7 +1393,7 @@ ${editor.getHTML()}
           <Button
             variant="outline"
             size="sm"
-            className="gap-1 text-xs text-slate-200 border-slate-600 hover:bg-slate-700 hover:text-white bg-slate-800"
+            className="gap-1 text-xs text-slate-200 border-slate-600 hover:bg-slate-700 hover:text-white bg-[var(--ink-80)]"
             onClick={handleExportHtml}
             title="Export as HTML"
           >
@@ -1403,7 +1403,7 @@ ${editor.getHTML()}
           <Button
             variant="outline"
             size="sm"
-            className="gap-1 text-xs text-slate-200 border-slate-600 hover:bg-slate-700 hover:text-white bg-slate-800"
+            className="gap-1 text-xs text-slate-200 border-slate-600 hover:bg-slate-700 hover:text-white bg-[var(--ink-80)]"
             onClick={handleExportMarkdown}
             title="Export as Markdown"
           >
@@ -1415,7 +1415,7 @@ ${editor.getHTML()}
           <Button
             variant="outline"
             size="sm"
-            className="gap-1 text-xs text-slate-200 border-slate-600 hover:bg-slate-700 hover:text-white bg-slate-800"
+            className="gap-1 text-xs text-slate-200 border-slate-600 hover:bg-slate-700 hover:text-white bg-[var(--ink-80)]"
             onClick={handleSave}
             disabled={saveStatus === "saving"}
           >
@@ -1470,7 +1470,7 @@ ${editor.getHTML()}
         <div className="space-y-5">
           {/* Regression warnings */}
           {warnings.length > 0 && (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 space-y-1">
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-[var(--r-md)] p-4 space-y-1">
               <div className="flex items-center gap-2 text-amber-400 font-semibold text-sm">
                 <AlertTriangle size={14} />
                 Your edit has introduced SEO regressions
@@ -1494,28 +1494,28 @@ ${editor.getHTML()}
 
           {/* Body editor */}
           <div className="space-y-1">
-            <label className="text-sm font-medium text-foreground">
+            <label className="text-sm font-medium text-[var(--fg-1)]">
               Post Body
             </label>
-            <div className="border border-border rounded-lg overflow-hidden bg-card">
+            <div className="border border-[var(--border-1)] rounded-[var(--r-md)] overflow-hidden bg-[var(--bg-card)]">
               <EditorToolbar editor={editor} />
               <EditorContent editor={editor} />
             </div>
           </div>
 
           {/* AI Edit Window */}
-          <div className="bg-card border border-border rounded-lg overflow-hidden">
-            <div className="px-4 py-3 border-b border-border flex items-center gap-2">
-              <ChevronRight size={14} className="text-primary" />
-              <span className="text-sm font-semibold text-foreground">AI Edit</span>
-              <span className="text-xs text-muted-foreground ml-1">— type an instruction and AI will apply it to the article</span>
+          <div className="bg-[var(--bg-card)] border border-[var(--border-1)] rounded-[var(--r-md)] overflow-hidden">
+            <div className="px-4 py-3 border-b border-[var(--border-1)] flex items-center gap-2">
+              <ChevronRight size={14} className="text-[var(--ink)]" />
+              <span className="text-sm font-semibold text-[var(--fg-1)]">AI Edit</span>
+              <span className="text-xs text-[var(--fg-3)] ml-1">— type an instruction and AI will apply it to the article</span>
             </div>
             <div className="p-4 space-y-3">
               <Textarea
                 value={aiInstruction}
                 onChange={(e) => setAiInstruction(e.target.value)}
                 placeholder='e.g. "Restore the original FAQ section" or "Make the intro paragraph more conversational" or "Add a transition sentence between the second and third sections"'
-                className="bg-card border-border text-foreground text-sm min-h-[80px] resize-none"
+                className="bg-[var(--bg-card)] border-[var(--border-1)] text-[var(--fg-1)] text-sm min-h-[80px] resize-none"
                 disabled={aiEditing}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -1525,7 +1525,7 @@ ${editor.getHTML()}
                 }}
               />
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-[var(--fg-3)]">
                   {aiInstruction.length}/1000 · Ctrl+Enter to apply
                 </span>
                 <Button
@@ -1548,7 +1548,7 @@ ${editor.getHTML()}
                 </Button>
               </div>
               {aiEditing && (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-[var(--fg-3)]">
                   AI is editing the article… this may take 15–30 seconds.
                 </p>
               )}
@@ -1558,13 +1558,13 @@ ${editor.getHTML()}
           {/* Image alt texts */}
           {imageAlts.length > 0 && (
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
+              <label className="text-sm font-medium text-[var(--fg-1)]">
                 Image Alt Texts ({imageAlts.length})
               </label>
               <div className="space-y-2">
                 {imageAlts.map((alt, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground w-16 shrink-0">
+                    <span className="text-xs text-[var(--fg-3)] w-16 shrink-0">
                       Image {i + 1}
                     </span>
                     <Input
@@ -1574,7 +1574,7 @@ ${editor.getHTML()}
                         next[i] = e.target.value;
                         setImageAlts(next);
                       }}
-                      className="bg-card border-border text-foreground text-xs h-8"
+                      className="bg-[var(--bg-card)] border-[var(--border-1)] text-[var(--fg-1)] text-xs h-8"
                       placeholder={`Alt text for image ${i + 1}`}
                     />
                   </div>
@@ -1599,8 +1599,8 @@ ${editor.getHTML()}
           />
 
           {/* Post metadata (read-only) */}
-          <div className="bg-card border border-border rounded-lg p-4 space-y-3">
-            <div className="text-sm font-semibold text-foreground">
+          <div className="bg-[var(--bg-card)] border border-[var(--border-1)] rounded-[var(--r-md)] p-4 space-y-3">
+            <div className="text-sm font-semibold text-[var(--fg-1)]">
               Post Details
             </div>
             <div className="space-y-2 text-xs">
@@ -1608,10 +1608,10 @@ ${editor.getHTML()}
               <div className="flex items-start gap-2">
                 <ExternalLink
                   size={12}
-                  className="text-muted-foreground mt-0.5 shrink-0"
+                  className="text-[var(--fg-3)] mt-0.5 shrink-0"
                 />
                 <div className="min-w-0">
-                  <div className="text-muted-foreground mb-0.5">URL</div>
+                  <div className="text-[var(--fg-3)] mb-0.5">URL</div>
                   <a
                     href={post.url}
                     target="_blank"
@@ -1621,7 +1621,7 @@ ${editor.getHTML()}
                   >
                     {post.url}
                   </a>
-                  <div className="text-muted-foreground/60 text-[10px] mt-0.5">
+                  <div className="text-[var(--fg-3)]/60 text-[10px] mt-0.5">
                     Read-only · URL is never changed
                   </div>
                 </div>
@@ -1630,21 +1630,21 @@ ${editor.getHTML()}
               <div className="flex items-center gap-2">
                 <User
                   size={12}
-                  className="text-muted-foreground shrink-0"
+                  className="text-[var(--fg-3)] shrink-0"
                 />
                 <div>
-                  <span className="text-muted-foreground">Author: </span>
-                  <span className="text-foreground">{post.authorNameCms}</span>
+                  <span className="text-[var(--fg-3)]">Author: </span>
+                  <span className="text-[var(--fg-1)]">{post.authorNameCms}</span>
                 </div>
               </div>
               {/* Status */}
               <div className="flex items-center gap-2">
                 <FileText
                   size={12}
-                  className="text-muted-foreground shrink-0"
+                  className="text-[var(--fg-3)] shrink-0"
                 />
                 <div>
-                  <span className="text-muted-foreground">Status: </span>
+                  <span className="text-[var(--fg-3)]">Status: </span>
                   <Badge variant="outline" className="text-[10px] h-4 px-1">
                     {post.status}
                   </Badge>
@@ -1655,13 +1655,13 @@ ${editor.getHTML()}
                 <div className="flex items-center gap-2">
                   <Clock
                     size={12}
-                    className="text-muted-foreground shrink-0"
+                    className="text-[var(--fg-3)] shrink-0"
                   />
                   <div>
-                    <span className="text-muted-foreground">
+                    <span className="text-[var(--fg-3)]">
                       {post.scheduledDate ? "Scheduled: " : "Published: "}
                     </span>
-                    <span className="text-foreground">
+                    <span className="text-[var(--fg-1)]">
                       {formatDate(post.scheduledDate ?? post.publishDate)}
                     </span>
                   </div>
@@ -1672,14 +1672,14 @@ ${editor.getHTML()}
                 {editingKeyword ? (
                   <div className="space-y-2">
                     {/* Warning: keyword change updates scoring but not content */}
-                    <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-md px-3 py-2">
+                    <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-[var(--r-sm)] px-3 py-2">
                       <AlertTriangle size={12} className="text-amber-400 shrink-0 mt-0.5" />
                       <p className="text-[10px] text-amber-300 leading-snug">
                         Changing the keyword here will update the SEO scoring but will <strong>NOT</strong> rewrite the content. You can manually edit the content below to incorporate the new keyword.
                       </p>
                     </div>
                     <div>
-                      <label className="text-xs text-muted-foreground flex items-center mb-1">Focus Keyword <HelpTooltip text="Your focus keyword is the main phrase this post is trying to rank for in Google. Every post should have exactly one. iAudit checks that this keyword appears in the right places throughout your post." /></label>
+                      <label className="text-xs text-[var(--fg-3)] flex items-center mb-1">Focus Keyword <HelpTooltip text="Your focus keyword is the main phrase this post is trying to rank for in Google. Every post should have exactly one. iAudit checks that this keyword appears in the right places throughout your post." /></label>
                       <Input
                         value={keywordDraft}
                         onChange={(e) => setKeywordDraft(e.target.value)}
@@ -1689,7 +1689,7 @@ ${editor.getHTML()}
                       />
                     </div>
                     <div>
-                      <label className="text-xs text-muted-foreground flex items-center mb-1">Secondary Keywords <span className="font-normal ml-1">(comma-separated)</span><HelpTooltip text="Secondary keywords are related phrases that support your main focus keyword. Separate them with commas. iAudit weaves these into the rewritten post to help it appear in more searches without losing focus on the main topic." /></label>
+                      <label className="text-xs text-[var(--fg-3)] flex items-center mb-1">Secondary Keywords <span className="font-normal ml-1">(comma-separated)</span><HelpTooltip text="Secondary keywords are related phrases that support your main focus keyword. Separate them with commas. iAudit weaves these into the rewritten post to help it appear in more searches without losing focus on the main topic." /></label>
                       <Input
                         value={secondaryKeywordsDraft}
                         onChange={(e) => setSecondaryKeywordsDraft(e.target.value)}
@@ -1725,7 +1725,7 @@ ${editor.getHTML()}
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-muted-foreground text-xs">Keyword:</span>
+                    <span className="text-[var(--fg-3)] text-xs">Keyword:</span>
                     {post.focusKeyword ? (
                       <Badge variant="outline" className="text-[10px] h-4 px-1 text-violet-400 border-violet-400/40">
                         {post.focusKeyword}
@@ -1734,10 +1734,10 @@ ${editor.getHTML()}
                       <span className="text-xs text-amber-400">No keyword set</span>
                     )}
                     {Array.isArray(post.secondaryKeywords) && (post.secondaryKeywords as string[]).length > 0 && (
-                      <span className="text-xs text-muted-foreground">+{(post.secondaryKeywords as string[]).length} secondary</span>
+                      <span className="text-xs text-[var(--fg-3)]">+{(post.secondaryKeywords as string[]).length} secondary</span>
                     )}
                     <button
-                      className="text-xs text-primary hover:underline ml-auto"
+                      className="text-xs text-[var(--ink)] hover:underline ml-auto"
                       onClick={() => setEditingKeyword(true)}
                     >
                       Edit
@@ -1750,17 +1750,17 @@ ${editor.getHTML()}
 
           {/* Schema JSON preview — always shown when schema exists */}
           {!!post.schemaJson && (
-            <div className="bg-card border border-border rounded-lg p-4 space-y-2">
-              <div className="text-sm font-semibold text-foreground flex items-center">
+            <div className="bg-[var(--bg-card)] border border-[var(--border-1)] rounded-[var(--r-md)] p-4 space-y-2">
+              <div className="text-sm font-semibold text-[var(--fg-1)] flex items-center">
                 Schema Markup
                 <HelpTooltip text="Schema markup is invisible code that tells Google what your page is about. It can help your post appear with star ratings, FAQs, or other rich results in Google. iAudit generates this automatically and injects it when you post back to your website." />
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-[var(--fg-3)]">
                 iAudit will attempt to inject this schema automatically when you
                 post back. If injection fails, a copyable fallback will be shown.
               </p>
               <div className="relative">
-                <pre className="text-[10px] text-muted-foreground bg-muted/30 rounded p-3 overflow-auto max-h-48 whitespace-pre-wrap break-all">
+                <pre className="text-[10px] text-[var(--fg-3)] bg-[var(--bg-inset)]/30 rounded p-3 overflow-auto max-h-48 whitespace-pre-wrap break-all">
                   {JSON.stringify(post.schemaJson as Record<string, unknown>, null, 2)}
                 </pre>
                 <Button
@@ -1781,8 +1781,8 @@ ${editor.getHTML()}
           )}
 
           {/* Export section (mobile duplicate — always visible) */}
-          <div className="bg-card border border-border rounded-lg p-4 space-y-2 lg:hidden">
-            <div className="text-sm font-semibold text-foreground">Export</div>
+          <div className="bg-[var(--bg-card)] border border-[var(--border-1)] rounded-[var(--r-md)] p-4 space-y-2 lg:hidden">
+            <div className="text-sm font-semibold text-[var(--fg-1)]">Export</div>
             <div className="flex gap-2 flex-wrap">
               <Button
                 variant="outline"

@@ -80,20 +80,20 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className="min-h-screen bg-[var(--bg-page)] text-[var(--fg-1)] flex flex-col">
       {/* ── Nav ── */}
-      <header className="sticky top-0 z-50 border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <header className="sticky top-0 z-50 border-b border-[var(--border-1)]/60 bg-[var(--bg-page)]/95 backdrop-blur supports-[backdrop-filter]:bg-[var(--bg-page)]/80">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-sm">
+            <div className="h-8 w-8 rounded-[var(--r-md)] bg-[var(--volt)] flex items-center justify-center shadow-sm">
               <Zap className="h-4.5 w-4.5 text-white" />
             </div>
             <span className="font-bold text-lg tracking-tight">iAudit</span>
           </div>
-          <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
-            <a href="#features" className="hover:text-foreground transition-colors">Features</a>
-            <a href="#how-it-works" className="hover:text-foreground transition-colors">How it works</a>
-            <a href="/audit" className="hover:text-foreground transition-colors">Free Audit</a>
+          <nav className="hidden md:flex items-center gap-6 text-sm text-[var(--fg-3)]">
+            <a href="#features" className="hover:text-[var(--fg-1)] transition-colors">Features</a>
+            <a href="#how-it-works" className="hover:text-[var(--fg-1)] transition-colors">How it works</a>
+            <a href="/audit" className="hover:text-[var(--fg-1)] transition-colors">Free Audit</a>
           </nav>
           <div className="flex items-center gap-3">
             {!iauditLoading && (
@@ -103,7 +103,7 @@ export default function Home() {
                 </Button>
               ) : (
                 <>
-                  <Button variant="ghost" size="sm" onClick={() => setLocation("/login")} className="text-muted-foreground hover:text-foreground">
+                  <Button variant="ghost" size="sm" onClick={() => setLocation("/login")} className="text-[var(--fg-3)] hover:text-[var(--fg-1)]">
                     Sign in
                   </Button>
                   <Button size="sm" onClick={() => setLocation("/register")} className="btn-primary-glow">
@@ -126,13 +126,13 @@ export default function Home() {
           </div>
 
           {/* Headline */}
-          <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight leading-[1.1] text-foreground">
+          <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight leading-[1.1] text-[var(--fg-1)]">
             Get every blog post{" "}
-            <span className="text-primary">ranking on page one</span>
+            <span className="text-[var(--ink)]">ranking on page one</span>
           </h1>
 
           {/* Sub */}
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+          <p className="text-xl text-[var(--fg-3)] max-w-2xl mx-auto leading-relaxed">
             iAudit audits every post against our 16-Point Authority Standard, rewrites the ones that fail, and pushes the result straight back to your CMS — all in minutes.
           </p>
 
@@ -150,27 +150,27 @@ export default function Home() {
               size="lg"
               variant="outline"
               onClick={() => setLocation("/audit")}
-              className="h-12 px-8 text-base font-medium border-border hover:bg-accent"
+              className="h-12 px-8 text-base font-medium border-[var(--border-1)] hover:bg-accent"
             >
               Try free audit
             </Button>
           </div>
 
           {/* Trust line */}
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-[var(--fg-3)]">
             No credit card required · Free audit on any URL · Cancel anytime
           </p>
         </div>
       </section>
 
       {/* ── Stats ── */}
-      <section className="border-y border-border/60 bg-muted/40 py-12">
+      <section className="border-y border-[var(--border-1)]/60 bg-[var(--bg-inset)]/40 py-12">
         <div className="container">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             {stats.map((s) => (
               <div key={s.label} className="space-y-1">
-                <div className="text-3xl font-extrabold text-primary">{s.value}</div>
-                <div className="text-sm text-muted-foreground font-medium">{s.label}</div>
+                <div className="text-3xl font-extrabold text-[var(--ink)]">{s.value}</div>
+                <div className="text-sm text-[var(--fg-3)] font-medium">{s.label}</div>
               </div>
             ))}
           </div>
@@ -184,7 +184,7 @@ export default function Home() {
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
               Everything you need to rank
             </h2>
-            <p className="text-lg text-muted-foreground max-w-xl mx-auto">
+            <p className="text-lg text-[var(--fg-3)] max-w-xl mx-auto">
               From audit to publish — iAudit handles the entire SEO optimisation workflow.
             </p>
           </div>
@@ -192,13 +192,13 @@ export default function Home() {
             {features.map((f) => (
               <div
                 key={f.title}
-                className="group rounded-2xl border border-border/60 bg-card p-6 shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200"
+                className="group rounded-[var(--r-lg)] border border-[var(--border-1)]/60 bg-[var(--bg-card)] p-6 shadow-sm hover:shadow-md hover:border-[var(--ink)]/30 transition-all duration-200"
               >
-                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/15 transition-colors">
-                  <f.icon className="h-5 w-5 text-primary" />
+                <div className="h-10 w-10 rounded-[var(--r-md)] bg-[var(--volt)]/10 flex items-center justify-center mb-4 group-hover:bg-[var(--volt)]/15 transition-colors">
+                  <f.icon className="h-5 w-5 text-[var(--ink)]" />
                 </div>
-                <h3 className="font-semibold text-base mb-2 text-foreground">{f.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{f.description}</p>
+                <h3 className="font-semibold text-base mb-2 text-[var(--fg-1)]">{f.title}</h3>
+                <p className="text-sm text-[var(--fg-3)] leading-relaxed">{f.description}</p>
               </div>
             ))}
           </div>
@@ -206,7 +206,7 @@ export default function Home() {
       </section>
 
       {/* ── How it works ── */}
-      <section id="how-it-works" className="py-24 bg-muted/30 border-y border-border/60">
+      <section id="how-it-works" className="py-24 bg-[var(--bg-inset)]/30 border-y border-[var(--border-1)]/60">
         <div className="container">
           <div className="text-center mb-16 space-y-3">
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
@@ -221,11 +221,11 @@ export default function Home() {
               { step: "04", title: "Push back live", desc: "Approve the result and post it back to your CMS — done." },
             ].map((item) => (
               <div key={item.step} className="text-center space-y-3">
-                <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white font-bold text-sm shadow-md mx-auto">
+                <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[var(--volt)] text-white font-bold text-sm shadow-md mx-auto">
                   {item.step}
                 </div>
-                <h3 className="font-semibold text-base text-foreground">{item.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{item.desc}</p>
+                <h3 className="font-semibold text-base text-[var(--fg-1)]">{item.title}</h3>
+                <p className="text-sm text-[var(--fg-3)] leading-relaxed">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -235,11 +235,11 @@ export default function Home() {
       {/* ── CTA Banner ── */}
       <section className="py-24">
         <div className="container">
-          <div className="rounded-3xl bg-primary px-8 py-16 text-center text-white shadow-xl">
+          <div className="rounded-3xl bg-[var(--volt)] px-8 py-16 text-center text-white shadow-xl">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
               Ready to rank every post?
             </h2>
-            <p className="text-primary-foreground/80 text-lg mb-8 max-w-xl mx-auto">
+            <p className="text-[var(--ink)]-foreground/80 text-lg mb-8 max-w-xl mx-auto">
               Start with a free audit on any URL — no account required.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -247,7 +247,7 @@ export default function Home() {
                 size="lg"
                 variant="secondary"
                 onClick={handleCTA}
-                className="h-12 px-8 text-base font-semibold bg-white text-primary hover:bg-white/90"
+                className="h-12 px-8 text-base font-semibold bg-[var(--bg-[var(--bg-card)])] text-[var(--ink)] hover:bg-[var(--bg-[var(--bg-card)])]/90"
               >
                 {iauditAuthenticated ? "Go to Dashboard" : "Create free account"}
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -256,7 +256,7 @@ export default function Home() {
                 size="lg"
                 variant="ghost"
                 onClick={() => setLocation("/audit")}
-                className="h-12 px-8 text-base font-medium text-white hover:bg-white/10"
+                className="h-12 px-8 text-base font-medium text-white hover:bg-[var(--bg-[var(--bg-card)])]/10"
               >
                 Try free audit
               </Button>
@@ -266,20 +266,20 @@ export default function Home() {
       </section>
 
       {/* ── Footer ── */}
-      <footer className="border-t border-border/60 py-8">
-        <div className="container flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
+      <footer className="border-t border-[var(--border-1)]/60 py-8">
+        <div className="container flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-[var(--fg-3)]">
           <div className="flex items-center gap-2">
-            <div className="h-6 w-6 rounded-md bg-primary flex items-center justify-center">
+            <div className="h-6 w-6 rounded-[var(--r-sm)] bg-[var(--volt)] flex items-center justify-center">
               <Zap className="h-3.5 w-3.5 text-white" />
             </div>
-            <span className="font-semibold text-foreground">iAudit</span>
+            <span className="font-semibold text-[var(--fg-1)]">iAudit</span>
             <span className="text-border">·</span>
             <span>Blog Audit &amp; Rewrite Engine</span>
           </div>
           <div className="flex items-center gap-6">
-            <a href="/audit" className="hover:text-foreground transition-colors">Free Audit</a>
-            <a href="/support" className="hover:text-foreground transition-colors">Support</a>
-            <a href="https://blogbatcher.com.au" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Blog Batcher</a>
+            <a href="/audit" className="hover:text-[var(--fg-1)] transition-colors">Free Audit</a>
+            <a href="/support" className="hover:text-[var(--fg-1)] transition-colors">Support</a>
+            <a href="https://blogbatcher.com.au" target="_blank" rel="noopener noreferrer" className="hover:text-[var(--fg-1)] transition-colors">Blog Batcher</a>
           </div>
           <p>© {new Date().getFullYear()} Noize. All rights reserved.</p>
         </div>

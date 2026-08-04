@@ -122,7 +122,7 @@ function htmlToPlainText(html: string): string {
 
 function BlogBatcherBanner() {
   return (
-    <div className="mt-8 rounded-xl border border-[#2A3560] bg-gradient-to-r from-[#0D1B3E] to-[#16213E] p-6">
+    <div className="mt-8 rounded-[var(--r-md)] border border-[#2A3560] bg-gradient-to-r from-[#0D1B3E] to-[#16213E] p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-xs font-bold uppercase tracking-widest text-[#4A90D9] mb-1">
@@ -232,7 +232,7 @@ function Stage2Form({
   };
 
   return (
-    <div className="mt-6 rounded-xl border border-[#2E6DA4] bg-gradient-to-br from-[#1E3A5F] to-[#0D2040] p-6 sm:p-8">
+    <div className="mt-6 rounded-[var(--r-md)] border border-[#2E6DA4] bg-gradient-to-br from-[#1E3A5F] to-[#0D2040] p-6 sm:p-8">
       <div className="text-center mb-6">
         <div className="text-xl font-bold text-white mb-2">Fix this post for free</div>
         <div className="text-sm text-[#8892A4]">
@@ -306,7 +306,7 @@ function Stage2Form({
                 key={v}
                 type="button"
                 onClick={() => setBrandVoice(v)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                className={`px-3 py-1.5 rounded-[var(--r-md)] text-xs font-semibold border transition-all ${
                   brandVoice === v
                     ? "bg-[#2E6DA4] border-[#4A90D9] text-white"
                     : "bg-transparent border-[#2A3560] text-[#8892A4] hover:border-[#4A90D9] hover:text-white"
@@ -380,7 +380,7 @@ function RewriteDeliveryPanel({ result }: { result: RewriteDelivery }) {
   return (
     <div className="mt-6 space-y-4">
       {/* Before / after score */}
-      <div className="rounded-xl border border-[#2A3560] bg-[#16213E] p-5">
+      <div className="rounded-[var(--r-md)] border border-[#2A3560] bg-[#16213E] p-5">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
           <div className="text-center">
             <div className="text-xs text-[#8892A4] uppercase tracking-wide mb-1">Before</div>
@@ -404,7 +404,7 @@ function RewriteDeliveryPanel({ result }: { result: RewriteDelivery }) {
       </div>
 
       {/* Meta fields */}
-      <div className="rounded-xl border border-[#2A3560] bg-[#16213E] p-5 space-y-3">
+      <div className="rounded-[var(--r-md)] border border-[#2A3560] bg-[#16213E] p-5 space-y-3">
         <div className="text-xs font-bold uppercase tracking-wide text-[#8892A4] mb-2">
           Updated Meta Fields
         </div>
@@ -423,7 +423,7 @@ function RewriteDeliveryPanel({ result }: { result: RewriteDelivery }) {
       </div>
 
       {/* Rewritten body with format tabs */}
-      <div className="rounded-xl border border-[#2A3560] bg-[#16213E] overflow-hidden">
+      <div className="rounded-[var(--r-md)] border border-[#2A3560] bg-[#16213E] overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-[#2A3560]">
           <div className="flex gap-1">
             {(["html", "markdown", "plaintext"] as const).map((tab) => (
@@ -515,7 +515,7 @@ function AuditResults({
   return (
     <div className="max-w-2xl mx-auto mt-8 space-y-4">
       {/* Score summary */}
-      <div className={`rounded-xl border ${gradeColors.border} bg-[#16213E] p-6 text-center`}>
+      <div className={`rounded-[var(--r-md)] border ${gradeColors.border} bg-[#16213E] p-6 text-center`}>
         <div className={`text-4xl font-black ${grade === "poor" || grade === "critical" ? "text-[#F0A800]" : "text-[#22A064]"} mb-1`}>
           {score} / 100
         </div>
@@ -533,7 +533,7 @@ function AuditResults({
 
       {/* Keyword display — show auto-detected keyword or prompt to enter one */}
       {keywordConfirmed && !editingKeyword ? (
-        <div className="rounded-xl border border-[#1A4A2A] bg-[#0D2E1E] p-3 flex items-center justify-between gap-3">
+        <div className="rounded-[var(--r-md)] border border-[#1A4A2A] bg-[#0D2E1E] p-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-xs text-[#22A064] font-semibold uppercase tracking-wide flex-shrink-0">Focus Keyword</span>
             <span className="text-sm text-white font-medium truncate">{keyword}</span>
@@ -546,7 +546,7 @@ function AuditResults({
           </button>
         </div>
       ) : !keywordConfirmed || editingKeyword ? (
-        <div className="rounded-xl border border-[#2E6DA4] bg-[#0D1B3E] p-4">
+        <div className="rounded-[var(--r-md)] border border-[#2E6DA4] bg-[#0D1B3E] p-4">
           <div className="text-sm font-semibold text-[#4A90D9] mb-1">
             {editingKeyword ? "Change focus keyword" : "Set focus keyword for accurate P1–P7 scores"}
           </div>
@@ -574,7 +574,7 @@ function AuditResults({
       ) : null}
 
       {/* Post title */}
-      <div className="rounded-xl border border-[#2A3560] bg-[#16213E] p-4">
+      <div className="rounded-[var(--r-md)] border border-[#2A3560] bg-[#16213E] p-4">
         <div className="text-xs text-[#8892A4] uppercase tracking-wide mb-1">Post Audited</div>
         <div className="text-sm font-semibold text-white truncate">{title}</div>
         <a
@@ -588,13 +588,13 @@ function AuditResults({
       </div>
 
       {/* What we found */}
-      <div className="rounded-xl border border-[#2A3560] bg-[#16213E] p-4">
+      <div className="rounded-[var(--r-md)] border border-[#2A3560] bg-[#16213E] p-4">
         <div className="text-sm font-bold text-white mb-3">What we found:</div>
         <div className="space-y-2">
           {failingPoints.map((p) => (
             <div
               key={p.point}
-              className="flex items-start gap-3 rounded-lg bg-[#2A0000] border border-[#A30000]/30 px-3 py-2.5"
+              className="flex items-start gap-3 rounded-[var(--r-md)] bg-[#2A0000] border border-[#A30000]/30 px-3 py-2.5"
             >
               <span className="text-base flex-shrink-0">❌</span>
               <div>
@@ -606,7 +606,7 @@ function AuditResults({
           {unablePoints.map((p) => (
             <div
               key={p.point}
-              className="flex items-start gap-3 rounded-lg bg-[#2A2000] border border-[#B8860B]/30 px-3 py-2.5"
+              className="flex items-start gap-3 rounded-[var(--r-md)] bg-[#2A2000] border border-[#B8860B]/30 px-3 py-2.5"
             >
               <span className="text-base flex-shrink-0">⚠️</span>
               <div>
@@ -617,7 +617,7 @@ function AuditResults({
           {passingPoints.map((p) => (
             <div
               key={p.point}
-              className="flex items-start gap-3 rounded-lg bg-[#0D2E1E] border border-[#1A7A4A]/30 px-3 py-2.5"
+              className="flex items-start gap-3 rounded-[var(--r-md)] bg-[#0D2E1E] border border-[#1A7A4A]/30 px-3 py-2.5"
             >
               <span className="text-base flex-shrink-0">✅</span>
               <div>

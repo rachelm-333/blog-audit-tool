@@ -40,15 +40,12 @@ import {
   ExternalLink,
   Zap,
   Settings,
-  User,
   ClipboardCheck,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
-import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/_core/hooks/useAuth";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
@@ -62,7 +59,7 @@ const menuItems = [
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
-const DEFAULT_WIDTH = 260;
+const DEFAULT_WIDTH = 240;
 const MIN_WIDTH = 200;
 const MAX_WIDTH = 400;
 
@@ -75,7 +72,6 @@ export default function DashboardLayout({
     const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
-  // Use iAudit auth (30-day refresh cookie) — NOT Manus OAuth which expires quickly
   const { isAuthenticated, isLoading } = useIauditAuth();
 
   useEffect(() => {
@@ -88,28 +84,41 @@ export default function DashboardLayout({
 
   if (!isAuthenticated) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
+      <div
+        className="flex items-center justify-center min-h-screen"
+        style={{ background: "var(--bg-page)" }}
+      >
         <div className="flex flex-col items-center gap-8 p-8 max-w-sm w-full">
           {/* Logo */}
           <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center shadow-md">
-              <Zap className="h-5 w-5 text-white" />
+            <div
+              className="h-9 w-9 rounded-xl flex items-center justify-center"
+              style={{ background: "var(--ink)", boxShadow: "var(--shadow-2)" }}
+            >
+              <Zap className="h-5 w-5" style={{ color: "var(--volt)" }} />
             </div>
-            <span className="text-xl font-bold tracking-tight text-foreground">iAudit</span>
+            <span
+              className="text-xl tracking-tight"
+              style={{ fontWeight: 800, color: "var(--fg-1)" }}
+            >
+              iAudit
+            </span>
           </div>
-          <div className="text-center space-y-2">
-            <h1 className="text-2xl font-semibold tracking-tight">Sign in to continue</h1>
-            <p className="text-sm text-muted-foreground">
+          <div className="text-center" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.03em", color: "var(--fg-1)" }}>
+              Sign in to continue
+            </h1>
+            <p style={{ fontSize: 14, color: "var(--fg-2)" }}>
               Access your blog audit dashboard.
             </p>
           </div>
-          <Button
+          <button
             onClick={() => { window.location.href = "/login"; }}
-            size="lg"
-            className="w-full btn-primary-glow"
+            className="pd-btn-primary w-full justify-center"
+            style={{ padding: "10px 14px", fontSize: 14 }}
           >
             Sign in
-          </Button>
+          </button>
         </div>
       </div>
     );
@@ -197,25 +206,45 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
       <div className="relative" ref={sidebarRef}>
         <Sidebar
           collapsible="icon"
-          className="border-r border-border/60 bg-sidebar"
+          style={{
+            background: "var(--bg-page)",
+            borderRight: "1px solid var(--border-1)",
+          }}
           disableTransition={isResizing}
         >
           {/* Header / Logo */}
-          <SidebarHeader className="h-16 border-b border-border/60 justify-center">
-            <div className="flex items-center gap-3 px-3">
+          <SidebarHeader
+            style={{
+              height: "var(--topbar-h)",
+              borderBottom: "1px solid var(--border-1)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <div className="flex items-center gap-3 px-3 w-full">
               <button
                 onClick={toggleSidebar}
-                className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-accent transition-colors shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="h-8 w-8 flex items-center justify-center transition-colors shrink-0"
+                style={{ borderRadius: "var(--r-sm)", color: "var(--fg-3)" }}
+                onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-inset)")}
+                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                 aria-label="Toggle navigation"
               >
-                <PanelLeft className="h-4 w-4 text-muted-foreground" />
+                <PanelLeft className="h-4 w-4" />
               </button>
               {!isCollapsed && (
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center shadow-sm shrink-0">
-                    <Zap className="h-4 w-4 text-white" />
+                  <div
+                    className="h-7 w-7 flex items-center justify-center shrink-0"
+                    style={{ borderRadius: "var(--r-sm)", background: "var(--ink)" }}
+                  >
+                    <Zap className="h-4 w-4" style={{ color: "var(--volt)" }} />
                   </div>
-                  <span className="font-bold text-base tracking-tight text-foreground truncate">
+                  <span
+                    className="truncate"
+                    style={{ fontWeight: 800, fontSize: 15, letterSpacing: "-0.02em", color: "var(--fg-1)" }}
+                  >
                     iAudit
                   </span>
                 </div>
@@ -226,12 +255,24 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
           <SidebarContent className="gap-0 py-2">
             {/* Agency business selector */}
             {isAgency && bizData && bizData.businesses.length > 0 && !isCollapsed && (
-              <div className="px-3 pb-2 mb-1 border-b border-border/60">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1.5 px-1">
+              <div
+                className="px-3 pb-2 mb-1"
+                style={{ borderBottom: "1px solid var(--border-1)" }}
+              >
+                <p
+                  className="px-1 mb-1.5"
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 10,
+                    fontWeight: 500,
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    color: "var(--fg-3)",
+                  }}
+                >
                   Client
                 </p>
                 <div className="space-y-0.5">
-                  {/* Deduplicate by name — keep the most recently created entry */}
                   {bizData.businesses
                     .reduce((acc: typeof bizData.businesses, biz) => {
                       const existing = acc.findIndex(b => b.name === biz.name);
@@ -240,27 +281,46 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                       return acc;
                     }, [])
                     .map((biz) => {
-                    const isSelected = selectedBusinessId === biz.id;
-                    return (
-                      <button
-                        key={biz.id}
-                        onClick={() => handleBusinessSelect(biz.id)}
-                        className={cn(
-                          "w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm transition-colors text-left",
-                          isSelected
-                            ? "bg-primary/10 text-primary font-medium"
-                            : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                        )}
-                      >
-                        <Building2 className="h-3.5 w-3.5 shrink-0" />
-                        <span className="truncate flex-1">{biz.name || "Unnamed"}</span>
-                        {isSelected && <ChevronRight className="h-3 w-3 shrink-0 opacity-60" />}
-                      </button>
-                    );
-                  })}
+                      const isSelected = selectedBusinessId === biz.id;
+                      return (
+                        <button
+                          key={biz.id}
+                          onClick={() => handleBusinessSelect(biz.id)}
+                          className="w-full flex items-center gap-2 text-left transition-colors"
+                          style={{
+                            padding: "6px 10px",
+                            borderRadius: "var(--r-sm)",
+                            fontSize: 13,
+                            fontWeight: isSelected ? 600 : 400,
+                            background: isSelected ? "var(--bg-card)" : "transparent",
+                            border: isSelected ? "1px solid var(--border-2)" : "1px solid transparent",
+                            color: isSelected ? "var(--fg-1)" : "var(--fg-2)",
+                          }}
+                          onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = "var(--bg-inset)"; }}
+                          onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}
+                        >
+                          <Building2 className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate flex-1">{biz.name || "Unnamed"}</span>
+                          {isSelected && (
+                            <span
+                              className="shrink-0 rounded-full"
+                              style={{ width: 6, height: 6, background: "var(--volt)", display: "inline-block" }}
+                            />
+                          )}
+                        </button>
+                      );
+                    })}
                   <button
                     onClick={() => setLocation("/business/setup")}
-                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors text-left"
+                    className="w-full flex items-center gap-2 text-left transition-colors"
+                    style={{
+                      padding: "6px 10px",
+                      borderRadius: "var(--r-sm)",
+                      fontSize: 13,
+                      color: "var(--fg-3)",
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-inset)")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                   >
                     <PlusCircle className="h-3.5 w-3.5 shrink-0" />
                     <span>Add Business</span>
@@ -270,12 +330,12 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
             )}
 
             {isAgency && isCollapsed && (
-              <SidebarMenu className="px-2 py-1 border-b border-border/60">
+              <SidebarMenu className="px-2 py-1" style={{ borderBottom: "1px solid var(--border-1)" }}>
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => setLocation("/business/setup")}
                     tooltip="Add Business"
-                    className="h-10 font-normal"
+                    className="h-10"
                   >
                     <Building2 className="h-4 w-4" />
                     <span>Businesses</span>
@@ -294,15 +354,26 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                       isActive={isActive}
                       onClick={() => setLocation(item.path)}
                       tooltip={item.label}
-                      className={cn(
-                        "h-10 font-normal rounded-lg transition-all",
-                        isActive
-                          ? "bg-primary/10 text-primary font-medium"
-                          : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                      )}
+                      className="h-10 transition-all relative"
+                      style={{
+                        borderRadius: "var(--r-sm)",
+                        fontSize: 14,
+                        fontWeight: isActive ? 500 : 400,
+                        background: isActive ? "var(--bg-card)" : "transparent",
+                        border: isActive ? "1px solid var(--border-2)" : "1px solid transparent",
+                        color: isActive ? "var(--fg-1)" : "var(--fg-2)",
+                        paddingRight: isActive ? 32 : undefined,
+                      }}
                     >
-                      <item.icon className={cn("h-4 w-4 shrink-0", isActive ? "text-primary" : "")} />
+                      <item.icon className="h-4 w-4 shrink-0" />
                       <span>{item.label}</span>
+                      {/* Volt active dot */}
+                      {isActive && (
+                        <span
+                          className="absolute right-2.5 shrink-0 rounded-full"
+                          style={{ width: 6, height: 6, background: "var(--volt)" }}
+                        />
+                      )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
@@ -314,15 +385,24 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
                     isActive={location === "/admin"}
                     onClick={() => setLocation("/admin")}
                     tooltip="Admin Panel"
-                    className={cn(
-                      "h-10 font-normal rounded-lg transition-all",
-                      location === "/admin"
-                        ? "bg-primary/10 text-primary font-medium"
-                        : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                    )}
+                    className="h-10 transition-all relative"
+                    style={{
+                      borderRadius: "var(--r-sm)",
+                      fontSize: 14,
+                      fontWeight: location === "/admin" ? 500 : 400,
+                      background: location === "/admin" ? "var(--bg-card)" : "transparent",
+                      border: location === "/admin" ? "1px solid var(--border-2)" : "1px solid transparent",
+                      color: location === "/admin" ? "var(--fg-1)" : "var(--fg-2)",
+                    }}
                   >
-                    <Shield className={cn("h-4 w-4 shrink-0", location === "/admin" ? "text-primary" : "")} />
+                    <Shield className="h-4 w-4 shrink-0" />
                     <span>Admin Panel</span>
+                    {location === "/admin" && (
+                      <span
+                        className="absolute right-2.5 shrink-0 rounded-full"
+                        style={{ width: 6, height: 6, background: "var(--volt)" }}
+                      />
+                    )}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
@@ -335,52 +415,90 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
               href="https://blogbatcher.com.au"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-start gap-2.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 hover:border-indigo-300 p-3 transition-all duration-200 group/bb"
+              className="flex items-start gap-2.5 p-3 transition-all group/bb"
+              style={{
+                borderRadius: "var(--r-md)",
+                border: "1px solid var(--border-2)",
+                background: "var(--bg-card)",
+                textDecoration: "none",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-inset)")}
+              onMouseLeave={e => (e.currentTarget.style.background = "var(--bg-card)")}
             >
               <div className="flex-1 min-w-0">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-indigo-500 mb-0.5">
+                <div
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 10,
+                    fontWeight: 500,
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    color: "var(--fg-3)",
+                    marginBottom: 2,
+                  }}
+                >
                   Blog Batcher
                 </div>
-                <div className="text-xs font-semibold text-indigo-900 leading-snug">
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--fg-1)", lineHeight: 1.3 }}>
                   Need new posts from scratch?
                 </div>
-                <div className="text-[10px] text-indigo-600 mt-0.5 leading-snug">
+                <div style={{ fontSize: 11, color: "var(--fg-2)", marginTop: 2, lineHeight: 1.3 }}>
                   Bulk-generate SEO content with Noize's companion tool.
                 </div>
               </div>
-              <ExternalLink className="h-3.5 w-3.5 text-indigo-400 shrink-0 mt-0.5 opacity-70 group-hover/bb:opacity-100 transition-opacity" />
+              <ExternalLink className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: "var(--fg-3)" }} />
             </a>
           </div>
 
           {/* Footer / User */}
-          <SidebarFooter className="p-3 border-t border-border/60">
+          <SidebarFooter
+            className="p-3"
+            style={{ borderTop: "1px solid var(--border-1)" }}
+          >
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-accent transition-colors w-full text-left group-data-[collapsible=icon]:justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <Avatar className="h-8 w-8 shrink-0 ring-2 ring-primary/20">
-                    <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
+                <button
+                  className="flex items-center gap-3 w-full text-left transition-colors group-data-[collapsible=icon]:justify-center"
+                  style={{ borderRadius: "var(--r-sm)", padding: "8px 8px" }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-inset)")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                >
+                  <Avatar
+                    className="h-8 w-8 shrink-0"
+                    style={{ borderRadius: "var(--r-pill)" }}
+                  >
+                    <AvatarFallback
+                      style={{
+                        background: "var(--ink)",
+                        color: "var(--paper)",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        borderRadius: "var(--r-pill)",
+                      }}
+                    >
                       {initials}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
-                    <p className="text-sm font-semibold truncate leading-none text-foreground">
+                    <p style={{ fontSize: 13, fontWeight: 600, color: "var(--fg-1)", lineHeight: 1.2 }} className="truncate">
                       {iauditUser?.name || "—"}
                     </p>
-                    <p className="text-xs text-muted-foreground truncate mt-1">
+                    <p style={{ fontSize: 11, color: "var(--fg-3)", lineHeight: 1.2 }} className="truncate">
                       {iauditUser?.email || "—"}
                     </p>
                   </div>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52 shadow-lg">
-                <div className="px-3 py-2 border-b border-border/60">
-                  <p className="text-sm font-semibold text-foreground truncate">{iauditUser?.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{iauditUser?.email}</p>
+              <DropdownMenuContent align="end" className="w-52" style={{ boxShadow: "var(--shadow-2)" }}>
+                <div className="px-3 py-2" style={{ borderBottom: "1px solid var(--border-1)" }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: "var(--fg-1)" }} className="truncate">{iauditUser?.name}</p>
+                  <p style={{ fontSize: 11, color: "var(--fg-3)" }} className="truncate">{iauditUser?.email}</p>
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={logout}
-                  className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10 gap-2"
+                  className="cursor-pointer gap-2"
+                  style={{ color: "var(--danger)" }}
                 >
                   <LogOut className="h-4 w-4" />
                   <span>Sign out</span>
@@ -393,26 +511,40 @@ function DashboardLayoutContent({ children, setSidebarWidth }: DashboardLayoutCo
         {/* Resize handle */}
         <div
           className={cn(
-            "absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/20 transition-colors",
+            "absolute top-0 right-0 w-1 h-full cursor-col-resize transition-colors",
             isCollapsed ? "hidden" : ""
           )}
           onMouseDown={() => { if (!isCollapsed) setIsResizing(true); }}
           style={{ zIndex: 50 }}
+          onMouseEnter={e => (e.currentTarget.style.background = "var(--volt)")}
+          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
         />
       </div>
 
       {/* ── Main content ── */}
-      <SidebarInset className="bg-background">
+      <SidebarInset style={{ background: "var(--bg-page)" }}>
         {/* Mobile top bar */}
         {isMobile && (
-          <div className="flex border-b border-border/60 h-14 items-center justify-between bg-background px-4 sticky top-0 z-40 shadow-sm">
+          <div
+            className="flex h-14 items-center justify-between px-4 sticky top-0 z-40"
+            style={{
+              background: "var(--bg-page)",
+              borderBottom: "1px solid var(--border-1)",
+            }}
+          >
             <div className="flex items-center gap-3">
-              <SidebarTrigger className="h-9 w-9 rounded-lg hover:bg-accent transition-colors" />
+              <SidebarTrigger
+                className="h-9 w-9 transition-colors"
+                style={{ borderRadius: "var(--r-sm)" }}
+              />
               <div className="flex items-center gap-2">
-                <div className="h-6 w-6 rounded-md bg-primary flex items-center justify-center">
-                  <Zap className="h-3.5 w-3.5 text-white" />
+                <div
+                  className="h-6 w-6 flex items-center justify-center"
+                  style={{ borderRadius: "var(--r-sm)", background: "var(--ink)" }}
+                >
+                  <Zap className="h-3.5 w-3.5" style={{ color: "var(--volt)" }} />
                 </div>
-                <span className="font-semibold text-sm text-foreground">
+                <span style={{ fontWeight: 600, fontSize: 14, color: "var(--fg-1)" }}>
                   {activeMenuItem?.label ?? "iAudit"}
                 </span>
               </div>

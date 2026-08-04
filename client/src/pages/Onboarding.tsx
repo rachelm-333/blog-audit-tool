@@ -36,15 +36,15 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
             className={cn(
               "h-1.5 rounded-full transition-all duration-300",
               i + 1 < current
-                ? "w-6 bg-primary"
+                ? "w-6 bg-[var(--volt)]"
                 : i + 1 === current
-                ? "w-8 bg-primary"
-                : "w-6 bg-muted"
+                ? "w-8 bg-[var(--volt)]"
+                : "w-6 bg-[var(--bg-inset)]"
             )}
           />
         ))}
       </div>
-      <span className="text-xs text-muted-foreground font-medium">
+      <span className="text-xs text-[var(--fg-3)] font-medium">
         Step {current} of {total}
       </span>
     </div>
@@ -67,11 +67,11 @@ function StepWrapper({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <div className="border-b bg-card/50 px-6 py-5">
+    <div className="min-h-screen bg-[var(--bg-page)] flex flex-col">
+      <div className="border-b bg-[var(--bg-card)]/50 px-6 py-5">
         <StepIndicator current={step} total={5} />
-        <h2 className="text-lg font-bold text-foreground">{title}</h2>
-        <p className="text-sm text-muted-foreground mt-1">{description}</p>
+        <h2 className="text-lg font-bold text-[var(--fg-1)]">{title}</h2>
+        <p className="text-sm text-[var(--fg-3)] mt-1">{description}</p>
       </div>
       <div className="flex-1 overflow-auto p-4 sm:p-6">{children}</div>
     </div>
@@ -84,16 +84,16 @@ function StepWrapper({
 
 function StepWelcome({ onNext }: { onNext: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background p-6 text-center">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-[var(--bg-page)] p-6 text-center">
       <div className="max-w-md w-full">
         <div className="mb-8">
-          <div className="text-5xl font-extrabold text-primary tracking-tight mb-2">iAudit</div>
-          <div className="text-xs text-muted-foreground uppercase tracking-widest">Blog Audit Engine</div>
+          <div className="text-5xl font-extrabold text-[var(--ink)] tracking-tight mb-2">iAudit</div>
+          <div className="text-xs text-[var(--fg-3)] uppercase tracking-widest">Blog Audit Engine</div>
         </div>
-        <h1 className="text-2xl font-bold text-foreground mb-3 leading-snug">
+        <h1 className="text-2xl font-bold text-[var(--fg-1)] mb-3 leading-snug">
           Let's get your blog posts ranking on page one.
         </h1>
-        <p className="text-sm text-muted-foreground mb-10">
+        <p className="text-sm text-[var(--fg-3)] mb-10">
           We'll walk you through setting up your account in just a few minutes.
         </p>
         <Button size="lg" className="w-full text-base font-semibold" onClick={onNext}>
@@ -129,8 +129,8 @@ function StepBusiness({ onNext }: { onNext: () => void }) {
         <div className="flex flex-col items-center justify-center py-16 text-center gap-4">
           <CheckCircle2 className="h-12 w-12 text-emerald-400" />
           <div>
-            <div className="text-lg font-bold text-foreground">Business profile saved!</div>
-            <div className="text-sm text-muted-foreground mt-1">Your brand voice and business details are ready.</div>
+            <div className="text-lg font-bold text-[var(--fg-1)]">Business profile saved!</div>
+            <div className="text-sm text-[var(--fg-3)] mt-1">Your brand voice and business details are ready.</div>
           </div>
           <Button onClick={onNext} className="mt-2">
             Continue to Connect Your Blog →
@@ -138,14 +138,14 @@ function StepBusiness({ onNext }: { onNext: () => void }) {
         </div>
       ) : (
         <div className="max-w-md mx-auto">
-          <div className="rounded-xl border border-border bg-card p-5 mb-4">
+          <div className="rounded-[var(--r-md)] border border-[var(--border-1)] bg-[var(--bg-card)] p-5 mb-4">
             <div className="flex items-start gap-3">
-              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                <span className="text-sm font-bold text-primary">2</span>
+              <div className="h-8 w-8 rounded-full bg-[var(--volt)]/10 flex items-center justify-center shrink-0 mt-0.5">
+                <span className="text-sm font-bold text-[var(--ink)]">2</span>
               </div>
               <div>
-                <div className="text-sm font-semibold text-foreground mb-1">Set up your business profile</div>
-                <div className="text-xs text-muted-foreground">
+                <div className="text-sm font-semibold text-[var(--fg-1)] mb-1">Set up your business profile</div>
+                <div className="text-xs text-[var(--fg-3)]">
                   Enter your website URL and we'll automatically analyse your brand voice, services, and tone.
                   You can review and edit everything before continuing.
                 </div>
@@ -155,12 +155,12 @@ function StepBusiness({ onNext }: { onNext: () => void }) {
           <Button className="w-full" onClick={() => navigate("/business/setup")}>
             Open Business Setup →
           </Button>
-          <p className="text-xs text-muted-foreground text-center mt-3">
+          <p className="text-xs text-[var(--fg-3)] text-center mt-3">
             Complete the business profile to unlock Step 3.
           </p>
           {businessListQuery.isLoading && (
             <div className="flex justify-center mt-4">
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              <Loader2 className="h-4 w-4 animate-spin text-[var(--fg-3)]" />
             </div>
           )}
         </div>
@@ -200,8 +200,8 @@ function StepCms({ onNext }: { onNext: () => void }) {
         <div className="flex flex-col items-center justify-center py-16 text-center gap-4">
           <CheckCircle2 className="h-12 w-12 text-emerald-400" />
           <div>
-            <div className="text-lg font-bold text-foreground">Blog connected!</div>
-            <div className="text-sm text-muted-foreground mt-1">
+            <div className="text-lg font-bold text-[var(--fg-1)]">Blog connected!</div>
+            <div className="text-sm text-[var(--fg-3)] mt-1">
               {(connectionsQuery.data?.[0] as { platform?: string })?.platform ?? "Your CMS"} is connected and ready.
             </div>
           </div>
@@ -211,14 +211,14 @@ function StepCms({ onNext }: { onNext: () => void }) {
         </div>
       ) : (
         <div className="max-w-md mx-auto">
-          <div className="rounded-xl border border-border bg-card p-5 mb-4">
+          <div className="rounded-[var(--r-md)] border border-[var(--border-1)] bg-[var(--bg-card)] p-5 mb-4">
             <div className="flex items-start gap-3">
-              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                <span className="text-sm font-bold text-primary">3</span>
+              <div className="h-8 w-8 rounded-full bg-[var(--volt)]/10 flex items-center justify-center shrink-0 mt-0.5">
+                <span className="text-sm font-bold text-[var(--ink)]">3</span>
               </div>
               <div>
-                <div className="text-sm font-semibold text-foreground mb-1">Connect your CMS</div>
-                <div className="text-xs text-muted-foreground">
+                <div className="text-sm font-semibold text-[var(--fg-1)] mb-1">Connect your CMS</div>
+                <div className="text-xs text-[var(--fg-3)]">
                   Supports WordPress, Wix, Shopify, Webflow, and Zapier. You'll need your site URL and API credentials.
                 </div>
               </div>
@@ -227,7 +227,7 @@ function StepCms({ onNext }: { onNext: () => void }) {
           <Button className="w-full" onClick={() => navigate("/cms/connect")}>
             Open CMS Connect →
           </Button>
-          <p className="text-xs text-muted-foreground text-center mt-3">
+          <p className="text-xs text-[var(--fg-3)] text-center mt-3">
             Successfully connect a CMS to unlock Step 4.
           </p>
         </div>
@@ -263,7 +263,7 @@ function StepCredits({ onNext }: { onNext: () => void }) {
       <div className="max-w-2xl mx-auto">
         {packsQuery.isLoading ? (
           <div className="flex justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <Loader2 className="h-6 w-6 animate-spin text-[var(--fg-3)]" />
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
@@ -271,10 +271,10 @@ function StepCredits({ onNext }: { onNext: () => void }) {
               <div
                 key={pack.id}
                 className={cn(
-                  "relative rounded-xl border p-5 cursor-pointer transition-all hover:border-primary/50",
+                  "relative rounded-[var(--r-md)] border p-5 cursor-pointer transition-all hover:border-[var(--ink)]/50",
                   pack.isBestValue
-                    ? "border-primary bg-primary/5"
-                    : "border-border bg-card"
+                    ? "border-[var(--ink)] bg-[var(--volt)]/5"
+                    : "border-[var(--border-1)] bg-[var(--bg-card)]"
                 )}
                 onClick={() => {
                   if (!iauditUserId || !user) return;
@@ -289,23 +289,23 @@ function StepCredits({ onNext }: { onNext: () => void }) {
               >
                 {pack.isBestValue && (
                   <div className="absolute -top-2.5 left-1/2 -translate-x-1/2">
-                    <span className="bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">
+                    <span className="bg-[var(--volt)] text-[var(--ink)]-foreground text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">
                       Best Value
                     </span>
                   </div>
                 )}
-                <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">
+                <div className="text-xs font-bold uppercase tracking-widest text-[var(--fg-3)] mb-1">
                   {pack.name}
                 </div>
-                <div className="text-2xl font-extrabold text-foreground">
+                <div className="text-2xl font-extrabold text-[var(--fg-1)]">
                   {pack.credits}{" "}
-                  <span className="text-base font-normal text-muted-foreground">credits</span>
+                  <span className="text-base font-normal text-[var(--fg-3)]">credits</span>
                 </div>
-                <div className="text-lg font-bold text-primary mt-1">A${pack.priceAud}</div>
-                <div className="text-xs text-muted-foreground mt-1">{pack.perPostPrice} per post</div>
+                <div className="text-lg font-bold text-[var(--ink)] mt-1">A${pack.priceAud}</div>
+                <div className="text-xs text-[var(--fg-3)] mt-1">{pack.perPostPrice} per post</div>
                 {checkoutMutation.isPending && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-xl">
-                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <div className="absolute inset-0 flex items-center justify-center bg-[var(--bg-page)]/50 rounded-[var(--r-md)]">
+                    <Loader2 className="h-5 w-5 animate-spin text-[var(--ink)]" />
                   </div>
                 )}
               </div>
@@ -316,7 +316,7 @@ function StepCredits({ onNext }: { onNext: () => void }) {
         <div className="text-center">
           <button
             onClick={onNext}
-            className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+            className="text-sm text-[var(--fg-3)] hover:text-[var(--fg-1)] underline underline-offset-2 transition-colors"
           >
             Skip for now — start with a free audit
           </button>
@@ -358,14 +358,14 @@ function StepAudit({ onComplete }: { onComplete: () => void }) {
 
   if (auditAllMutation.isSuccess) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8 text-center">
+      <div className="min-h-screen bg-[var(--bg-page)] flex flex-col items-center justify-center p-8 text-center">
         <div className="max-w-md w-full">
           <div className="mb-6">
             <div className="h-20 w-20 rounded-full bg-emerald-500/10 border-2 border-emerald-500/30 flex items-center justify-center mx-auto mb-4">
               <CheckCircle2 className="h-10 w-10 text-emerald-400" />
             </div>
-            <h2 className="text-2xl font-bold text-foreground mb-2">You're all set!</h2>
-            <p className="text-sm text-muted-foreground">
+            <h2 className="text-2xl font-bold text-[var(--fg-1)] mb-2">You're all set!</h2>
+            <p className="text-sm text-[var(--fg-3)]">
               Your posts have been audited. Head to the dashboard to see your results and start fixing posts.
             </p>
           </div>
@@ -384,12 +384,12 @@ function StepAudit({ onComplete }: { onComplete: () => void }) {
       description="iAudit will check every one of your posts against the 16-Point Authority Standard."
     >
       <div className="max-w-md mx-auto flex flex-col items-center justify-center py-8 text-center">
-        <div className="rounded-xl border border-border bg-card p-6 mb-6 w-full">
-          <Zap className="h-10 w-10 text-primary mx-auto mb-3" />
-          <div className="text-base font-semibold text-foreground mb-2">
+        <div className="rounded-[var(--r-md)] border border-[var(--border-1)] bg-[var(--bg-card)] p-6 mb-6 w-full">
+          <Zap className="h-10 w-10 text-[var(--ink)] mx-auto mb-3" />
+          <div className="text-base font-semibold text-[var(--fg-1)] mb-2">
             16-Point Authority Standard
           </div>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-[var(--fg-3)]">
             iAudit will check every one of your posts against the 16-Point Authority Standard.
             It is free and takes about 1 minute per 10 posts.
           </p>
@@ -397,8 +397,8 @@ function StepAudit({ onComplete }: { onComplete: () => void }) {
 
         {auditStarted && auditAllMutation.isPending ? (
           <div className="flex flex-col items-center gap-3 w-full">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <div className="text-sm text-muted-foreground">Auditing your posts…</div>
+            <Loader2 className="h-8 w-8 animate-spin text-[var(--ink)]" />
+            <div className="text-sm text-[var(--fg-3)]">Auditing your posts…</div>
             <Progress value={undefined} className="w-full h-1.5 animate-pulse" />
           </div>
         ) : (
@@ -420,7 +420,7 @@ function StepAudit({ onComplete }: { onComplete: () => void }) {
             </Button>
             <button
               onClick={() => navigate("/posts")}
-              className="mt-3 text-sm text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+              className="mt-3 text-sm text-[var(--fg-3)] hover:text-[var(--fg-1)] underline underline-offset-2 transition-colors"
             >
               Skip — go to Posts
             </button>
@@ -458,8 +458,8 @@ export default function Onboarding() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-[var(--bg-page)] flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--ink)]" />
       </div>
     );
   }

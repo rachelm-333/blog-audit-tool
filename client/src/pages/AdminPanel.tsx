@@ -203,7 +203,7 @@ function UserListTab({ iauditUserId }: { iauditUserId: string }) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-16 text-muted-foreground text-sm">
+      <div className="flex items-center justify-center py-16 text-[var(--fg-3)] text-sm">
         Loading users…
       </div>
     );
@@ -213,7 +213,7 @@ function UserListTab({ iauditUserId }: { iauditUserId: string }) {
 
   return (
     <>
-      <div className="rounded-lg border overflow-hidden">
+      <div className="rounded-[var(--r-md)] border overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -232,7 +232,7 @@ function UserListTab({ iauditUserId }: { iauditUserId: string }) {
               <TableRow>
                 <TableCell
                   colSpan={8}
-                  className="text-center text-muted-foreground py-8"
+                  className="text-center text-[var(--fg-3)] py-8"
                 >
                   No users found
                 </TableCell>
@@ -243,7 +243,7 @@ function UserListTab({ iauditUserId }: { iauditUserId: string }) {
                 <TableCell>
                   <div>
                     <p className="font-medium text-sm">{u.name}</p>
-                    <p className="text-xs text-muted-foreground">{u.email}</p>
+                    <p className="text-xs text-[var(--fg-3)]">{u.email}</p>
                   </div>
                 </TableCell>
                 <TableCell>
@@ -269,7 +269,7 @@ function UserListTab({ iauditUserId }: { iauditUserId: string }) {
                 <TableCell className="text-right tabular-nums">
                   {u.totalRewrites}
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
+                <TableCell className="text-sm text-[var(--fg-3)]">
                   {formatDate(u.createdAt)}
                 </TableCell>
                 <TableCell>
@@ -280,7 +280,7 @@ function UserListTab({ iauditUserId }: { iauditUserId: string }) {
                   ) : (
                     <Badge
                       variant="outline"
-                      className="text-xs text-green-600 border-green-200"
+                      className="text-xs text-[var(--fg-1)] border-[var(--volt)]/30"
                     >
                       Active
                     </Badge>
@@ -379,7 +379,7 @@ function UsageDashboardTab({ iauditUserId }: { iauditUserId: string }) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-16 text-muted-foreground text-sm">
+      <div className="flex items-center justify-center py-16 text-[var(--fg-3)] text-sm">
         Loading usage data…
       </div>
     );
@@ -445,7 +445,7 @@ function UsageDashboardTab({ iauditUserId }: { iauditUserId: string }) {
                 <TableRow>
                   <TableCell
                     colSpan={4}
-                    className="text-center text-muted-foreground py-8"
+                    className="text-center text-[var(--fg-3)] py-8"
                   >
                     No users yet
                   </TableCell>
@@ -455,7 +455,7 @@ function UsageDashboardTab({ iauditUserId }: { iauditUserId: string }) {
                 <TableRow key={u.userId}>
                   <TableCell>
                     <p className="font-medium text-sm">{u.name}</p>
-                    <p className="text-xs text-muted-foreground">{u.email}</p>
+                    <p className="text-xs text-[var(--fg-3)]">{u.email}</p>
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {u.auditCount}
@@ -486,7 +486,7 @@ function RevenueDashboardTab({ iauditUserId }: { iauditUserId: string }) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-16 text-muted-foreground text-sm">
+      <div className="flex items-center justify-center py-16 text-[var(--fg-3)] text-sm">
         Loading revenue data…
       </div>
     );
@@ -497,7 +497,7 @@ function RevenueDashboardTab({ iauditUserId }: { iauditUserId: string }) {
   return (
     <div className="space-y-6">
       {data.isTestMode && (
-        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div className="flex items-center gap-2 rounded-[var(--r-md)] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span>
             Stripe is in <strong>test mode</strong>. Revenue figures are from
@@ -543,7 +543,7 @@ function RevenueDashboardTab({ iauditUserId }: { iauditUserId: string }) {
                 <TableRow>
                   <TableCell
                     colSpan={3}
-                    className="text-center text-muted-foreground py-8"
+                    className="text-center text-[var(--fg-3)] py-8"
                   >
                     No purchases yet
                   </TableCell>
@@ -584,7 +584,7 @@ function ErrorLogTab({ iauditUserId }: { iauditUserId: string }) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-16 text-muted-foreground text-sm">
+      <div className="flex items-center justify-center py-16 text-[var(--fg-3)] text-sm">
         Loading error log…
       </div>
     );
@@ -596,7 +596,7 @@ function ErrorLogTab({ iauditUserId }: { iauditUserId: string }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-[var(--fg-3)]">
           {rows.length} entries (last 500) —{" "}
           <span className="text-destructive font-medium">
             {unreviewed} unreviewed
@@ -604,7 +604,7 @@ function ErrorLogTab({ iauditUserId }: { iauditUserId: string }) {
         </p>
       </div>
 
-      <div className="rounded-lg border overflow-hidden">
+      <div className="rounded-[var(--r-md)] border overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -621,7 +621,7 @@ function ErrorLogTab({ iauditUserId }: { iauditUserId: string }) {
               <TableRow>
                 <TableCell
                   colSpan={6}
-                  className="text-center text-muted-foreground py-8"
+                  className="text-center text-[var(--fg-3)] py-8"
                 >
                   No errors logged
                 </TableCell>
@@ -632,13 +632,13 @@ function ErrorLogTab({ iauditUserId }: { iauditUserId: string }) {
                 key={r.id}
                 className={r.reviewed ? "opacity-50" : ""}
               >
-                <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                <TableCell className="text-xs text-[var(--fg-3)] whitespace-nowrap">
                   {formatDate(r.createdAt)}
                 </TableCell>
                 <TableCell>
                   <p className="text-xs font-medium">{r.userEmail}</p>
                   {r.businessName && (
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-[var(--fg-3)]">
                       {r.businessName}
                     </p>
                   )}
@@ -657,7 +657,7 @@ function ErrorLogTab({ iauditUserId }: { iauditUserId: string }) {
                   </Badge>
                 </TableCell>
                 <TableCell className="max-w-xs">
-                  <p className="text-xs text-muted-foreground truncate">
+                  <p className="text-xs text-[var(--fg-3)] truncate">
                     {r.errorMessage}
                   </p>
                 </TableCell>
@@ -677,7 +677,7 @@ function ErrorLogTab({ iauditUserId }: { iauditUserId: string }) {
                       className={`h-4 w-4 transition-colors ${
                         r.reviewed
                           ? "text-green-500"
-                          : "text-muted-foreground hover:text-green-500"
+                          : "text-[var(--fg-3)] hover:text-green-500"
                       }`}
                     />
                   </button>
@@ -702,14 +702,14 @@ export default function AdminPanel() {
       <div className="flex flex-col gap-6 p-6 max-w-7xl mx-auto w-full">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-            <Shield className="h-5 w-5 text-primary" />
+          <div className="h-10 w-10 rounded-[var(--r-md)] bg-[var(--volt)]/10 flex items-center justify-center shrink-0">
+            <Shield className="h-5 w-5 text-[var(--ink)]" />
           </div>
           <div>
             <h1 className="text-xl font-semibold tracking-tight">
               Admin Panel
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-[var(--fg-3)]">
               Platform management — visible to admin accounts only
             </p>
           </div>

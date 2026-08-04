@@ -76,10 +76,10 @@ function typeLabel(type: HistoryRow["type"]): React.ReactNode {
   switch (type) {
     case "purchase":
       return (
-        <span className="text-green-400 font-medium">Purchase</span>
+        <span className="text-[var(--volt)] font-medium">Purchase</span>
       );
     case "use":
-      return <span className="text-muted-foreground">Used</span>;
+      return <span className="text-[var(--fg-3)]">Used</span>;
     case "admin_grant":
       return <span className="text-blue-400 font-medium">Admin Grant</span>;
     case "refund":
@@ -89,7 +89,7 @@ function typeLabel(type: HistoryRow["type"]): React.ReactNode {
 
 function deltaDisplay(delta: number): React.ReactNode {
   if (delta > 0) {
-    return <span className="text-green-400 font-semibold">+{delta}</span>;
+    return <span className="text-[var(--volt)] font-semibold">+{delta}</span>;
   }
   return <span className="text-red-400 font-semibold">{delta}</span>;
 }
@@ -109,39 +109,39 @@ function PackCard({
 }) {
   return (
     <div
-      className={`relative rounded-xl border p-5 flex flex-col gap-3 transition-all duration-200 cursor-pointer group
+      className={`relative rounded-[var(--r-md)] border p-5 flex flex-col gap-3 transition-all duration-200 cursor-pointer group
         ${
           pack.isBestValue
-            ? "border-primary bg-primary/5 shadow-lg shadow-primary/10"
-            : "border-border bg-card hover:border-primary/50 hover:bg-card/80"
+            ? "border-[var(--ink)] bg-[var(--volt)]/5 shadow-lg shadow-primary/10"
+            : "border-[var(--border-1)] bg-[var(--bg-card)] hover:border-[var(--ink)]/50 hover:bg-[var(--bg-card)]/80"
         }`}
     >
       {pack.isBestValue && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-          <Badge className="bg-primary text-primary-foreground text-xs px-3 py-0.5 font-semibold shadow">
+          <Badge className="bg-[var(--volt)] text-[var(--ink)]-foreground text-xs px-3 py-0.5 font-semibold shadow">
             Best Value
           </Badge>
         </div>
       )}
 
       <div className="text-center pt-1">
-        <p className="text-xs uppercase tracking-widest text-muted-foreground font-medium mb-2">
+        <p className="text-xs uppercase tracking-widest text-[var(--fg-3)] font-medium mb-2">
           {pack.name}
         </p>
-        <p className="text-4xl font-extrabold text-foreground leading-none">
+        <p className="text-4xl font-extrabold text-[var(--fg-1)] leading-none">
           {pack.credits}
-          <span className="text-sm font-normal text-muted-foreground ml-1">
+          <span className="text-sm font-normal text-[var(--fg-3)] ml-1">
             credits
           </span>
         </p>
         <p
           className={`text-2xl font-bold mt-2 ${
-            pack.isBestValue ? "text-primary" : "text-foreground"
+            pack.isBestValue ? "text-[var(--ink)]" : "text-[var(--fg-1)]"
           }`}
         >
           ${pack.priceAud}
         </p>
-        <p className="text-xs text-muted-foreground mt-0.5">
+        <p className="text-xs text-[var(--fg-3)] mt-0.5">
           {pack.perPostPrice} per post
         </p>
       </div>
@@ -260,8 +260,8 @@ export default function Credits() {
       <div className="max-w-5xl mx-auto space-y-8 pb-16">
         {/* ── Page header ── */}
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Credits</h1>
-          <p className="text-muted-foreground text-sm mt-1">
+          <h1 className="text-2xl font-bold text-[var(--fg-1)]">Credits</h1>
+          <p className="text-[var(--fg-3)] text-sm mt-1">
             1 credit = 1 post rewrite. Audits are always free.
           </p>
         </div>
@@ -269,7 +269,7 @@ export default function Credits() {
         {/* ── Low-credit banner ── */}
         {isZeroCredits && (
           <div className="space-y-3">
-            <div className="flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-5 py-4">
+            <div className="flex items-start gap-3 rounded-[var(--r-md)] border border-red-500/30 bg-red-500/10 px-5 py-4">
               <AlertTriangle className="h-5 w-5 text-red-400 mt-0.5 shrink-0" />
               <div>
                 <p className="text-sm font-semibold text-red-300">
@@ -281,13 +281,13 @@ export default function Credits() {
               </div>
             </div>
             {/* Blog Batcher upsell — shown when credits hit zero */}
-            <div className="rounded-xl border border-blue-500/25 bg-blue-500/5 px-5 py-4">
+            <div className="rounded-[var(--r-md)] border border-blue-500/25 bg-[var(--volt)]/100/5 px-5 py-4">
               <div className="text-xs font-bold uppercase tracking-widest text-blue-400 mb-1">Blog Batcher</div>
-              <p className="text-sm font-semibold text-foreground mb-1">
+              <p className="text-sm font-semibold text-[var(--fg-1)] mb-1">
                 All your posts are optimised. Need brand-new content?
               </p>
-              <p className="text-xs text-muted-foreground mb-3">
-                <strong className="text-foreground">Blog Batcher</strong> is Noize's companion tool for building
+              <p className="text-xs text-[var(--fg-3)] mb-3">
+                <strong className="text-[var(--fg-1)]">Blog Batcher</strong> is Noize's companion tool for building
                 high-converting blog posts from scratch — keyword-targeted, SEO-ready, and written in your brand voice.
               </p>
               <a
@@ -303,7 +303,7 @@ export default function Credits() {
           </div>
         )}
         {isLowCredits && !isZeroCredits && (
-          <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-5 py-4">
+          <div className="flex items-start gap-3 rounded-[var(--r-md)] border border-amber-500/30 bg-amber-500/10 px-5 py-4">
             <AlertTriangle className="h-5 w-5 text-amber-400 mt-0.5 shrink-0" />
             <div>
               <p className="text-sm font-semibold text-amber-300">
@@ -318,7 +318,7 @@ export default function Credits() {
         )}
 
         {/* ── Balance summary card ── */}
-        <div className="inline-flex items-center gap-8 rounded-xl border border-border bg-card px-6 py-4">
+        <div className="inline-flex items-center gap-8 rounded-[var(--r-md)] border border-[var(--border-1)] bg-[var(--bg-card)] px-6 py-4">
           {balanceQuery.isLoading ? (
             <>
               <Skeleton className="h-12 w-28" />
@@ -330,31 +330,31 @@ export default function Credits() {
           ) : (
             <>
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                <p className="text-xs text-[var(--fg-3)] uppercase tracking-wide mb-1">
                   Current Balance
                 </p>
-                <p className="text-3xl font-extrabold text-primary">
+                <p className="text-3xl font-extrabold text-[var(--ink)]">
                   {balance?.creditsRemaining ?? 0}
-                  <span className="text-sm font-normal text-muted-foreground ml-1">
+                  <span className="text-sm font-normal text-[var(--fg-3)] ml-1">
                     credits
                   </span>
                 </p>
               </div>
               <div className="w-px h-10 bg-border" />
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                <p className="text-xs text-[var(--fg-3)] uppercase tracking-wide mb-1">
                   Total Purchased
                 </p>
-                <p className="text-3xl font-extrabold text-foreground">
+                <p className="text-3xl font-extrabold text-[var(--fg-1)]">
                   {balance?.creditsTotalPurchased ?? 0}
                 </p>
               </div>
               <div className="w-px h-10 bg-border" />
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                <p className="text-xs text-[var(--fg-3)] uppercase tracking-wide mb-1">
                   Used
                 </p>
-                <p className="text-3xl font-extrabold text-foreground">
+                <p className="text-3xl font-extrabold text-[var(--fg-1)]">
                   {balance?.creditsUsed ?? 0}
                 </p>
               </div>
@@ -364,14 +364,14 @@ export default function Credits() {
 
         {/* ── Buy More Credits ── */}
         <div>
-          <h2 className="text-base font-bold text-foreground mb-4">
+          <h2 className="text-base font-bold text-[var(--fg-1)] mb-4">
             Buy More Credits
           </h2>
 
           {packsQuery.isLoading ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[1, 2, 3, 4].map((i) => (
-                <Skeleton key={i} className="h-52 rounded-xl" />
+                <Skeleton key={i} className="h-52 rounded-[var(--r-md)]" />
               ))}
             </div>
           ) : (
@@ -387,16 +387,16 @@ export default function Credits() {
             </div>
           )}
 
-          <p className="text-xs text-muted-foreground mt-3">
+          <p className="text-xs text-[var(--fg-3)] mt-3">
             All prices include GST. Credits never expire.
           </p>
 
           {/* Test mode notice */}
-          <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground/70">
+          <div className="mt-3 flex items-center gap-2 text-xs text-[var(--fg-3)]/70">
             <CreditCard className="h-3.5 w-3.5" />
             <span>
               Test mode — use card{" "}
-              <code className="font-mono bg-muted px-1 py-0.5 rounded text-xs">
+              <code className="font-mono bg-[var(--bg-inset)] px-1 py-0.5 rounded text-xs">
                 4242 4242 4242 4242
               </code>{" "}
               with any future expiry and any CVC.
@@ -408,41 +408,41 @@ export default function Credits() {
 
         {/* ── Credit History ── */}
         <div>
-          <h2 className="text-base font-bold text-foreground mb-4">
+          <h2 className="text-base font-bold text-[var(--fg-1)] mb-4">
             Credit History
           </h2>
 
           {historyQuery.isLoading ? (
             <div className="space-y-2">
               {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-10 rounded-lg" />
+                <Skeleton key={i} className="h-10 rounded-[var(--r-md)]" />
               ))}
             </div>
           ) : history.length === 0 ? (
-            <div className="rounded-xl border border-border bg-card/50 px-6 py-10 text-center">
-              <Zap className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground">
+            <div className="rounded-[var(--r-md)] border border-[var(--border-1)] bg-[var(--bg-card)]/50 px-6 py-10 text-center">
+              <Zap className="h-8 w-8 text-[var(--fg-3)]/40 mx-auto mb-3" />
+              <p className="text-sm text-[var(--fg-3)]">
                 No credit activity yet. Buy credits above to get started.
               </p>
             </div>
           ) : (
-            <div className="rounded-xl border border-border overflow-hidden">
+            <div className="rounded-[var(--r-md)] border border-[var(--border-1)] overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-border hover:bg-transparent">
-                    <TableHead className="text-muted-foreground text-xs font-medium">
+                  <TableRow className="border-[var(--border-1)] hover:bg-transparent">
+                    <TableHead className="text-[var(--fg-3)] text-xs font-medium">
                       Date
                     </TableHead>
-                    <TableHead className="text-muted-foreground text-xs font-medium">
+                    <TableHead className="text-[var(--fg-3)] text-xs font-medium">
                       Type
                     </TableHead>
-                    <TableHead className="text-muted-foreground text-xs font-medium">
+                    <TableHead className="text-[var(--fg-3)] text-xs font-medium">
                       Amount
                     </TableHead>
-                    <TableHead className="text-muted-foreground text-xs font-medium">
+                    <TableHead className="text-[var(--fg-3)] text-xs font-medium">
                       Post / Note
                     </TableHead>
-                    <TableHead className="text-muted-foreground text-xs font-medium text-right">
+                    <TableHead className="text-[var(--fg-3)] text-xs font-medium text-right">
                       Balance After
                     </TableHead>
                   </TableRow>
@@ -451,9 +451,9 @@ export default function Credits() {
                   {history.map((row) => (
                     <TableRow
                       key={row.id}
-                      className="border-border hover:bg-muted/20"
+                      className="border-[var(--border-1)] hover:bg-[var(--bg-inset)]/20"
                     >
-                      <TableCell className="text-sm text-muted-foreground">
+                      <TableCell className="text-sm text-[var(--fg-3)]">
                         {formatDate(row.date)}
                       </TableCell>
                       <TableCell className="text-sm">
@@ -462,10 +462,10 @@ export default function Credits() {
                       <TableCell className="text-sm font-mono">
                         {deltaDisplay(row.creditsDelta)}
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
+                      <TableCell className="text-xs text-[var(--fg-3)] max-w-[200px] truncate">
                         {row.postTitle ?? row.note ?? "—"}
                       </TableCell>
-                      <TableCell className="text-sm text-right font-semibold text-foreground">
+                      <TableCell className="text-sm text-right font-semibold text-[var(--fg-1)]">
                         {row.balanceAfter}
                       </TableCell>
                     </TableRow>
@@ -479,13 +479,13 @@ export default function Credits() {
         <Separator />
 
         {/* ── Blog Batcher upsell ── */}
-        <div className="rounded-xl border border-primary/20 bg-primary/5 px-6 py-5 flex flex-col md:flex-row items-start md:items-center gap-4 justify-between">
+        <div className="rounded-[var(--r-md)] border border-[var(--ink)]/20 bg-[var(--volt)]/5 px-6 py-5 flex flex-col md:flex-row items-start md:items-center gap-4 justify-between">
           <div>
-            <h3 className="font-bold text-foreground flex items-center gap-2">
-              <Zap className="h-4 w-4 text-primary" />
+            <h3 className="font-bold text-[var(--fg-1)] flex items-center gap-2">
+              <Zap className="h-4 w-4 text-[var(--ink)]" />
               All your posts are now fixed?
             </h3>
-            <p className="text-sm text-muted-foreground mt-1 max-w-xl">
+            <p className="text-sm text-[var(--fg-3)] mt-1 max-w-xl">
               Want new posts built to the 16-Point Authority Standard from the
               start? Blog Batcher creates fully optimised content clusters ready
               to rank.

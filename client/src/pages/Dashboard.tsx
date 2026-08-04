@@ -51,44 +51,49 @@ import { cn } from "@/lib/utils";
 
 const GRADE_CONFIG = {
   optimised: {
-    label: "Great Score",
-    bg: "bg-[#1A7A4A]",
-    text: "text-white",
-    border: "border-[#1A7A4A]",
-    scoreColor: "text-[#4ADE80]",
-    barColor: "bg-[#1A7A4A]",
+    label: "Optimised",
+    bg: "bg-[var(--ink)]",
+    text: "text-[var(--paper)]",
+    border: "border-[var(--border-2)]",
+    scoreColor: "text-[var(--volt)]",
+    barColor: "bg-[var(--volt)]",
+    dot: "bg-[var(--volt)]",
   },
   strong: {
-    label: "Good Score",
-    bg: "bg-[#2E6DA4]",
-    text: "text-white",
-    border: "border-[#2E6DA4]",
-    scoreColor: "text-[#60A5FA]",
-    barColor: "bg-[#2E6DA4]",
+    label: "Strong",
+    bg: "bg-[var(--ink-80)]",
+    text: "text-[var(--paper)]",
+    border: "border-[var(--border-2)]",
+    scoreColor: "text-[var(--ink-60)]",
+    barColor: "bg-[var(--ink-60)]",
+    dot: "bg-[var(--ink-60)]",
   },
   needs_work: {
-    label: "Needs a Refresh",
-    bg: "bg-[#B8860B]",
-    text: "text-white",
-    border: "border-[#B8860B]",
-    scoreColor: "text-[#FBBF24]",
-    barColor: "bg-[#B8860B]",
+    label: "Needs work",
+    bg: "bg-[var(--warn)]",
+    text: "text-[var(--paper)]",
+    border: "border-[var(--warn)]",
+    scoreColor: "text-[var(--warn)]",
+    barColor: "bg-[var(--warn)]",
+    dot: "bg-[var(--warn)]",
   },
   poor: {
-    label: "Needs Improvement",
-    bg: "bg-[#C75B00]",
-    text: "text-white",
-    border: "border-[#C75B00]",
-    scoreColor: "text-[#FB923C]",
-    barColor: "bg-[#C75B00]",
+    label: "Poor",
+    bg: "bg-[var(--danger)]",
+    text: "text-[var(--paper)]",
+    border: "border-[var(--danger)]",
+    scoreColor: "text-[var(--danger)]",
+    barColor: "bg-[var(--danger)]",
+    dot: "bg-[var(--danger)]",
   },
   critical: {
-    label: "Requires Full Rewrite",
-    bg: "bg-[#A30000]",
-    text: "text-white",
-    border: "border-[#A30000]",
-    scoreColor: "text-[#F87171]",
-    barColor: "bg-[#A30000]",
+    label: "Critical",
+    bg: "bg-[var(--danger)]",
+    text: "text-[var(--paper)]",
+    border: "border-[var(--danger)]",
+    scoreColor: "text-[var(--danger)]",
+    barColor: "bg-[var(--danger)]",
+    dot: "bg-[var(--danger)]",
   },
 } as const;
 
@@ -106,12 +111,11 @@ function GradeBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded px-2 font-semibold",
-        cfg.bg,
-        cfg.text,
-        size === "sm" ? "text-xs py-0.5" : "text-sm py-1 px-3"
+        "pd-chip inline-flex items-center gap-1.5",
+        size === "sm" ? "text-[10px] py-0.5 px-2" : "text-[11px] py-1 px-3"
       )}
     >
+      <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", cfg.dot)} />
       {cfg.label}
     </span>
   );
@@ -182,8 +186,8 @@ function StatCard({
   loading?: boolean;
 }) {
   return (
-    <div className="bg-card border border-border rounded-xl p-5 flex flex-col gap-1">
-      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+    <div className="pd-card p-5 flex flex-col gap-1">
+      <div className="pd-eyebrow">
         {label}
       </div>
       {loading ? (
@@ -220,10 +224,7 @@ function GradeCard({
   const cfg = GRADE_CONFIG[grade];
   return (
     <div
-      className={cn(
-        "bg-card border rounded-xl p-4 flex flex-col items-center gap-2",
-        cfg.border
-      )}
+      className="pd-card p-4 flex flex-col items-center gap-2"
     >
       {loading ? (
         <Skeleton className="h-8 w-12" />
@@ -254,10 +255,10 @@ function FilterBtn({
     <button
       onClick={onClick}
       className={cn(
-        "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border",
+        "px-3 py-1.5 text-[10px] font-[500] transition-colors rounded-[var(--r-sm)] border font-mono uppercase tracking-[0.08em]",
         active
-          ? "bg-primary text-primary-foreground border-primary"
-          : "bg-transparent text-muted-foreground border-border hover:border-primary/50 hover:text-foreground"
+          ? "bg-[var(--ink)] text-[var(--paper)] border-[var(--ink)]"
+          : "bg-transparent text-[var(--fg-3)] border-[var(--border-2)] hover:bg-[var(--bg-inset)] hover:text-[var(--fg-1)]"
       )}
     >
       {children}
@@ -376,7 +377,7 @@ export default function Dashboard() {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="max-w-md w-full text-center">
-          <div className="bg-card border border-border rounded-2xl p-10 flex flex-col items-center gap-6">
+          <div className="pd-card p-10 flex flex-col items-center gap-6">
             <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
               <BarChart3 className="h-8 w-8 text-primary" />
             </div>
@@ -480,10 +481,10 @@ export default function Dashboard() {
 
         {/* ── Cannibalisation warning ── */}
         {!statsLoading && stats && stats.cannibalisationCount > 0 && (
-          <div className="flex items-start gap-3 rounded-xl border border-[#C75B00]/40 bg-[#C75B00]/10 px-4 py-3">
-            <AlertTriangle className="h-5 w-5 text-[#FB923C] shrink-0 mt-0.5" />
+          <div className="flex items-start gap-3 rounded-[var(--r-md)] border border-[var(--warn)]/40 bg-[var(--warn)]/10 px-4 py-3">
+            <AlertTriangle className="h-5 w-5 text-[var(--warn)] shrink-0 mt-0.5" />
             <div className="text-sm">
-              <strong className="text-[#FB923C]">
+              <strong className="text-[var(--warn)]">
                 {stats.cannibalisationCount} cannibalisation warning
                 {stats.cannibalisationCount > 1 ? "s" : ""}
               </strong>{" "}
@@ -495,7 +496,7 @@ export default function Dashboard() {
                 onClick={() =>
                   navigate("/posts")
                 }
-                className="text-[#FB923C] underline underline-offset-2 hover:no-underline font-medium"
+                className="text-[var(--warn)] underline underline-offset-2 hover:no-underline font-medium"
               >
                 View conflicts →
               </button>
@@ -539,7 +540,7 @@ export default function Dashboard() {
             value={
               stats?.scorePotential !== null &&
               stats?.scorePotential !== undefined ? (
-                <span className="text-[#4ADE80]">
+                <span className="text-[var(--volt)]">
                   +{Math.round(stats.scorePotential * 10) / 10} pts
                 </span>
               ) : (
@@ -562,20 +563,20 @@ export default function Dashboard() {
             label="Credits Remaining"
             loading={statsLoading}
             value={
-              <span className="text-primary">{creditsRemaining}</span>
+              <span className="text-[var(--ink)] font-bold">{creditsRemaining}</span>
             }
             sub={
               creditsRemaining < 10 ? (
                 <button
                   onClick={() => navigate("/credits")}
-                  className="text-primary underline underline-offset-2 hover:no-underline"
+                  className="text-[var(--ink)] underline underline-offset-2 hover:decoration-[var(--volt)]"
                 >
                   Top up →
                 </button>
               ) : (
                 <button
                   onClick={() => navigate("/credits")}
-                  className="text-muted-foreground hover:text-primary underline-offset-2 hover:underline"
+                  className="text-[var(--fg-3)] hover:text-[var(--fg-1)] underline-offset-2 hover:underline"
                 >
                   Manage credits
                 </button>
@@ -613,7 +614,7 @@ export default function Dashboard() {
           stats &&
           stats.poorAndCriticalCount > 0 &&
           stats.projectedHealthScore !== null && (
-            <div className="flex items-start gap-3 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3">
+            <div className="flex items-start gap-3 rounded-[var(--r-md)] border border-[var(--volt)]/40 bg-[var(--volt)]/10 px-4 py-3">
               <Lightbulb className="h-5 w-5 text-primary shrink-0 mt-0.5" />
               <div className="flex-1 text-sm">
                 <span className="text-foreground">
@@ -642,7 +643,7 @@ export default function Dashboard() {
 
         {/* ── Empty states ── */}
         {showNoPostsState && (
-          <div className="bg-card border border-border rounded-xl p-10 text-center">
+          <div className="pd-card p-10 text-center">
             <FileText className="h-10 w-10 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-base font-bold text-foreground mb-2">
               No posts found
@@ -662,7 +663,7 @@ export default function Dashboard() {
         )}
 
         {showNoAuditState && (
-          <div className="bg-card border border-border rounded-xl p-10 text-center">
+          <div className="pd-card p-10 text-center">
             <Zap className="h-10 w-10 text-primary mx-auto mb-4" />
             <h3 className="text-base font-bold text-foreground mb-2">
               Your posts are ready
@@ -684,7 +685,7 @@ export default function Dashboard() {
 
         {/* ── Post table ── */}
         {!showNoPostsState && !showNoAuditState && (
-          <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="pd-card overflow-hidden p-0">
             {/* Table header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
               <div className="text-sm font-bold text-foreground">All Posts</div>
@@ -769,17 +770,17 @@ export default function Dashboard() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-border bg-background/20">
-                      <th className="text-left px-4 py-2.5 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                    <tr className="border-b border-[var(--border-1)] bg-[var(--bg-inset)]/20">
+                      <th className="text-left px-4 py-2.5 pd-eyebrow">
                         Post
                       </th>
-                      <th className="text-left px-3 py-2.5 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                      <th className="text-left px-3 py-2.5 pd-eyebrow">
                         Keyword
                       </th>
-                      <th className="text-left px-3 py-2.5 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                      <th className="text-left px-3 py-2.5 pd-eyebrow">
                         Status
                       </th>
-                      <th className="px-3 py-2.5 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                      <th className="px-3 py-2.5 pd-eyebrow">
                         <button
                           className="flex items-center gap-1 hover:text-foreground transition-colors"
                           onClick={() => handleSort("score")}
@@ -792,7 +793,7 @@ export default function Dashboard() {
                           />
                         </button>
                       </th>
-                      <th className="px-3 py-2.5 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                      <th className="px-3 py-2.5 pd-eyebrow">
                         <button
                           className="flex items-center gap-1 hover:text-foreground transition-colors"
                           onClick={() => handleSort("grade")}
@@ -805,10 +806,10 @@ export default function Dashboard() {
                           />
                         </button>
                       </th>
-                      <th className="text-left px-3 py-2.5 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                      <th className="text-left px-3 py-2.5 pd-eyebrow">
                         Issues
                       </th>
-                      <th className="text-right px-4 py-2.5 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                      <th className="text-right px-4 py-2.5 pd-eyebrow">
                         Action
                       </th>
                     </tr>
@@ -823,7 +824,7 @@ export default function Dashboard() {
                       return (
                       <tr
                         key={row.id}
-                        className="border-b border-border/50 hover:bg-accent/30 transition-colors cursor-pointer group"
+                        className="border-b border-[var(--border-1)] hover:bg-[var(--bg-inset)] transition-colors cursor-pointer group"
                         onClick={() => navigate(rowDest)}
                       >
                         {/* Post title */}
@@ -853,12 +854,12 @@ export default function Dashboard() {
                         {/* Keyword */}
                         <td className="px-3 py-3">
                           {row.focusKeyword ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded border border-border text-xs text-foreground bg-background/50">
+                            <span className="pd-chip">
                               {row.focusKeyword}
                             </span>
                           ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded border border-[#A30000]/60 text-xs text-[#F87171] bg-[#A30000]/10">
-                              No keyword set ⚠
+                            <span className="pd-chip" style={{background:'var(--danger)',color:'var(--paper)'}}>
+                              No keyword
                             </span>
                           )}
                         </td>
@@ -866,9 +867,9 @@ export default function Dashboard() {
                         {/* Cannibalisation flag */}
                         <td className="px-3 py-3">
                           {row.cannibalizationFlag ? (
-                            <span className="text-xs text-[#FB923C] flex items-center gap-1">
+                            <span className="pd-chip flex items-center gap-1" style={{background:'var(--warn)',color:'var(--paper)'}}>
                               <AlertTriangle className="h-3 w-3" />
-                              Duplicate keyword
+                              Duplicate
                             </span>
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>
@@ -959,23 +960,19 @@ export default function Dashboard() {
                               View
                             </Button>
                           ) : row.rewriteStatus === "complete" || row.rewriteStatus === "awaiting_review" ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-xs h-7 border-violet-400/60 text-violet-400 hover:bg-violet-400/10"
+                            <button
+                              className="pd-btn-primary text-xs h-7"
                               onClick={() => navigate(`/review/${row.id}`)}
                             >
-                              Review Rewrite
-                            </Button>
+                              Review rewrite
+                            </button>
                           ) : (
-                            <Button
-                              size="sm"
-                              className="text-xs h-7"
+                            <button
+                              className="pd-btn-primary text-xs h-7"
                               onClick={() => navigate(`/posts?fix=${row.id}`)}
                             >
-                              <ArrowUpRight className="h-3 w-3 mr-1" />
-                              Fix — 1 Credit
-                            </Button>
+                              Fix — 1 credit
+                            </button>
                           )}
                         </td>
                       </tr>
@@ -988,7 +985,7 @@ export default function Dashboard() {
 
             {/* Table footer */}
             {rows.length > 0 && (
-              <div className="px-4 py-2.5 border-t border-border text-xs text-muted-foreground flex items-center justify-between">
+              <div className="px-4 py-2.5 border-t border-[var(--border-1)] flex items-center justify-between pd-eyebrow">
                 <span>
                   Showing {rows.length} of {stats?.totalPosts ?? rows.length}{" "}
                   posts
@@ -998,7 +995,7 @@ export default function Dashboard() {
                     setGradeFilter("poor");
                     setStatusFilter("all");
                   }}
-                  className="text-primary hover:underline underline-offset-2"
+                  className="text-[var(--ink)] underline underline-offset-2 hover:decoration-[var(--volt)]"
                 >
                   Select all Poor and Critical →
                 </button>

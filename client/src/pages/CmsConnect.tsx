@@ -89,7 +89,7 @@ const PLATFORM_META: Record<Platform, { name: string; description: string; icon:
     description: "Publish to your Shopify store blog via Admin API",
     icon: <ShoppingBag className="w-6 h-6" />,
     badge: "S",
-    badgeColor: "bg-green-600",
+    badgeColor: "bg-[var(--ink)]",
   },
   webflow: {
     name: "Webflow",
@@ -134,7 +134,7 @@ const ERROR_MESSAGES: Record<string, string> = {
 function ErrorBanner({ error, onDismiss }: { error: ErrorState; onDismiss: () => void }) {
   const message = ERROR_MESSAGES[error.code] ?? error.message;
   return (
-    <div className="flex items-start gap-3 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 mt-4">
+    <div className="flex items-start gap-3 p-4 rounded-[var(--r-md)] bg-red-50 border border-red-200 text-red-700 mt-4">
       <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" />
       <div className="flex-1 text-sm">{message}</div>
       <button onClick={onDismiss} className="text-red-400 hover:text-red-600 text-xs shrink-0">
@@ -160,7 +160,7 @@ function StatusBadge({ status }: { status: string | null }) {
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--bg-inset)] text-[var(--fg-2)]">
       <Clock className="w-3 h-3" /> {status ?? "Unknown"}
     </span>
   );
@@ -251,7 +251,7 @@ export default function CmsConnect() {
     return (
       <div className="flex items-center justify-center py-16">
         <div className="text-center">
-          <p className="text-gray-500 mb-4">No business selected.</p>
+          <p className="text-[var(--fg-3)] mb-4">No business selected.</p>
           <Button onClick={() => navigate("/dashboard")} variant="outline">
             Go to Dashboard
           </Button>
@@ -269,14 +269,14 @@ export default function CmsConnect() {
       <div className="max-w-2xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">CMS Connections</h1>
-            <p className="text-gray-500 text-sm mt-1">
+            <h1 className="text-2xl font-bold text-[var(--fg-1)]">CMS Connections</h1>
+            <p className="text-[var(--fg-3)] text-sm mt-1">
               Manage your connected content platforms and import blog posts.
             </p>
           </div>
           <Button
             onClick={() => setView("add-platform")}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white"
+            className="bg-[var(--ink)] hover:bg-[var(--ink-80)] text-white"
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Connection
@@ -285,7 +285,7 @@ export default function CmsConnect() {
 
         {/* Success banner after connecting */}
         {justConnected && (
-          <div className="flex items-start gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-200 mb-6">
+          <div className="flex items-start gap-3 p-4 rounded-[var(--r-md)] bg-emerald-50 border border-emerald-200 mb-6">
             <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="text-sm font-semibold text-emerald-800">{justConnected} connected successfully!</p>
@@ -297,15 +297,15 @@ export default function CmsConnect() {
 
         {!hasConnections ? (
           // Empty state
-          <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-xl">
+          <div className="text-center py-16 border-2 border-dashed border-[var(--border-1)] rounded-[var(--r-md)]">
             <Globe className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">No CMS connected yet</h3>
-            <p className="text-gray-500 text-sm mb-6">
+            <h3 className="text-lg font-semibold text-[var(--fg-1)] mb-2">No CMS connected yet</h3>
+            <p className="text-[var(--fg-3)] text-sm mb-6">
               Connect your Wix, WordPress, or Shopify site to import and audit your blog posts.
             </p>
             <Button
               onClick={() => setView("add-platform")}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              className="bg-[var(--ink)] hover:bg-[var(--ink-80)] text-white"
             >
               <Plus className="w-4 h-4 mr-2" />
               Connect a CMS
@@ -319,23 +319,23 @@ export default function CmsConnect() {
               return (
                 <div
                   key={conn.id}
-                  className="flex items-center gap-4 p-5 rounded-xl border border-gray-200 bg-white shadow-sm"
+                  className="flex items-center gap-4 p-5 rounded-[var(--r-md)] border border-[var(--border-1)] bg-[var(--bg-[var(--bg-card)])] shadow-sm"
                 >
-                  <div className="text-gray-400 shrink-0">
+                  <div className="text-[var(--fg-3)] shrink-0">
                     {meta?.icon ?? <Globe className="w-8 h-8" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-semibold text-gray-900">
+                      <span className="font-semibold text-[var(--fg-1)]">
                         {meta?.name ?? conn.platform}
                       </span>
                       <StatusBadge status={conn.connectionStatus} />
                     </div>
                     {conn.siteUrl && (
-                      <p className="text-sm text-gray-500 truncate">{conn.siteUrl}</p>
+                      <p className="text-sm text-[var(--fg-3)] truncate">{conn.siteUrl}</p>
                     )}
                     {conn.lastSyncAt && (
-                      <p className="text-xs text-gray-400 mt-0.5">
+                      <p className="text-xs text-[var(--fg-3)] mt-0.5">
                         Last synced {new Date(conn.lastSyncAt).toLocaleDateString()}
                       </p>
                     )}
@@ -348,7 +348,7 @@ export default function CmsConnect() {
                         setSelectedPlatform(conn.platform as Platform);
                         setView("import-options");
                       }}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                      className="bg-[var(--ink)] hover:bg-[var(--ink-80)] text-white"
                     >
                       <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
                       Import Posts
@@ -360,7 +360,7 @@ export default function CmsConnect() {
                         setSelectedPlatform(conn.platform as Platform);
                         setView("connect");
                       }}
-                      className="border-gray-200 text-gray-600 hover:bg-gray-50"
+                      className="border-[var(--border-1)] text-[var(--fg-2)] hover:bg-[var(--bg-inset)]"
                     >
                       Edit Credentials
                     </Button>
@@ -391,14 +391,14 @@ export default function CmsConnect() {
       <div className="max-w-2xl mx-auto px-4 py-6">
         <button
           onClick={() => setView("connections")}
-          className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm mb-8 transition-colors"
+          className="flex items-center gap-2 text-[var(--fg-3)] hover:text-[var(--fg-1)] text-sm mb-8 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Connections
         </button>
 
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Choose Your Platform</h1>
-        <p className="text-gray-500 mb-8">
+        <h1 className="text-2xl font-bold text-[var(--fg-1)] mb-2">Choose Your Platform</h1>
+        <p className="text-[var(--fg-3)] mb-8">
           Select your content management system. You can connect via API or Zapier — we'll show you both options.
         </p>
 
@@ -415,14 +415,14 @@ export default function CmsConnect() {
                   setView("connect-method");
                   setError(null);
                 }}
-                className="relative flex flex-col items-start gap-4 p-5 rounded-xl border border-gray-200 hover:border-indigo-400 hover:bg-indigo-50/40 cursor-pointer text-left transition-all bg-white shadow-sm"
+                className="relative flex flex-col items-start gap-4 p-5 rounded-[var(--r-md)] border border-[var(--border-1)] hover:border-indigo-400 hover:bg-indigo-50/40 cursor-pointer text-left transition-all bg-[var(--bg-[var(--bg-card)])] shadow-sm"
               >
-                <div className={`w-10 h-10 rounded-lg ${platform.badgeColor} flex items-center justify-center text-white font-bold text-sm`}>
+                <div className={`w-10 h-10 rounded-[var(--r-md)] ${platform.badgeColor} flex items-center justify-center text-white font-bold text-sm`}>
                   {platform.badge}
                 </div>
                 <div>
-                  <div className="font-semibold text-gray-900">{platform.name}</div>
-                  <div className="text-xs text-gray-500 mt-0.5 leading-snug">{platform.description}</div>
+                  <div className="font-semibold text-[var(--fg-1)]">{platform.name}</div>
+                  <div className="text-xs text-[var(--fg-3)] mt-0.5 leading-snug">{platform.description}</div>
                 </div>
                 <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
               </button>
@@ -431,8 +431,8 @@ export default function CmsConnect() {
         </div>
 
         {/* Website not listed section */}
-        <div className="border border-gray-200 rounded-xl p-5 bg-gray-50">
-          <p className="text-sm font-medium text-gray-700 mb-3">
+        <div className="border border-[var(--border-1)] rounded-[var(--r-md)] p-5 bg-[var(--bg-inset)]">
+          <p className="text-sm font-medium text-[var(--fg-1)] mb-3">
             Website not listed? Use one of these options to connect manually or via automation.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -442,23 +442,23 @@ export default function CmsConnect() {
                 setView("connect");
                 setError(null);
               }}
-              className="flex items-start gap-3 p-4 rounded-lg border border-gray-200 bg-white hover:border-orange-400 hover:bg-orange-50/40 transition-all text-left"
+              className="flex items-start gap-3 p-4 rounded-[var(--r-md)] border border-[var(--border-1)] bg-[var(--bg-[var(--bg-card)])] hover:border-orange-400 hover:bg-orange-50/40 transition-all text-left"
             >
-              <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center shrink-0">
+              <div className="w-8 h-8 rounded-[var(--r-md)] bg-orange-500 flex items-center justify-center shrink-0">
                 <Zap className="w-4 h-4 text-white" />
               </div>
               <div>
-                <div className="font-semibold text-sm text-gray-900">Zapier Webhook</div>
-                <div className="text-xs text-gray-500 mt-0.5">Send posts to any platform — Squarespace, Ghost, or any CMS via Zapier automation.</div>
+                <div className="font-semibold text-sm text-[var(--fg-1)]">Zapier Webhook</div>
+                <div className="text-xs text-[var(--fg-3)] mt-0.5">Send posts to any platform — Squarespace, Ghost, or any CMS via Zapier automation.</div>
               </div>
             </button>
-            <div className="flex items-start gap-3 p-4 rounded-lg border border-gray-200 bg-white opacity-60 cursor-not-allowed">
-              <div className="w-8 h-8 rounded-lg bg-gray-400 flex items-center justify-center shrink-0">
+            <div className="flex items-start gap-3 p-4 rounded-[var(--r-md)] border border-[var(--border-1)] bg-[var(--bg-[var(--bg-card)])] opacity-60 cursor-not-allowed">
+              <div className="w-8 h-8 rounded-[var(--r-md)] bg-gray-400 flex items-center justify-center shrink-0">
                 <FileText className="w-4 h-4 text-white" />
               </div>
               <div>
-                <div className="font-semibold text-sm text-gray-900">Download ZIP</div>
-                <div className="text-xs text-gray-500 mt-0.5">Coming soon — export posts as HTML + Markdown with all SEO fields.</div>
+                <div className="font-semibold text-sm text-[var(--fg-1)]">Download ZIP</div>
+                <div className="text-xs text-[var(--fg-3)] mt-0.5">Coming soon — export posts as HTML + Markdown with all SEO fields.</div>
               </div>
             </div>
           </div>
@@ -528,19 +528,19 @@ export default function CmsConnect() {
       <div className="max-w-2xl mx-auto px-4 py-6">
         <button
           onClick={() => setView("add-platform")}
-          className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm mb-8 transition-colors"
+          className="flex items-center gap-2 text-[var(--fg-3)] hover:text-[var(--fg-1)] text-sm mb-8 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           Back
         </button>
 
         <div className="flex items-center gap-3 mb-2">
-          <div className={`w-10 h-10 rounded-lg ${platform.badgeColor} flex items-center justify-center text-white font-bold text-sm`}>
+          <div className={`w-10 h-10 rounded-[var(--r-md)] ${platform.badgeColor} flex items-center justify-center text-white font-bold text-sm`}>
             {platform.badge}
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Connect {platform.name}</h1>
+          <h1 className="text-2xl font-bold text-[var(--fg-1)]">Connect {platform.name}</h1>
         </div>
-        <p className="text-gray-500 mb-8">Choose how you'd like to connect your {platform.name} site.</p>
+        <p className="text-[var(--fg-3)] mb-8">Choose how you'd like to connect your {platform.name} site.</p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* API Option */}
@@ -550,16 +550,16 @@ export default function CmsConnect() {
               setView("connect");
               setError(null);
             }}
-            className="flex flex-col items-start gap-3 p-5 rounded-xl border-2 border-indigo-200 hover:border-indigo-500 hover:bg-indigo-50/50 cursor-pointer text-left transition-all bg-white"
+            className="flex flex-col items-start gap-3 p-5 rounded-[var(--r-md)] border-2 border-indigo-200 hover:border-indigo-500 hover:bg-indigo-50/50 cursor-pointer text-left transition-all bg-[var(--bg-[var(--bg-card)])]"
           >
-            <div className="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-[var(--r-md)] bg-[var(--ink)] flex items-center justify-center">
               <Lock className="w-4 h-4 text-white" />
             </div>
             <div>
-              <div className="font-semibold text-gray-900">Connect via API</div>
-              <div className="text-xs text-gray-500 mt-1 leading-relaxed">Direct connection using your {platform.name} API key. Fastest option — posts import in seconds.</div>
+              <div className="font-semibold text-[var(--fg-1)]">Connect via API</div>
+              <div className="text-xs text-[var(--fg-3)] mt-1 leading-relaxed">Direct connection using your {platform.name} API key. Fastest option — posts import in seconds.</div>
             </div>
-            <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">Recommended</span>
+            <span className="text-xs font-medium text-[var(--ink-60)] bg-indigo-50 px-2 py-0.5 rounded-full">Recommended</span>
           </button>
 
           {/* Zapier Option */}
@@ -570,25 +570,25 @@ export default function CmsConnect() {
               setView("connect");
               setError(null);
             }}
-            className="flex flex-col items-start gap-3 p-5 rounded-xl border-2 border-gray-200 hover:border-orange-400 hover:bg-orange-50/50 cursor-pointer text-left transition-all bg-white"
+            className="flex flex-col items-start gap-3 p-5 rounded-[var(--r-md)] border-2 border-[var(--border-1)] hover:border-orange-400 hover:bg-orange-50/50 cursor-pointer text-left transition-all bg-[var(--bg-[var(--bg-card)])]"
           >
-            <div className="w-9 h-9 rounded-lg bg-orange-500 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-[var(--r-md)] bg-orange-500 flex items-center justify-center">
               <Zap className="w-4 h-4 text-white" />
             </div>
             <div>
-              <div className="font-semibold text-gray-900">Connect via Zapier</div>
-              <div className="text-xs text-gray-500 mt-1 leading-relaxed">Use a Zapier webhook to send posts automatically. Good if you can't use the API directly.</div>
+              <div className="font-semibold text-[var(--fg-1)]">Connect via Zapier</div>
+              <div className="text-xs text-[var(--fg-3)] mt-1 leading-relaxed">Use a Zapier webhook to send posts automatically. Good if you can't use the API directly.</div>
             </div>
           </button>
         </div>
 
         {/* How to get API key steps */}
         {apiInfo && (
-          <div className="mt-8 p-5 rounded-xl bg-gray-50 border border-gray-200">
-            <h3 className="font-semibold text-gray-900 mb-3 text-sm">How to get your {platform.name} API key</h3>
+          <div className="mt-8 p-5 rounded-[var(--r-md)] bg-[var(--bg-inset)] border border-[var(--border-1)]">
+            <h3 className="font-semibold text-[var(--fg-1)] mb-3 text-sm">How to get your {platform.name} API key</h3>
             <ol className="space-y-2">
               {apiInfo.steps.map((step, i) => (
-                <li key={i} className="flex gap-3 text-sm text-gray-600">
+                <li key={i} className="flex gap-3 text-sm text-[var(--fg-2)]">
                   <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
                   {step}
                 </li>
@@ -598,7 +598,7 @@ export default function CmsConnect() {
               href={apiInfo.docsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs text-indigo-600 hover:underline mt-4 font-medium"
+              className="inline-flex items-center gap-1.5 text-xs text-[var(--ink-60)] hover:underline mt-4 font-medium"
             >
               <Globe className="w-3.5 h-3.5" />
               {apiInfo.docsLabel} ↗
@@ -644,31 +644,31 @@ export default function CmsConnect() {
       return (
         <div className="max-w-2xl mx-auto px-4 py-6">
           <div className="max-w-lg mx-auto">
-            <button onClick={goBack} className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm mb-8 transition-colors">
+            <button onClick={goBack} className="flex items-center gap-2 text-[var(--fg-3)] hover:text-[var(--fg-1)] text-sm mb-8 transition-colors">
               <ArrowLeft className="w-4 h-4" /> Back
             </button>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Connect WordPress</h1>
-            <p className="text-gray-500 mb-6">Enter your WordPress site details. Your credentials are encrypted and never stored in plain text.</p>
+            <h1 className="text-2xl font-bold text-[var(--fg-1)] mb-2">Connect WordPress</h1>
+            <p className="text-[var(--fg-3)] mb-6">Enter your WordPress site details. Your credentials are encrypted and never stored in plain text.</p>
             {error && <ErrorBanner error={error} onDismiss={() => setError(null)} />}
             <div className="space-y-5 mt-6">
               <div>
-                <Label className="text-gray-700 mb-1.5 flex items-center gap-1">WordPress Site URL <HelpTooltip text="The full web address of your WordPress website, for example https://yourwebsite.com.au." /></Label>
+                <Label className="text-[var(--fg-1)] mb-1.5 flex items-center gap-1">WordPress Site URL <HelpTooltip text="The full web address of your WordPress website, for example https://yourwebsite.com.au." /></Label>
                 <Input type="url" placeholder="https://yoursite.com" value={wpUrl} onChange={(e) => setWpUrl(e.target.value)} />
               </div>
               <div>
-                <Label className="text-gray-700 mb-1.5 flex items-center gap-1">WordPress Username <HelpTooltip text="Your WordPress login username." /></Label>
+                <Label className="text-[var(--fg-1)] mb-1.5 flex items-center gap-1">WordPress Username <HelpTooltip text="Your WordPress login username." /></Label>
                 <Input type="text" placeholder="admin" value={wpUsername} onChange={(e) => setWpUsername(e.target.value)} />
               </div>
               <div>
-                <Label className="text-gray-700 mb-1.5 flex items-center gap-1">Application Password <HelpTooltip text="Create one in WordPress Admin → Users → Your Profile → Application Passwords." /></Label>
+                <Label className="text-[var(--fg-1)] mb-1.5 flex items-center gap-1">Application Password <HelpTooltip text="Create one in WordPress Admin → Users → Your Profile → Application Passwords." /></Label>
                 <Input type="password" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx" value={wpAppPassword} onChange={(e) => setWpAppPassword(e.target.value)} />
-                <p className="text-xs text-gray-400 mt-1">Generate in WordPress Admin → Users → Your Profile → Application Passwords.</p>
+                <p className="text-xs text-[var(--fg-3)] mt-1">Generate in WordPress Admin → Users → Your Profile → Application Passwords.</p>
               </div>
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-gray-50 border border-gray-200">
+              <div className="flex items-center gap-2 p-3 rounded-[var(--r-md)] bg-[var(--bg-inset)] border border-[var(--border-1)]">
                 <Lock className="w-4 h-4 text-emerald-500 shrink-0" />
-                <p className="text-xs text-gray-500">Your credentials are encrypted with AES-256-GCM before being stored.</p>
+                <p className="text-xs text-[var(--fg-3)]">Your credentials are encrypted with AES-256-GCM before being stored.</p>
               </div>
-              <Button onClick={handleConnect} disabled={!wpUrl || !wpUsername || !wpAppPassword || connectMutation.isPending} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
+              <Button onClick={handleConnect} disabled={!wpUrl || !wpUsername || !wpAppPassword || connectMutation.isPending} className="w-full bg-[var(--ink)] hover:bg-[var(--ink-80)] text-white">
                 {connectMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Connecting…</> : "Connect WordPress"}
               </Button>
             </div>
@@ -703,15 +703,15 @@ export default function CmsConnect() {
       return (
         <div className="max-w-2xl mx-auto px-4 py-6">
           <div className="max-w-lg mx-auto">
-            <button onClick={goBack} className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm mb-8 transition-colors">
+            <button onClick={goBack} className="flex items-center gap-2 text-[var(--fg-3)] hover:text-[var(--fg-1)] text-sm mb-8 transition-colors">
               <ArrowLeft className="w-4 h-4" /> Back
             </button>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Connect Wix</h1>
-            <p className="text-gray-500 mb-6">Connect your Wix site using the Wix Headless API. Your credentials are encrypted at rest.</p>
+            <h1 className="text-2xl font-bold text-[var(--fg-1)] mb-2">Connect Wix</h1>
+            <p className="text-[var(--fg-3)] mb-6">Connect your Wix site using the Wix Headless API. Your credentials are encrypted at rest.</p>
             {error && <ErrorBanner error={error} onDismiss={() => setError(null)} />}
             <div className="space-y-5 mt-6">
               <div>
-                <Label className="text-gray-700 mb-1.5 flex items-center gap-1">
+                <Label className="text-[var(--fg-1)] mb-1.5 flex items-center gap-1">
                   Wix Site ID
                   <HelpTooltip text="Your Wix Site ID is a unique code that identifies your website. Find it by logging in to manage.wix.com, opening your site's dashboard, and looking at the URL — it is the long string of letters and numbers between /dashboard/ and /home." />
                 </Label>
@@ -721,12 +721,12 @@ export default function CmsConnect() {
                   value={wixSiteId}
                   onChange={(e) => setWixSiteId(e.target.value)}
                 />
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-[var(--fg-3)] mt-1">
                   Find this in your Wix Dashboard URL: manage.wix.com/dashboard/<strong>YOUR-SITE-ID</strong>/home
                 </p>
               </div>
               <div>
-                <Label className="text-gray-700 mb-1.5 flex items-center gap-1">
+                <Label className="text-[var(--fg-1)] mb-1.5 flex items-center gap-1">
                   API Key
                   <HelpTooltip text="A Wix API Key lets iAudit read and update your blog posts. Create one in your Wix Dashboard → Settings → API Keys. Give it a name like 'iAudit' and make sure you tick the Wix Blog permission. Save the key somewhere safe — Wix only shows it once." />
                 </Label>
@@ -736,18 +736,18 @@ export default function CmsConnect() {
                   value={wixApiKey}
                   onChange={(e) => setWixApiKey(e.target.value)}
                 />
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-[var(--fg-3)] mt-1">
                   Create in Wix Dashboard → Settings → API Keys → Add Key. Requires <strong>Blog</strong> read permission.
                 </p>
               </div>
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-gray-50 border border-gray-200">
+              <div className="flex items-center gap-2 p-3 rounded-[var(--r-md)] bg-[var(--bg-inset)] border border-[var(--border-1)]">
                 <Lock className="w-4 h-4 text-emerald-500 shrink-0" />
-                <p className="text-xs text-gray-500">Your credentials are encrypted with AES-256-GCM before being stored.</p>
+                <p className="text-xs text-[var(--fg-3)]">Your credentials are encrypted with AES-256-GCM before being stored.</p>
               </div>
               <Button
                 onClick={handleConnect}
                 disabled={!wixSiteId || !wixApiKey || connectWixMutation.isPending}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+                className="w-full bg-[var(--ink)] hover:bg-[var(--ink-80)] text-white"
               >
                 {connectWixMutation.isPending ? (
                   <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Connecting…</>
@@ -787,26 +787,26 @@ export default function CmsConnect() {
       return (
         <div className="max-w-2xl mx-auto px-4 py-6">
           <div className="max-w-lg mx-auto">
-            <button onClick={goBack} className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm mb-8 transition-colors">
+            <button onClick={goBack} className="flex items-center gap-2 text-[var(--fg-3)] hover:text-[var(--fg-1)] text-sm mb-8 transition-colors">
               <ArrowLeft className="w-4 h-4" /> Back
             </button>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Connect Shopify</h1>
-            <p className="text-gray-500 mb-6">Connect your Shopify store using a Custom App access token.</p>
+            <h1 className="text-2xl font-bold text-[var(--fg-1)] mb-2">Connect Shopify</h1>
+            <p className="text-[var(--fg-3)] mb-6">Connect your Shopify store using a Custom App access token.</p>
             {error && <ErrorBanner error={error} onDismiss={() => setError(null)} />}
             <div className="space-y-5 mt-6">
               <div>
-                <Label className="text-gray-700 mb-1.5 flex items-center gap-1">Shopify Store Domain <HelpTooltip text="Your Shopify store domain ends in .myshopify.com. For example: yourstore.myshopify.com" /></Label>
+                <Label className="text-[var(--fg-1)] mb-1.5 flex items-center gap-1">Shopify Store Domain <HelpTooltip text="Your Shopify store domain ends in .myshopify.com. For example: yourstore.myshopify.com" /></Label>
                 <Input type="text" placeholder="your-store.myshopify.com" value={shopifyShop} onChange={(e) => setShopifyShop(e.target.value)} />
               </div>
               <div>
-                <Label className="text-gray-700 mb-1.5 flex items-center gap-1">Admin API Access Token <HelpTooltip text="Create a Custom App in Shopify Admin → Settings → Apps → Develop apps. Requires read_content and write_content permissions." /></Label>
+                <Label className="text-[var(--fg-1)] mb-1.5 flex items-center gap-1">Admin API Access Token <HelpTooltip text="Create a Custom App in Shopify Admin → Settings → Apps → Develop apps. Requires read_content and write_content permissions." /></Label>
                 <Input type="password" placeholder="shpat_xxxxxxxxxxxxxxxxxxxx" value={shopifyAccessToken} onChange={(e) => setShopifyAccessToken(e.target.value)} />
               </div>
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-gray-50 border border-gray-200">
+              <div className="flex items-center gap-2 p-3 rounded-[var(--r-md)] bg-[var(--bg-inset)] border border-[var(--border-1)]">
                 <Lock className="w-4 h-4 text-emerald-500 shrink-0" />
-                <p className="text-xs text-gray-500">Your credentials are encrypted with AES-256-GCM before being stored.</p>
+                <p className="text-xs text-[var(--fg-3)]">Your credentials are encrypted with AES-256-GCM before being stored.</p>
               </div>
-              <Button onClick={handleConnect} disabled={!shopifyShop || !shopifyAccessToken || connectShopifyMutation.isPending} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
+              <Button onClick={handleConnect} disabled={!shopifyShop || !shopifyAccessToken || connectShopifyMutation.isPending} className="w-full bg-[var(--ink)] hover:bg-[var(--ink-80)] text-white">
                 {connectShopifyMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Connecting…</> : "Connect Shopify"}
               </Button>
             </div>
@@ -841,15 +841,15 @@ export default function CmsConnect() {
       return (
         <div className="max-w-2xl mx-auto px-4 py-6">
           <div className="max-w-lg mx-auto">
-            <button onClick={goBack} className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm mb-8 transition-colors">
+            <button onClick={goBack} className="flex items-center gap-2 text-[var(--fg-3)] hover:text-[var(--fg-1)] text-sm mb-8 transition-colors">
               <ArrowLeft className="w-4 h-4" /> Back
             </button>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Connect Webflow</h1>
-            <p className="text-gray-500 mb-6">Connect your Webflow CMS collection using the Webflow Data API v2. Your credentials are encrypted at rest.</p>
+            <h1 className="text-2xl font-bold text-[var(--fg-1)] mb-2">Connect Webflow</h1>
+            <p className="text-[var(--fg-3)] mb-6">Connect your Webflow CMS collection using the Webflow Data API v2. Your credentials are encrypted at rest.</p>
             {error && <ErrorBanner error={error} onDismiss={() => setError(null)} />}
             <div className="space-y-5 mt-6">
               <div>
-                <Label className="text-gray-700 mb-1.5 flex items-center gap-1">
+                <Label className="text-[var(--fg-1)] mb-1.5 flex items-center gap-1">
                   Webflow API Key
                   <HelpTooltip text="Generate a Webflow API key in your Webflow Account Settings → Integrations → API Access → Generate API Token. Give it CMS read access." />
                 </Label>
@@ -859,12 +859,12 @@ export default function CmsConnect() {
                   value={webflowApiKey}
                   onChange={(e) => setWebflowApiKey(e.target.value)}
                 />
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-[var(--fg-3)] mt-1">
                   Generate in Webflow Account Settings → Integrations → API Access.
                 </p>
               </div>
               <div>
-                <Label className="text-gray-700 mb-1.5 flex items-center gap-1">
+                <Label className="text-[var(--fg-1)] mb-1.5 flex items-center gap-1">
                   CMS Collection ID
                   <HelpTooltip text="The Collection ID for your blog posts collection. Find it in Webflow Designer → CMS → select your Blog Posts collection → the ID appears in the URL or in Collection Settings." />
                 </Label>
@@ -874,18 +874,18 @@ export default function CmsConnect() {
                   value={webflowCollectionId}
                   onChange={(e) => setWebflowCollectionId(e.target.value)}
                 />
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-[var(--fg-3)] mt-1">
                   Find in Webflow Designer → CMS → your blog collection → Collection Settings.
                 </p>
               </div>
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-gray-50 border border-gray-200">
+              <div className="flex items-center gap-2 p-3 rounded-[var(--r-md)] bg-[var(--bg-inset)] border border-[var(--border-1)]">
                 <Lock className="w-4 h-4 text-emerald-500 shrink-0" />
-                <p className="text-xs text-gray-500">Your credentials are encrypted with AES-256-GCM before being stored.</p>
+                <p className="text-xs text-[var(--fg-3)]">Your credentials are encrypted with AES-256-GCM before being stored.</p>
               </div>
               <Button
                 onClick={handleConnect}
                 disabled={!webflowApiKey || !webflowCollectionId || connectWebflowMutation.isPending}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+                className="w-full bg-[var(--ink)] hover:bg-[var(--ink-80)] text-white"
               >
                 {connectWebflowMutation.isPending ? (
                   <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Connecting…</>
@@ -926,26 +926,26 @@ export default function CmsConnect() {
       return (
         <div className="max-w-2xl mx-auto px-4 py-6">
           <div className="max-w-lg mx-auto">
-            <button onClick={goBack} className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm mb-8 transition-colors">
+            <button onClick={goBack} className="flex items-center gap-2 text-[var(--fg-3)] hover:text-[var(--fg-1)] text-sm mb-8 transition-colors">
               <ArrowLeft className="w-4 h-4" /> Back
             </button>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Connect via Zapier</h1>
-            <p className="text-gray-500 mb-4">Use Zapier as a universal fallback to connect any CMS platform — including platforms not listed above, or when direct API access is restricted.</p>
+            <h1 className="text-2xl font-bold text-[var(--fg-1)] mb-2">Connect via Zapier</h1>
+            <p className="text-[var(--fg-3)] mb-4">Use Zapier as a universal fallback to connect any CMS platform — including platforms not listed above, or when direct API access is restricted.</p>
 
             {/* Platform-specific setup instructions */}
-            <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 mb-6">
+            <div className="rounded-[var(--r-md)] border border-indigo-100 bg-indigo-50/60 p-4 mb-6">
               <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide mb-3">How to connect your platform via Zapier</p>
-              <ol className="space-y-2 text-xs text-gray-700 list-decimal list-inside">
-                <li>Create a free account at <a href="https://zapier.com" target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline">zapier.com</a> if you don’t have one.</li>
+              <ol className="space-y-2 text-xs text-[var(--fg-1)] list-decimal list-inside">
+                <li>Create a free account at <a href="https://zapier.com" target="_blank" rel="noopener noreferrer" className="text-[var(--ink-60)] underline">zapier.com</a> if you don’t have one.</li>
                 <li>Create a new Zap. Choose your CMS as the <strong>Trigger</strong> (e.g. “New Blog Post in WordPress”, “New Post in Wix”, “New Article in Shopify”).</li>
                 <li>Add a <strong>Webhooks by Zapier</strong> action step. Select <em>POST</em> as the method.</li>
                 <li>Paste your iAudit inbound webhook URL (generated below) as the destination URL.</li>
                 <li>Map these fields from your CMS to the webhook payload:
-                  <ul className="ml-4 mt-1 space-y-0.5 list-disc list-inside text-gray-600">
-                    <li><code className="bg-white px-1 rounded">title</code> — post title (required)</li>
-                    <li><code className="bg-white px-1 rounded">body</code> — full post body HTML (required)</li>
-                    <li><code className="bg-white px-1 rounded">focusKeyword</code>, <code className="bg-white px-1 rounded">metaTitle</code>, <code className="bg-white px-1 rounded">metaDescription</code> (optional)</li>
-                    <li><code className="bg-white px-1 rounded">slug</code>, <code className="bg-white px-1 rounded">status</code>, <code className="bg-white px-1 rounded">platform</code>, <code className="bg-white px-1 rounded">postId</code> (optional)</li>
+                  <ul className="ml-4 mt-1 space-y-0.5 list-disc list-inside text-[var(--fg-2)]">
+                    <li><code className="bg-[var(--bg-[var(--bg-card)])] px-1 rounded">title</code> — post title (required)</li>
+                    <li><code className="bg-[var(--bg-[var(--bg-card)])] px-1 rounded">body</code> — full post body HTML (required)</li>
+                    <li><code className="bg-[var(--bg-[var(--bg-card)])] px-1 rounded">focusKeyword</code>, <code className="bg-[var(--bg-[var(--bg-card)])] px-1 rounded">metaTitle</code>, <code className="bg-[var(--bg-[var(--bg-card)])] px-1 rounded">metaDescription</code> (optional)</li>
+                    <li><code className="bg-[var(--bg-[var(--bg-card)])] px-1 rounded">slug</code>, <code className="bg-[var(--bg-[var(--bg-card)])] px-1 rounded">status</code>, <code className="bg-[var(--bg-[var(--bg-card)])] px-1 rounded">platform</code>, <code className="bg-[var(--bg-[var(--bg-card)])] px-1 rounded">postId</code> (optional)</li>
                   </ul>
                 </li>
                 <li>Turn on your Zap. New posts will appear in iAudit automatically.</li>
@@ -955,8 +955,8 @@ export default function CmsConnect() {
             {error && <ErrorBanner error={error} onDismiss={() => setError(null)} />}
             <div className="space-y-5">
               <div>
-                <Label className="text-gray-700 mb-1.5 block">Inbound Webhook URL</Label>
-                <p className="text-xs text-gray-500 mb-2">Copy this URL into your Zapier zap as the webhook destination.</p>
+                <Label className="text-[var(--fg-1)] mb-1.5 block">Inbound Webhook URL</Label>
+                <p className="text-xs text-[var(--fg-3)] mb-2">Copy this URL into your Zapier zap as the webhook destination.</p>
                 {zapierInboundUrl ? (
                   <div className="flex gap-2">
                     <Input readOnly value={zapierInboundUrl} className="text-xs font-mono" />
@@ -965,17 +965,17 @@ export default function CmsConnect() {
                     </Button>
                   </div>
                 ) : (
-                  <p className="text-xs text-gray-400">Click "Save Zapier Connection" to generate your unique webhook URL.</p>
+                  <p className="text-xs text-[var(--fg-3)]">Click "Save Zapier Connection" to generate your unique webhook URL.</p>
                 )}
               </div>
               <div>
-                <Label className="text-gray-700 mb-1.5 flex items-center gap-1">
-                  Outbound Webhook URL <span className="text-gray-400 font-normal ml-1">(optional)</span>
+                <Label className="text-[var(--fg-1)] mb-1.5 flex items-center gap-1">
+                  Outbound Webhook URL <span className="text-[var(--fg-3)] font-normal ml-1">(optional)</span>
                   <HelpTooltip text="When a rewrite is approved in iAudit, it will send the rewritten post to this Zapier webhook URL." />
                 </Label>
                 <Input type="url" placeholder="https://hooks.zapier.com/hooks/catch/..." value={zapierOutboundUrl} onChange={(e) => setZapierOutboundUrl(e.target.value)} />
               </div>
-              <Button onClick={handleConnect} disabled={connectZapierMutation.isPending} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
+              <Button onClick={handleConnect} disabled={connectZapierMutation.isPending} className="w-full bg-[var(--ink)] hover:bg-[var(--ink-80)] text-white">
                 {connectZapierMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</> : "Save Zapier Connection"}
               </Button>
             </div>
@@ -992,7 +992,7 @@ export default function CmsConnect() {
       { value: "all", label: "All Posts", description: "Import published, scheduled, and draft posts", icon: <FileText className="w-5 h-5" /> },
       { value: "published", label: "Published Only", description: "Only posts that are live on your site", icon: <CheckCircle2 className="w-5 h-5 text-emerald-500" /> },
       { value: "scheduled", label: "Scheduled Only", description: "Posts queued for future publication", icon: <Clock className="w-5 h-5 text-yellow-500" /> },
-      { value: "draft", label: "Drafts Only", description: "Unpublished draft posts", icon: <FileText className="w-5 h-5 text-gray-400" /> },
+      { value: "draft", label: "Drafts Only", description: "Unpublished draft posts", icon: <FileText className="w-5 h-5 text-[var(--fg-3)]" /> },
     ];
 
     // Zapier doesn't support import — posts arrive via webhook
@@ -1003,10 +1003,10 @@ export default function CmsConnect() {
             <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
               <CheckCircle2 className="w-8 h-8 text-emerald-600" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Zapier Connected</h1>
-            <p className="text-gray-500 mb-6">Posts will appear in iAudit automatically when your Zapier zap triggers.</p>
+            <h1 className="text-2xl font-bold text-[var(--fg-1)] mb-2">Zapier Connected</h1>
+            <p className="text-[var(--fg-3)] mb-6">Posts will appear in iAudit automatically when your Zapier zap triggers.</p>
             <div className="flex gap-3 justify-center">
-              <Button onClick={() => navigate("/posts")} className="bg-indigo-600 hover:bg-indigo-700 text-white">View Posts</Button>
+              <Button onClick={() => navigate("/posts")} className="bg-[var(--ink)] hover:bg-[var(--ink-80)] text-white">View Posts</Button>
               <Button onClick={() => setView("connections")} variant="outline">Back to Connections</Button>
             </div>
           </div>
@@ -1033,33 +1033,33 @@ export default function CmsConnect() {
     return (
       <div className="max-w-2xl mx-auto px-4 py-6">
         <div className="max-w-lg mx-auto">
-          <button onClick={() => setView("connections")} className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm mb-8 transition-colors">
+          <button onClick={() => setView("connections")} className="flex items-center gap-2 text-[var(--fg-3)] hover:text-[var(--fg-1)] text-sm mb-8 transition-colors">
             <ArrowLeft className="w-4 h-4" /> Back to Connections
           </button>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Import Posts</h1>
-          <p className="text-gray-500 mb-2">Select which post types to import. Trash posts are never imported.</p>
+          <h1 className="text-2xl font-bold text-[var(--fg-1)] mb-2">Import Posts</h1>
+          <p className="text-[var(--fg-3)] mb-2">Select which post types to import. Trash posts are never imported.</p>
           {error && <ErrorBanner error={error} onDismiss={() => setError(null)} />}
           <div className="space-y-3 mt-6">
             {STATUS_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
                 onClick={() => setStatusFilter(opt.value)}
-                className={`w-full flex items-center gap-4 p-4 rounded-xl border text-left transition-all ${
+                className={`w-full flex items-center gap-4 p-4 rounded-[var(--r-md)] border text-left transition-all ${
                   statusFilter === opt.value
                     ? "border-indigo-400 bg-indigo-50"
-                    : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                    : "border-[var(--border-1)] hover:border-[var(--border-2)] hover:bg-[var(--bg-inset)]"
                 }`}
               >
-                <div className="text-gray-500">{opt.icon}</div>
+                <div className="text-[var(--fg-3)]">{opt.icon}</div>
                 <div className="flex-1">
-                  <div className="font-medium text-gray-900">{opt.label}</div>
-                  <div className="text-sm text-gray-500">{opt.description}</div>
+                  <div className="font-medium text-[var(--fg-1)]">{opt.label}</div>
+                  <div className="text-sm text-[var(--fg-3)]">{opt.description}</div>
                 </div>
-                <div className={`w-4 h-4 rounded-full border-2 transition-colors ${statusFilter === opt.value ? "border-indigo-500 bg-indigo-500" : "border-gray-300"}`} />
+                <div className={`w-4 h-4 rounded-full border-2 transition-colors ${statusFilter === opt.value ? "border-indigo-500 bg-indigo-500" : "border-[var(--border-2)]"}`} />
               </button>
             ))}
           </div>
-          <Button onClick={handleImport} className="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 text-white">
+          <Button onClick={handleImport} className="w-full mt-6 bg-[var(--ink)] hover:bg-[var(--ink-80)] text-white">
             Import Posts
           </Button>
         </div>
@@ -1079,8 +1079,8 @@ export default function CmsConnect() {
             <div className="absolute inset-0 rounded-full border-4 border-t-indigo-500 animate-spin" />
             <RefreshCw className="absolute inset-0 m-auto w-8 h-8 text-indigo-400" />
           </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Importing Your Posts</h2>
-          <p className="text-gray-500 text-sm">
+          <h2 className="text-xl font-semibold text-[var(--fg-1)] mb-2">Importing Your Posts</h2>
+          <p className="text-[var(--fg-3)] text-sm">
             Connecting to {platformName} and fetching your posts. This may take a moment for large sites.
           </p>
         </div>
@@ -1098,8 +1098,8 @@ export default function CmsConnect() {
             <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
               <CheckCircle2 className="w-8 h-8 text-emerald-600" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Import Complete</h1>
-            <p className="text-gray-500">
+            <h1 className="text-2xl font-bold text-[var(--fg-1)] mb-2">Import Complete</h1>
+            <p className="text-[var(--fg-3)]">
               {importResults.totalImported} post{importResults.totalImported !== 1 ? "s" : ""} imported successfully.
             </p>
           </div>
@@ -1108,17 +1108,17 @@ export default function CmsConnect() {
             {[
               { label: "Published", count: importResults.counts.published, color: "text-emerald-600" },
               { label: "Scheduled", count: importResults.counts.scheduled, color: "text-yellow-600" },
-              { label: "Drafts", count: importResults.counts.draft, color: "text-gray-500" },
+              { label: "Drafts", count: importResults.counts.draft, color: "text-[var(--fg-3)]" },
             ].map((item) => (
-              <div key={item.label} className="text-center p-4 rounded-xl bg-gray-50 border border-gray-200">
+              <div key={item.label} className="text-center p-4 rounded-[var(--r-md)] bg-[var(--bg-inset)] border border-[var(--border-1)]">
                 <div className={`text-2xl font-bold ${item.color}`}>{item.count}</div>
-                <div className="text-xs text-gray-500 mt-1">{item.label}</div>
+                <div className="text-xs text-[var(--fg-3)] mt-1">{item.label}</div>
               </div>
             ))}
           </div>
 
           {importResults.errors.length > 0 && (
-            <div className="mb-6 p-4 rounded-lg bg-yellow-50 border border-yellow-200">
+            <div className="mb-6 p-4 rounded-[var(--r-md)] bg-yellow-50 border border-yellow-200">
               <p className="text-yellow-700 text-sm font-medium mb-2">
                 {importResults.errors.length} post{importResults.errors.length !== 1 ? "s" : ""} could not be imported:
               </p>
@@ -1130,7 +1130,7 @@ export default function CmsConnect() {
           )}
 
           <div className="flex gap-3">
-            <Button onClick={() => navigate("/posts")} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white">
+            <Button onClick={() => navigate("/posts")} className="flex-1 bg-[var(--ink)] hover:bg-[var(--ink-80)] text-white">
               View Posts
             </Button>
             <Button onClick={() => setView("connections")} variant="outline" className="flex-1">

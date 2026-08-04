@@ -49,7 +49,7 @@ const ARTICLES: Article[] = [
           <li>Click the <strong>Verify Email Address</strong> button in that email.</li>
           <li>You will be taken back to iAudit and logged in automatically.</li>
         </ol>
-        <p className="text-muted-foreground text-xs">If you do not see the email within 2 minutes, check your spam folder.</p>
+        <p className="text-[var(--fg-3)] text-xs">If you do not see the email within 2 minutes, check your spam folder.</p>
         <h3 className="font-semibold text-base">Step 3 — Add your first business</h3>
         <ol className="list-decimal list-inside space-y-1 pl-2">
           <li>After logging in, you will see a screen asking for your website URL.</li>
@@ -124,9 +124,9 @@ const ARTICLES: Article[] = [
               ["Needs Improvement", "35–54", "Many issues. This post needs significant work."],
               ["Requires Full Rewrite", "0–34", "This post is unlikely to rank. A full rewrite is recommended."],
             ].map(([grade, score, meaning]) => (
-              <tr key={grade} className="border-b border-border/50">
+              <tr key={grade} className="border-b border-[var(--border-1)]/50">
                 <td className="py-1 pr-4 font-medium">{grade}</td>
-                <td className="py-1 pr-4 text-muted-foreground">{score}</td>
+                <td className="py-1 pr-4 text-[var(--fg-3)]">{score}</td>
                 <td className="py-1">{meaning}</td>
               </tr>
             ))}
@@ -251,14 +251,14 @@ const ARTICLES: Article[] = [
         <h3 className="font-semibold text-base">The two rewrite modes</h3>
         <p>iAudit gives you two ways to fix a post. Both use 1 credit.</p>
         <div className="space-y-3">
-          <div className="rounded-lg border border-border p-3">
+          <div className="rounded-[var(--r-md)] border border-[var(--border-1)] p-3">
             <h4 className="font-semibold mb-1">Full Rewrite</h4>
-            <p className="text-muted-foreground text-xs mb-2">Best for posts that need rebuilding from scratch</p>
+            <p className="text-[var(--fg-3)] text-xs mb-2">Best for posts that need rebuilding from scratch</p>
             <p>A Full Rewrite rewrites your entire post from the beginning. It keeps your key facts and your business information, but it rebuilds the structure, headings, and language to pass all 29 SEO checks. Use this when your post scores below 50/100, when the writing is hard to follow, or when the post is very short and needs to be expanded.</p>
           </div>
-          <div className="rounded-lg border border-border p-3">
+          <div className="rounded-[var(--r-md)] border border-[var(--border-1)] p-3">
             <h4 className="font-semibold mb-1">Improve Writing</h4>
-            <p className="text-muted-foreground text-xs mb-2">Best for posts where the content is solid but the writing needs polishing</p>
+            <p className="text-[var(--fg-3)] text-xs mb-2">Best for posts where the content is solid but the writing needs polishing</p>
             <p>Improve Writing rewrites your post sentence by sentence for readability and removes AI language patterns — while keeping your stories, stats, and examples intact. It also fixes failing SEO checks. Use this when your post scores 50/100 or above and the content is good but the writing feels stiff or AI-generated.</p>
           </div>
         </div>
@@ -380,17 +380,17 @@ const ARTICLES: Article[] = [
         </ol>
         <h3 className="font-semibold text-base">Which format to use</h3>
         <div className="space-y-2">
-          <div className="rounded border border-border p-2">
+          <div className="rounded border border-[var(--border-1)] p-2">
             <p className="font-medium text-xs">Plain Text</p>
-            <p className="text-xs text-muted-foreground">Use this if you want to paste the content into a document or email. All formatting is removed.</p>
+            <p className="text-xs text-[var(--fg-3)]">Use this if you want to paste the content into a document or email. All formatting is removed.</p>
           </div>
-          <div className="rounded border border-border p-2">
+          <div className="rounded border border-[var(--border-1)] p-2">
             <p className="font-medium text-xs">HTML</p>
-            <p className="text-xs text-muted-foreground">Use this for WordPress (paste into the HTML/Code editor), or for any CMS that accepts HTML. This preserves all headings, bold text, and links.</p>
+            <p className="text-xs text-[var(--fg-3)]">Use this for WordPress (paste into the HTML/Code editor), or for any CMS that accepts HTML. This preserves all headings, bold text, and links.</p>
           </div>
-          <div className="rounded border border-border p-2">
+          <div className="rounded border border-[var(--border-1)] p-2">
             <p className="font-medium text-xs">Markdown</p>
-            <p className="text-xs text-muted-foreground">Use this for platforms that accept Markdown formatting, such as Ghost or some Shopify themes. Also useful if you use a Markdown editor.</p>
+            <p className="text-xs text-[var(--fg-3)]">Use this for platforms that accept Markdown formatting, such as Ghost or some Shopify themes. Also useful if you use a Markdown editor.</p>
           </div>
         </div>
         <h3 className="font-semibold text-base">Where to paste in each CMS</h3>
@@ -461,7 +461,7 @@ const ARTICLES: Article[] = [
           <li>Paste the Application Password you just copied.</li>
           <li>Click <strong>Connect</strong>.</li>
         </ol>
-        <p className="text-muted-foreground text-xs">If you see an error, make sure your website URL does not have a trailing slash, and that your WordPress REST API is not blocked by a security plugin.</p>
+        <p className="text-[var(--fg-3)] text-xs">If you see an error, make sure your website URL does not have a trailing slash, and that your WordPress REST API is not blocked by a security plugin.</p>
       </div>
     ),
   },
@@ -498,7 +498,7 @@ const ARTICLES: Article[] = [
           <li>Paste your API Key into the <em>API Key</em> field.</li>
           <li>Click <strong>Connect</strong>.</li>
         </ol>
-        <p className="text-muted-foreground text-xs">Note: Wix has limited API access for updating posts. iAudit can import your posts and provide rewritten content, but direct post-back to Wix may not be available. iAudit will provide a copy-paste option instead.</p>
+        <p className="text-[var(--fg-3)] text-xs">Note: Wix has limited API access for updating posts. iAudit can import your posts and provide rewritten content, but direct post-back to Wix may not be available. iAudit will provide a copy-paste option instead.</p>
       </div>
     ),
   },
@@ -553,7 +553,7 @@ const ARTICLES: Article[] = [
 function ArticleCard({ article }: { article: Article }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="rounded-lg border border-border bg-card overflow-hidden">
+    <div className="rounded-[var(--r-md)] border border-[var(--border-1)] bg-[var(--bg-card)] overflow-hidden">
       <button
         type="button"
         className="w-full flex items-center justify-between p-4 text-left hover:bg-accent/50 transition-colors"
@@ -567,13 +567,13 @@ function ArticleCard({ article }: { article: Article }) {
           <span className="font-medium text-sm leading-snug">{article.title}</span>
         </div>
         {open ? (
-          <ChevronUp className="h-4 w-4 shrink-0 ml-3 text-muted-foreground" />
+          <ChevronUp className="h-4 w-4 shrink-0 ml-3 text-[var(--fg-3)]" />
         ) : (
-          <ChevronDown className="h-4 w-4 shrink-0 ml-3 text-muted-foreground" />
+          <ChevronDown className="h-4 w-4 shrink-0 ml-3 text-[var(--fg-3)]" />
         )}
       </button>
       {open && (
-        <div className="px-4 pb-4 pt-0 border-t border-border bg-background/50">
+        <div className="px-4 pb-4 pt-0 border-t border-[var(--border-1)] bg-[var(--bg-page)]/50">
           <div className="pt-4">{article.content}</div>
         </div>
       )}
@@ -616,7 +616,7 @@ function ContactForm() {
       <div className="flex flex-col items-center gap-3 py-8 text-center">
         <CheckCircle2 className="h-10 w-10 text-green-500" />
         <p className="font-semibold">Your message has been sent.</p>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-[var(--fg-3)] text-sm">
           We will get back to you within 1 business day.
         </p>
         <Button variant="outline" size="sm" onClick={() => setSent(false)} className="mt-2">
@@ -670,7 +670,7 @@ function ContactForm() {
           minLength={20}
           maxLength={5000}
         />
-        <p className="text-xs text-muted-foreground text-right">{message.length}/5000</p>
+        <p className="text-xs text-[var(--fg-3)] text-right">{message.length}/5000</p>
       </div>
       <Button
         type="submit"
@@ -704,14 +704,14 @@ export default function SupportCentre() {
       {/* Header */}
       <div className="space-y-2">
         <h1 className="text-2xl font-bold">Support Centre</h1>
-        <p className="text-muted-foreground">
+        <p className="text-[var(--fg-3)]">
           Find answers to common questions, or send us a message and we will get back to you within 1 business day.
         </p>
       </div>
 
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--fg-3)]" />
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -724,7 +724,7 @@ export default function SupportCentre() {
       {/* Articles */}
       <div className="space-y-3">
         {filteredArticles.length === 0 ? (
-          <div className="rounded-lg border border-border bg-card p-6 text-center text-sm text-muted-foreground">
+          <div className="rounded-[var(--r-md)] border border-[var(--border-1)] bg-[var(--bg-card)] p-6 text-center text-sm text-[var(--fg-3)]">
             No articles found for that search. Contact us below and we will help.
           </div>
         ) : (
@@ -739,10 +739,10 @@ export default function SupportCentre() {
       {/* Contact form */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <Mail className="h-5 w-5 text-muted-foreground" />
+          <Mail className="h-5 w-5 text-[var(--fg-3)]" />
           <h2 className="text-lg font-semibold">Contact Us</h2>
         </div>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-[var(--fg-3)]">
           Can't find what you're looking for? Send us a message and we will get back to you within 1 business day.
         </p>
         <ContactForm />

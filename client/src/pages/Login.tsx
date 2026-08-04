@@ -54,11 +54,11 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-[var(--bg-page)] flex">
       {/* ── Left panel — branding ── */}
-      <div className="hidden lg:flex lg:w-[45%] bg-primary flex-col justify-between p-12 text-white">
+      <div className="hidden lg:flex lg:w-[45%] bg-[var(--volt)] flex-col justify-between p-12 text-white">
         <div className="flex items-center gap-2.5">
-          <div className="h-9 w-9 rounded-xl bg-white/20 flex items-center justify-center">
+          <div className="h-9 w-9 rounded-[var(--r-md)] bg-[var(--bg-[var(--bg-card)])]/20 flex items-center justify-center">
             <Zap className="h-5 w-5 text-white" />
           </div>
           <span className="font-bold text-xl tracking-tight">iAudit</span>
@@ -69,13 +69,13 @@ export default function Login() {
             <h2 className="text-3xl font-extrabold leading-tight">
               Get every blog post<br />ranking on page one.
             </h2>
-            <p className="text-primary-foreground/75 text-base leading-relaxed">
+            <p className="text-[var(--ink)]-foreground/75 text-base leading-relaxed">
               Audit, rewrite, and publish SEO-optimised content — all from one dashboard.
             </p>
           </div>
           <ul className="space-y-3">
             {benefits.map((b) => (
-              <li key={b} className="flex items-start gap-3 text-sm text-primary-foreground/90">
+              <li key={b} className="flex items-start gap-3 text-sm text-[var(--ink)]-foreground/90">
                 <CheckCircle2 className="h-4.5 w-4.5 text-white/70 shrink-0 mt-0.5" />
                 {b}
               </li>
@@ -83,7 +83,7 @@ export default function Login() {
           </ul>
         </div>
 
-        <p className="text-xs text-primary-foreground/50">
+        <p className="text-xs text-[var(--ink)]-foreground/50">
           © {new Date().getFullYear()} Noize. All rights reserved.
         </p>
       </div>
@@ -93,20 +93,20 @@ export default function Login() {
         <div className="w-full max-w-md space-y-8">
           {/* Mobile logo */}
           <div className="flex lg:hidden items-center gap-2.5 justify-center">
-            <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center shadow-md">
+            <div className="h-9 w-9 rounded-[var(--r-md)] bg-[var(--volt)] flex items-center justify-center shadow-md">
               <Zap className="h-5 w-5 text-white" />
             </div>
-            <span className="font-bold text-xl tracking-tight text-foreground">iAudit</span>
+            <span className="font-bold text-xl tracking-tight text-[var(--fg-1)]">iAudit</span>
           </div>
 
           <div className="space-y-1.5">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Welcome back</h1>
-            <p className="text-sm text-muted-foreground">Sign in to your iAudit account</p>
+            <h1 className="text-2xl font-bold tracking-tight text-[var(--fg-1)]">Welcome back</h1>
+            <p className="text-sm text-[var(--fg-3)]">Sign in to your iAudit account</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-sm font-medium text-foreground">
+              <Label htmlFor="email" className="text-sm font-medium text-[var(--fg-1)]">
                 Email address
               </Label>
               <Input
@@ -117,18 +117,18 @@ export default function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
                 required
-                className="h-11 bg-background border-border focus-visible:ring-primary"
+                className="h-11 bg-[var(--bg-page)] border-[var(--border-1)] focus-visible:ring-primary"
               />
             </div>
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-sm font-medium text-foreground">
+                <Label htmlFor="password" className="text-sm font-medium text-[var(--fg-1)]">
                   Password
                 </Label>
                 <a
                   href="/forgot-password"
-                  className="text-xs text-primary hover:text-primary/80 transition-colors font-medium"
+                  className="text-xs text-[var(--ink)] hover:text-[var(--ink)]/80 transition-colors font-medium"
                 >
                   Forgot password?
                 </a>
@@ -142,12 +142,12 @@ export default function Login() {
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
                   required
-                  className="h-11 bg-background border-border pr-10 focus-visible:ring-primary"
+                  className="h-11 bg-[var(--bg-page)] border-[var(--border-1)] pr-10 focus-visible:ring-primary"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--fg-3)] hover:text-[var(--fg-1)] transition-colors"
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -167,9 +167,9 @@ export default function Login() {
             </Button>
           </form>
 
-          <div className="text-center text-sm text-muted-foreground">
+          <div className="text-center text-sm text-[var(--fg-3)]">
             Don't have an account?{" "}
-            <a href="/register" className="text-primary hover:text-primary/80 font-semibold transition-colors">
+            <a href="/register" className="text-[var(--ink)] hover:text-[var(--ink)]/80 font-semibold transition-colors">
               Create one free
             </a>
           </div>

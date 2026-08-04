@@ -197,7 +197,7 @@ function InlineKeywordEditor({
             if (e.key === "Enter") onSave();
             if (e.key === "Escape") onCancel();
           }}
-          className="h-6 text-xs px-2 py-0 w-44 border-primary/60 focus-visible:ring-1 focus-visible:ring-primary/40"
+          className="h-6 text-xs px-2 py-0 w-44 border-[var(--ink)]/60 focus-visible:ring-1 focus-visible:ring-primary/40"
           placeholder="e.g. pool installation sydney"
           disabled={isSaving}
         />
@@ -212,7 +212,7 @@ function InlineKeywordEditor({
         <Button
           size="sm"
           variant="ghost"
-          className="h-6 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+          className="h-6 px-1.5 text-[10px] text-[var(--fg-3)] hover:text-[var(--fg-1)]"
           onClick={onCancel}
           disabled={isSaving}
         >
@@ -240,7 +240,7 @@ function InlineKeywordEditor({
     );
   }
 
-  const cfg = SOURCE_CONFIG[post.keywordSource ?? ""] ?? { label: "Set", className: "text-muted-foreground border-border" };
+  const cfg = SOURCE_CONFIG[post.keywordSource ?? ""] ?? { label: "Set", className: "text-[var(--fg-3)] border-[var(--border-1)]" };
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -295,14 +295,14 @@ function AuditResultsPanel({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="animate-spin text-primary" size={24} />
+        <Loader2 className="animate-spin text-[var(--ink)]" size={24} />
       </div>
     );
   }
 
   if (!data || !data.auditResults) {
     return (
-      <div className="text-center py-8 text-muted-foreground text-sm">
+      <div className="text-center py-8 text-[var(--fg-3)] text-sm">
         No audit results available.
       </div>
     );
@@ -340,20 +340,20 @@ function AuditResultsPanel({
   return (
     <div className="space-y-4">
       {/* Score header */}
-      <div className="flex items-center gap-3 pb-3 border-b border-border">
-        <div className="text-3xl font-extrabold text-foreground">
+      <div className="flex items-center gap-3 pb-3 border-b border-[var(--border-1)]">
+        <div className="text-3xl font-extrabold text-[var(--fg-1)]">
           {auditScore ?? 0}
-          <span className="text-lg font-normal text-muted-foreground">/100</span>
+          <span className="text-lg font-normal text-[var(--fg-3)]">/100</span>
         </div>
         <GradeBadge grade={auditGrade} />
-        <div className="ml-auto text-xs text-muted-foreground">
+        <div className="ml-auto text-xs text-[var(--fg-3)]">
           Potential: {auditResults.potentialScore}/100
         </div>
       </div>
 
       {/* Stale audit warning — results pre-date keyword being set */}
       {isStale && (
-        <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2.5 text-xs text-amber-300">
+        <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-[var(--r-md)] px-3 py-2.5 text-xs text-amber-300">
           <AlertTriangle size={14} className="shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <span className="font-semibold">Results are out of date.</span>{" "}
@@ -378,7 +378,7 @@ function AuditResultsPanel({
 
       {/* AI failure warning */}
       {hasAiFailure && (
-        <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2.5 text-xs text-amber-300">
+        <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-[var(--r-md)] px-3 py-2.5 text-xs text-amber-300">
           <AlertTriangle size={14} className="shrink-0 mt-0.5" />
           <span>
             We could not complete the AI portion of this audit. The mechanical
@@ -390,24 +390,24 @@ function AuditResultsPanel({
       {/* Failing points */}
       {failing.length > 0 && (
         <div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+          <div className="text-xs font-semibold text-[var(--fg-3)] uppercase tracking-wide mb-2">
             Failing ({failing.length})
           </div>
           <div className="space-y-1.5">
             {failing.map((p) => (
               <div
                 key={p.point}
-                className="flex items-start gap-2.5 bg-red-500/5 border border-red-500/20 rounded-lg px-3 py-2"
+                className="flex items-start gap-2.5 bg-red-500/5 border border-red-500/20 rounded-[var(--r-md)] px-3 py-2"
               >
                 <XCircle
                   size={14}
                   className="text-red-400 shrink-0 mt-0.5"
                 />
                 <div className="min-w-0">
-                  <div className="text-xs font-semibold text-foreground">
+                  <div className="text-xs font-semibold text-[var(--fg-1)]">
                     {p.point} — {p.name}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
+                  <div className="text-xs text-[var(--fg-3)] mt-0.5">
                     {p.note}
                   </div>
                 </div>
@@ -420,18 +420,18 @@ function AuditResultsPanel({
       {/* Unable to score */}
       {unscored.length > 0 && (
         <div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+          <div className="text-xs font-semibold text-[var(--fg-3)] uppercase tracking-wide mb-2">
             Unable to Score ({unscored.length})
           </div>
           <div className="space-y-1.5">
             {unscored.map((p) => (
               <div
                 key={p.point}
-                className="flex items-start gap-2.5 bg-amber-500/5 border border-amber-500/20 rounded-lg px-3 py-2"
+                className="flex items-start gap-2.5 bg-amber-500/5 border border-amber-500/20 rounded-[var(--r-md)] px-3 py-2"
               >
                 <Minus size={14} className="text-amber-400 shrink-0 mt-0.5" />
                 <div className="min-w-0">
-                  <div className="text-xs font-semibold text-foreground">
+                  <div className="text-xs font-semibold text-[var(--fg-1)]">
                     {p.point} — {p.name}
                   </div>
                 </div>
@@ -444,24 +444,24 @@ function AuditResultsPanel({
       {/* Passing points */}
       {passing.length > 0 && (
         <div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+          <div className="text-xs font-semibold text-[var(--fg-3)] uppercase tracking-wide mb-2">
             Passing ({passing.length})
           </div>
           <div className="space-y-1.5">
             {passing.map((p) => (
               <div
                 key={p.point}
-                className="flex items-start gap-2.5 bg-emerald-500/5 border border-emerald-500/20 rounded-lg px-3 py-2"
+                className="flex items-start gap-2.5 bg-emerald-500/5 border border-emerald-500/20 rounded-[var(--r-md)] px-3 py-2"
               >
                 <CheckCircle2
                   size={14}
                   className="text-emerald-400 shrink-0 mt-0.5"
                 />
                 <div className="min-w-0">
-                  <div className="text-xs font-semibold text-foreground">
+                  <div className="text-xs font-semibold text-[var(--fg-1)]">
                     {p.point} — {p.name}
                     {p.status === "na" && (
-                      <span className="ml-1 text-muted-foreground font-normal">
+                      <span className="ml-1 text-[var(--fg-3)] font-normal">
                         (N/A)
                       </span>
                     )}
@@ -475,7 +475,7 @@ function AuditResultsPanel({
 
       {/* Fix CTA — hidden for approved/published posts */}
       {rewriteStatus !== "approved" && rewriteStatus !== "published" && (
-        <div className="pt-2 border-t border-border">
+        <div className="pt-2 border-t border-[var(--border-1)]">
           <Button
             size="sm"
             className="w-full gap-2 font-semibold"
@@ -511,7 +511,7 @@ function DashboardOverview({
 
   if (isLoading || !data) {
     return (
-      <div className="bg-card border border-border rounded-xl p-6 mb-6 animate-pulse h-28" />
+      <div className="bg-[var(--bg-card)] border border-[var(--border-1)] rounded-[var(--r-md)] p-6 mb-6 animate-pulse h-28" />
     );
   }
 
@@ -520,9 +520,9 @@ function DashboardOverview({
 
   if (auditedCount === 0) {
     return (
-      <div className="bg-card border border-border rounded-xl p-6 mb-6 text-center">
-        <BarChart3 size={24} className="text-muted-foreground mx-auto mb-2" />
-        <p className="text-sm text-muted-foreground">
+      <div className="bg-[var(--bg-card)] border border-[var(--border-1)] rounded-[var(--r-md)] p-6 mb-6 text-center">
+        <BarChart3 size={24} className="text-[var(--fg-3)] mx-auto mb-2" />
+        <p className="text-sm text-[var(--fg-3)]">
           Run the audit to see your blog health score and grade breakdown.
         </p>
       </div>
@@ -532,10 +532,10 @@ function DashboardOverview({
   const gradeOrder = ["optimised", "strong", "needs_work", "poor", "critical"];
 
   return (
-    <div className="bg-card border border-border rounded-xl p-5 mb-6 space-y-4">
+    <div className="bg-[var(--bg-card)] border border-[var(--border-1)] rounded-[var(--r-md)] p-5 mb-6 space-y-4">
       {/* Uplift banner */}
       {upliftBanner && (
-        <div className="flex items-center gap-2 bg-primary/10 border border-primary/30 rounded-lg px-3 py-2.5 text-xs text-primary font-medium">
+        <div className="flex items-center gap-2 bg-[var(--volt)]/10 border border-[var(--ink)]/30 rounded-[var(--r-md)] px-3 py-2.5 text-xs text-[var(--ink)] font-medium">
           <Zap size={14} className="shrink-0" />
           {upliftBanner}
         </div>
@@ -544,24 +544,24 @@ function DashboardOverview({
       {/* Health score + grade breakdown */}
       <div className="flex items-start gap-6 flex-wrap">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+          <div className="text-xs font-semibold uppercase tracking-wide text-[var(--fg-3)] mb-1">
             Blog Health Score
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-foreground">
+            <span className="text-3xl font-extrabold text-[var(--fg-1)]">
               {healthScore ?? "—"}
             </span>
-            <span className="text-sm text-muted-foreground">/100</span>
+            <span className="text-sm text-[var(--fg-3)]">/100</span>
             <GradeBadge grade={healthGrade} />
           </div>
-          <div className="text-xs text-muted-foreground mt-1">
+          <div className="text-xs text-[var(--fg-3)] mt-1">
             {auditedCount} of {totalPosts} posts audited
           </div>
         </div>
 
         {/* Grade breakdown */}
         <div className="flex-1 min-w-[200px]">
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+          <div className="text-xs font-semibold uppercase tracking-wide text-[var(--fg-3)] mb-2">
             Grade Breakdown
           </div>
           <div className="flex gap-2 flex-wrap">
@@ -572,7 +572,7 @@ function DashboardOverview({
               return (
                 <div
                   key={grade}
-                  className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs font-medium ${cfg.color} ${cfg.bg} ${cfg.border}`}
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded-[var(--r-md)] border text-xs font-medium ${cfg.color} ${cfg.bg} ${cfg.border}`}
                 >
                   <span className="font-bold">{count}</span>
                   <span className="opacity-80">{cfg.label}</span>
@@ -583,7 +583,7 @@ function DashboardOverview({
         </div>
 
         {/* Keyword accuracy tip */}
-        <div className="flex items-start gap-2 bg-background border border-border border-l-4 border-l-amber-500 rounded-lg px-3 py-2.5 min-w-[220px] max-w-xs self-start">
+        <div className="flex items-start gap-2 bg-[var(--bg-page)] border border-[var(--border-1)] border-l-4 border-l-amber-500 rounded-[var(--r-md)] px-3 py-2.5 min-w-[220px] max-w-xs self-start">
           <AlertTriangle size={13} className="text-amber-400 shrink-0 mt-0.5" />
           <p className="text-[11px] text-amber-600 dark:text-amber-400 leading-snug">
             <strong>Before auditing,</strong> check your keywords are accurate. Click any keyword to edit it, or use{" "}
@@ -594,7 +594,7 @@ function DashboardOverview({
 
       {/* Cannibalisation warnings */}
       {cannibalisationWarnings.length > 0 && (
-        <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 text-xs text-red-300">
+        <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 rounded-[var(--r-md)] px-3 py-2 text-xs text-red-300">
           <AlertTriangle size={14} className="shrink-0" />
           <span>
             {cannibalisationWarnings.length} keyword cannibalisation conflict
@@ -630,13 +630,13 @@ function RewriteResultPanel({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="animate-spin text-primary" size={24} />
+        <Loader2 className="animate-spin text-[var(--ink)]" size={24} />
       </div>
     );
   }
   if (!data) {
     return (
-      <div className="text-sm text-muted-foreground py-4 text-center">
+      <div className="text-sm text-[var(--fg-3)] py-4 text-center">
         Rewrite result not available.
       </div>
     );
@@ -648,23 +648,23 @@ function RewriteResultPanel({
   return (
     <div className="space-y-4">
       {/* Score comparison header */}
-      <div className="flex items-center gap-4 pb-3 border-b border-border">
+      <div className="flex items-center gap-4 pb-3 border-b border-[var(--border-1)]">
         <div>
-          <div className="text-xs text-muted-foreground mb-0.5">Before</div>
+          <div className="text-xs text-[var(--fg-3)] mb-0.5">Before</div>
           <div className="flex items-center gap-1.5">
-            <span className="text-xl font-bold text-muted-foreground">
+            <span className="text-xl font-bold text-[var(--fg-3)]">
               {auditScore ?? "—"}/100
             </span>
             <GradeBadge grade={auditGrade} />
           </div>
         </div>
         {improved && (
-          <div className="text-muted-foreground text-lg">→</div>
+          <div className="text-[var(--fg-3)] text-lg">→</div>
         )}
         <div>
-          <div className="text-xs text-muted-foreground mb-0.5">After</div>
+          <div className="text-xs text-[var(--fg-3)] mb-0.5">After</div>
           <div className="flex items-center gap-1.5">
-            <span className="text-xl font-bold text-foreground">
+            <span className="text-xl font-bold text-[var(--fg-1)]">
               {data.rewriteScore ?? "—"}/100
             </span>
             <GradeBadge grade={data.rewriteGrade} />
@@ -679,41 +679,41 @@ function RewriteResultPanel({
       </div>
       {/* PAA question */}
       {data.paaQuestion && (
-        <div className="bg-card border border-border rounded-lg px-4 py-3">
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+        <div className="bg-[var(--bg-card)] border border-[var(--border-1)] rounded-[var(--r-md)] px-4 py-3">
+          <div className="text-xs font-semibold text-[var(--fg-3)] uppercase tracking-wide mb-1">
             PAA Question Answered
           </div>
-          <div className="text-sm text-foreground">{data.paaQuestion}</div>
+          <div className="text-sm text-[var(--fg-1)]">{data.paaQuestion}</div>
         </div>
       )}
       {/* Meta title */}
       {data.metaTitleRewritten && (
-        <div className="bg-card border border-border rounded-lg px-4 py-3">
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+        <div className="bg-[var(--bg-card)] border border-[var(--border-1)] rounded-[var(--r-md)] px-4 py-3">
+          <div className="text-xs font-semibold text-[var(--fg-3)] uppercase tracking-wide mb-1">
             Meta Title
           </div>
-          <div className="text-sm text-foreground">{data.metaTitleRewritten}</div>
+          <div className="text-sm text-[var(--fg-1)]">{data.metaTitleRewritten}</div>
         </div>
       )}
       {/* Meta description */}
       {data.metaDescriptionRewritten && (
-        <div className="bg-card border border-border rounded-lg px-4 py-3">
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+        <div className="bg-[var(--bg-card)] border border-[var(--border-1)] rounded-[var(--r-md)] px-4 py-3">
+          <div className="text-xs font-semibold text-[var(--fg-3)] uppercase tracking-wide mb-1">
             Meta Description
           </div>
-          <div className="text-sm text-foreground">{data.metaDescriptionRewritten}</div>
+          <div className="text-sm text-[var(--fg-1)]">{data.metaDescriptionRewritten}</div>
         </div>
       )}
       {/* Rewritten body preview */}
       {data.bodyRewritten && (
-        <div className="bg-card border border-border rounded-lg px-4 py-3">
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+        <div className="bg-[var(--bg-card)] border border-[var(--border-1)] rounded-[var(--r-md)] px-4 py-3">
+          <div className="text-xs font-semibold text-[var(--fg-3)] uppercase tracking-wide mb-2">
             Rewritten Content Preview
           </div>
-          <div className="text-sm text-foreground whitespace-pre-wrap line-clamp-12 font-mono text-xs leading-relaxed">
+          <div className="text-sm text-[var(--fg-1)] whitespace-pre-wrap line-clamp-12 font-mono text-xs leading-relaxed">
             {data.bodyRewritten.slice(0, 1200)}
             {data.bodyRewritten.length > 1200 && (
-              <span className="text-muted-foreground"> … (truncated)</span>
+              <span className="text-[var(--fg-3)]"> … (truncated)</span>
             )}
           </div>
         </div>
@@ -758,13 +758,13 @@ function RewriteProgressIndicator() {
   return (
     <div className="space-y-4 py-4">
       <div className="flex flex-col items-center gap-3">
-        <Loader2 size={32} className="animate-spin text-primary" />
-        <div className="text-sm text-foreground font-medium text-center">{current.label}</div>
-        <div className="text-xs text-muted-foreground text-center max-w-xs">{current.sub}</div>
+        <Loader2 size={32} className="animate-spin text-[var(--ink)]" />
+        <div className="text-sm text-[var(--fg-1)] font-medium text-center">{current.label}</div>
+        <div className="text-xs text-[var(--fg-3)] text-center max-w-xs">{current.sub}</div>
       </div>
       <div className="space-y-1.5">
         <Progress value={pct} className="h-1.5" />
-        <div className="flex justify-between text-[10px] text-muted-foreground">
+        <div className="flex justify-between text-[10px] text-[var(--fg-3)]">
           <span>{elapsed}s elapsed</span>
           <span>Up to 5 min</span>
         </div>
@@ -815,7 +815,7 @@ function RewriteModal({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Zap size={18} className="text-primary" />
+            <Zap size={18} className="text-[var(--ink)]" />
             {step === "paa" && "Fix This Post"}
             {step === "running" && "Rewriting…"}
             {step === "result" && "Rewrite Complete"}
@@ -832,11 +832,11 @@ function RewriteModal({
         {step === "paa" && (
           <div className="space-y-4 pt-2">
             <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1.5">
+              <label className="text-xs font-semibold text-[var(--fg-3)] uppercase tracking-wide block mb-1.5">
                 People Also Ask question
               </label>
               {paaLoading ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2 text-sm text-[var(--fg-3)]">
                   <Loader2 size={14} className="animate-spin" />
                   Looking up top PAA question…
                 </div>
@@ -845,14 +845,14 @@ function RewriteModal({
                   {paaSuggested && (
                     <button
                       type="button"
-                      className={`w-full text-left text-sm rounded-lg border px-3 py-2.5 mb-2 transition-colors ${
+                      className={`w-full text-left text-sm rounded-[var(--r-md)] border px-3 py-2.5 mb-2 transition-colors ${
                         paaQuestion === paaSuggested
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border hover:border-primary/50 text-foreground"
+                          ? "border-[var(--ink)] bg-[var(--volt)]/10 text-[var(--ink)]"
+                          : "border-[var(--border-1)] hover:border-[var(--ink)]/50 text-[var(--fg-1)]"
                       }`}
                       onClick={() => onPaaChange(paaSuggested)}
                     >
-                      <span className="text-xs text-muted-foreground block mb-0.5">Suggested</span>
+                      <span className="text-xs text-[var(--fg-3)] block mb-0.5">Suggested</span>
                       {paaSuggested}
                     </button>
                   )}
@@ -867,7 +867,7 @@ function RewriteModal({
             </div>
             {/* Protected sections toggles */}
             <div className="space-y-2 pt-1">
-              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+              <div className="text-xs font-semibold text-[var(--fg-3)] uppercase tracking-wide mb-1.5">
                 Protect original sections
               </div>
               <div className="flex flex-col gap-2">
@@ -879,8 +879,8 @@ function RewriteModal({
                     className="mt-0.5 accent-primary"
                   />
                   <div>
-                    <span className="text-sm font-medium text-foreground">Preserve CTA section as-is</span>
-                    <p className="text-xs text-muted-foreground">"What you can do next" or call-to-action section will not be changed.</p>
+                    <span className="text-sm font-medium text-[var(--fg-1)]">Preserve CTA section as-is</span>
+                    <p className="text-xs text-[var(--fg-3)]">"What you can do next" or call-to-action section will not be changed.</p>
                   </div>
                 </label>
                 <label className="flex items-start gap-2.5 cursor-pointer group">
@@ -891,19 +891,19 @@ function RewriteModal({
                     className="mt-0.5 accent-primary"
                   />
                   <div>
-                    <span className="text-sm font-medium text-foreground">Preserve FAQ section as-is</span>
-                    <p className="text-xs text-muted-foreground">Frequently Asked Questions section will not be changed.</p>
+                    <span className="text-sm font-medium text-[var(--fg-1)]">Preserve FAQ section as-is</span>
+                    <p className="text-xs text-[var(--fg-3)]">Frequently Asked Questions section will not be changed.</p>
                   </div>
                 </label>
               </div>
             </div>
             {/* YOUR INSTRUCTIONS */}
             <div className="space-y-1.5 pt-1">
-              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+              <div className="text-xs font-semibold text-[var(--fg-3)] uppercase tracking-wide mb-1">
                 Your instructions for this rewrite
               </div>
               <textarea
-                className="w-full rounded-md border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-primary min-h-[72px]"
+                className="w-full rounded-[var(--r-sm)] border border-[var(--border-1)] bg-[var(--bg-page)] text-sm text-[var(--fg-1)] placeholder:text-[var(--fg-3)] px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-primary min-h-[72px]"
                 placeholder="e.g. Keep all the main points, just improve the SEO. Don't change the examples used. Focus on the keyword naturally. The stats in paragraph 3 are accurate — don't change them."
                 value={userInstructions}
                 onChange={(e) => onUserInstructionsChange(e.target.value)}
@@ -912,16 +912,16 @@ function RewriteModal({
             </div>
             <div className="space-y-2 pt-1">
               {/* Content protection notice */}
-              <div className="rounded-md border border-yellow-400/40 bg-yellow-400/8 px-3 py-2 text-[11px] text-yellow-700 dark:text-yellow-300 leading-relaxed">
+              <div className="rounded-[var(--r-sm)] border border-yellow-400/40 bg-yellow-400/8 px-3 py-2 text-[11px] text-yellow-700 dark:text-yellow-300 leading-relaxed">
                 ⚠️ The AI will only work with facts and content already in your post. It will not invent new information, statistics, or claims.
               </div>
-              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center mb-1">
+              <div className="text-xs font-semibold text-[var(--fg-3)] uppercase tracking-wide flex items-center mb-1">
                 Choose rewrite mode
                 <HelpTooltip text="Improve Writing keeps all your stories, stats, and examples — just makes the language clearer and more human, and fixes SEO. Full Rewrite rebuilds the entire post from scratch — best for posts scoring below 50/100. Both modes use 1 credit." />
               </div>
               {/* Score-based recommendation hint */}
               {post?.auditScore != null && (
-                <div className={`rounded-md px-3 py-2 text-[11px] leading-relaxed mb-1 ${
+                <div className={`rounded-[var(--r-sm)] px-3 py-2 text-[11px] leading-relaxed mb-1 ${
                   (post.auditScore ?? 0) < 55
                     ? "bg-orange-500/10 border border-orange-500/30 text-orange-400"
                     : "bg-sky-500/10 border border-sky-500/30 text-sky-400"
@@ -935,9 +935,9 @@ function RewriteModal({
                 {/* Improve Writing (smart_patch) */}
                 <button
                   type="button"
-                  className={`flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors ${
+                  className={`flex flex-col items-start gap-1 rounded-[var(--r-md)] border p-3 text-left transition-colors ${
                     !paaQuestion.trim() || paaLoading
-                      ? "opacity-50 cursor-not-allowed border-border"
+                      ? "opacity-50 cursor-not-allowed border-[var(--border-1)]"
                       : "border-sky-400/60 bg-sky-400/8 hover:bg-sky-400/15 cursor-pointer"
                   }`}
                   disabled={!paaQuestion.trim() || paaLoading}
@@ -949,28 +949,28 @@ function RewriteModal({
                       <span className="ml-1 text-[9px] font-bold uppercase tracking-wide bg-sky-400/20 text-sky-400 rounded px-1 py-0.5">Recommended</span>
                     )}
                   </span>
-                  <span className="text-[11px] text-muted-foreground">Keeps every story, statistic, and example exactly as-is. Rewrites sentence style for clarity and human readability. Removes all AI language patterns. Fixes failing SEO points.</span>
-                  <span className="text-[10px] text-muted-foreground mt-0.5">1 Credit</span>
+                  <span className="text-[11px] text-[var(--fg-3)]">Keeps every story, statistic, and example exactly as-is. Rewrites sentence style for clarity and human readability. Removes all AI language patterns. Fixes failing SEO points.</span>
+                  <span className="text-[10px] text-[var(--fg-3)] mt-0.5">1 Credit</span>
                 </button>
                 {/* Full Rewrite */}
                 <button
                   type="button"
-                  className={`flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors ${
+                  className={`flex flex-col items-start gap-1 rounded-[var(--r-md)] border p-3 text-left transition-colors ${
                     !paaQuestion.trim() || paaLoading
-                      ? "opacity-50 cursor-not-allowed border-border"
-                      : "border-primary/60 bg-primary/5 hover:bg-primary/10 cursor-pointer"
+                      ? "opacity-50 cursor-not-allowed border-[var(--border-1)]"
+                      : "border-[var(--ink)]/60 bg-[var(--volt)]/5 hover:bg-[var(--volt)]/10 cursor-pointer"
                   }`}
                   disabled={!paaQuestion.trim() || paaLoading}
                   onClick={() => onConfirm("full_rewrite")}
                 >
-                  <span className="text-xs font-semibold text-primary flex items-center gap-1">
+                  <span className="text-xs font-semibold text-[var(--ink)] flex items-center gap-1">
                     <Zap size={12} /> Full Rewrite
                     {post?.auditScore != null && (post.auditScore ?? 0) < 50 && (
-                      <span className="ml-1 text-[9px] font-bold uppercase tracking-wide bg-primary/20 text-primary rounded px-1 py-0.5">Recommended</span>
+                      <span className="ml-1 text-[9px] font-bold uppercase tracking-wide bg-[var(--volt)]/20 text-[var(--ink)] rounded px-1 py-0.5">Recommended</span>
                     )}
                   </span>
-                  <span className="text-[11px] text-muted-foreground">AI rebuilds the entire post from scratch targeting all SEO points. Best for posts scoring below 50/100 or where the original content needs a complete overhaul.</span>
-                  <span className="text-[10px] text-muted-foreground mt-0.5">1 Credit</span>
+                  <span className="text-[11px] text-[var(--fg-3)]">AI rebuilds the entire post from scratch targeting all SEO points. Best for posts scoring below 50/100 or where the original content needs a complete overhaul.</span>
+                  <span className="text-[10px] text-[var(--fg-3)] mt-0.5">1 Credit</span>
                 </button>
               </div>
               <Button
@@ -992,7 +992,7 @@ function RewriteModal({
         {step === "result" && rewriteResult && (
           <div className="space-y-4 pt-2">
             {rewriteResult.needsManualReview ? (
-              <div className="flex items-start gap-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-3 text-sm text-amber-300">
+              <div className="flex items-start gap-2.5 bg-amber-500/10 border border-amber-500/30 rounded-[var(--r-md)] px-3 py-3 text-sm text-amber-300">
                 <AlertTriangle size={16} className="shrink-0 mt-0.5" />
                 <div>
                   <div className="font-semibold mb-0.5">Needs Manual Review</div>
@@ -1002,7 +1002,7 @@ function RewriteModal({
                 </div>
               </div>
             ) : (
-              <div className="flex items-start gap-2.5 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-3 text-sm text-emerald-300">
+              <div className="flex items-start gap-2.5 bg-emerald-500/10 border border-emerald-500/30 rounded-[var(--r-md)] px-3 py-3 text-sm text-emerald-300">
                 <CheckCircle2 size={16} className="shrink-0 mt-0.5" />
                 <div>
                   <div className="font-semibold mb-0.5">Rewrite Complete</div>
@@ -1069,7 +1069,7 @@ function KeywordSuggestionModal({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="text-base">Set Focus Keyword</DialogTitle>
-          <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
+          <DialogDescription className="text-sm text-[var(--fg-3)] leading-relaxed">
             Enter the primary keyword this post should rank for. You can also
             add secondary keywords in the Review &amp; Edit page. Changing the
             keyword after an audit has run will require a full re-audit.
@@ -1114,7 +1114,7 @@ function CannibalisationBanner({
 }) {
   if (duplicateGroups.length === 0) return null;
   return (
-    <div className="bg-red-950/40 border border-red-500/30 rounded-xl p-4 mb-6">
+    <div className="bg-red-950/40 border border-red-500/30 rounded-[var(--r-md)] p-4 mb-6">
       <div className="flex items-center gap-2 mb-3">
         <AlertTriangle size={16} className="text-red-400 shrink-0" />
         <span className="text-sm font-semibold text-red-300">
@@ -1183,12 +1183,12 @@ function PostContentPanel({
           </SheetTitle>
           <div className="flex items-center gap-3 mt-2 flex-wrap">
             {post?.focusKeyword && (
-              <span className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 px-2 py-0.5 rounded-full font-medium">
+              <span className="text-xs bg-blue-100 text-[var(--fg-1)] dark:bg-blue-900/30 dark:text-blue-300 px-2 py-0.5 rounded-full font-medium">
                 {post.focusKeyword}
               </span>
             )}
             {post?.auditScore !== null && post?.auditScore !== undefined && (
-              <span className="text-xs font-semibold text-foreground">
+              <span className="text-xs font-semibold text-[var(--fg-1)]">
                 {post.auditScore}/100
               </span>
             )}
@@ -1197,7 +1197,7 @@ function PostContentPanel({
                 href={post.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 ml-auto"
+                className="text-xs text-[var(--fg-3)] hover:text-[var(--ink)] flex items-center gap-1 ml-auto"
               >
                 <ExternalLink size={12} />
                 View on Wix
@@ -1208,7 +1208,7 @@ function PostContentPanel({
         <ScrollArea className="flex-1 min-h-0 px-6 py-4">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="animate-spin text-muted-foreground" size={24} />
+              <Loader2 className="animate-spin text-[var(--fg-3)]" size={24} />
             </div>
           ) : data?.bodyOriginal ? (
             <div
@@ -1216,7 +1216,7 @@ function PostContentPanel({
               dangerouslySetInnerHTML={{ __html: data.bodyOriginal }}
             />
           ) : (
-            <p className="text-sm text-muted-foreground italic">No content available for this post.</p>
+            <p className="text-sm text-[var(--fg-3)] italic">No content available for this post.</p>
           )}
         </ScrollArea>
       </SheetContent>
@@ -1665,7 +1665,7 @@ export default function PostList() {
   if (authLoading || isLoading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <Loader2 className="animate-spin text-primary" size={32} />
+        <Loader2 className="animate-spin text-[var(--ink)]" size={32} />
       </div>
     );
   }
@@ -1717,13 +1717,13 @@ export default function PostList() {
               variant="ghost"
               size="icon"
               onClick={() => navigate("/dashboard")}
-              className="text-muted-foreground hover:text-foreground"
+              className="text-[var(--fg-3)] hover:text-[var(--fg-1)]"
             >
               <ArrowLeft size={18} />
             </Button>
             <div>
-              <h1 className="text-xl font-bold text-foreground">Post Library</h1>
-              <p className="text-sm text-muted-foreground mt-0.5">
+              <h1 className="text-xl font-bold text-[var(--fg-1)]">Post Library</h1>
+              <p className="text-sm text-[var(--fg-3)] mt-0.5">
                 {posts.length} post{posts.length !== 1 ? "s" : ""} imported
               </p>
             </div>
@@ -1752,7 +1752,7 @@ export default function PostList() {
                       size="sm"
                       onClick={handleBackfillFromTitles}
                       disabled={backfillMutation.isPending}
-                      className="gap-2 border-blue-500/50 text-blue-500 hover:bg-blue-500/10"
+                      className="gap-2 border-blue-500/50 text-blue-500 hover:bg-[var(--volt)]/100/10"
                     >
                       {backfillMutation.isPending ? (
                         <Loader2 className="animate-spin" size={14} />
@@ -1874,18 +1874,18 @@ export default function PostList() {
 
         {/* Title search */}
         <div className="relative mb-3">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" /></svg>
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--fg-3)] pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" /></svg>
           <input
             type="text"
             placeholder="Search post titles..."
             value={titleSearch}
             onChange={(e) => setTitleSearch(e.target.value)}
-            className="w-full pl-9 pr-8 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+            className="w-full pl-9 pr-8 py-2 text-sm rounded-[var(--r-md)] border border-[var(--border-1)] bg-[var(--bg-page)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
           {titleSearch && (
             <button
               onClick={() => setTitleSearch("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--fg-3)] hover:text-[var(--fg-1)]"
               aria-label="Clear search"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -1904,17 +1904,17 @@ export default function PostList() {
             <button
               key={tab.key}
               onClick={() => setReviewFilter(tab.key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-[var(--r-md)] text-xs font-medium transition-colors flex items-center gap-1.5 ${
                 reviewFilter === tab.key
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                  ? "bg-[var(--volt)] text-[var(--ink)]-foreground"
+                  : "bg-[var(--bg-card)] border border-[var(--border-1)] text-[var(--fg-3)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-inset)]/60"
               }`}
             >
               {tab.label}
               <span className={`inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold min-w-[18px] ${
                 reviewFilter === tab.key
-                  ? "bg-primary-foreground/20 text-primary-foreground"
-                  : "bg-muted text-muted-foreground"
+                  ? "bg-[var(--volt)]-foreground/20 text-[var(--ink)]-foreground"
+                  : "bg-[var(--bg-inset)] text-[var(--fg-3)]"
               }`}>
                 {tab.count}
               </span>
@@ -1924,7 +1924,7 @@ export default function PostList() {
 
         {/* Bulk suggest progress banner */}
         {bulkSuggestRunning && (
-          <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3">
+          <div className="mb-4 rounded-[var(--r-md)] border border-amber-500/30 bg-amber-500/5 px-4 py-3">
             <div className="flex items-center gap-2">
               <Loader2 className="animate-spin text-amber-500" size={14} />
               <p className="text-xs text-amber-400">
@@ -1937,7 +1937,7 @@ export default function PostList() {
 
         {/* Audit progress bar */}
         {auditingAll && (
-          <div className="mb-4 rounded-lg border border-border bg-card p-3">
+          <div className="mb-4 rounded-[var(--r-md)] border border-[var(--border-1)] bg-[var(--bg-card)] p-3">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium">
                 {auditJobTotal > 0
@@ -1945,13 +1945,13 @@ export default function PostList() {
                   : "Starting audit…"}
               </span>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-[var(--fg-3)]">
                   {auditJobTotal > 0 ? `${auditProgress}%` : ""}
                 </span>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive"
+                  className="h-6 px-2 text-xs text-[var(--fg-3)] hover:text-destructive"
                   onClick={() => {
                     if (auditPollRef.current) clearInterval(auditPollRef.current);
                     setAuditingAll(false);
@@ -1971,23 +1971,23 @@ export default function PostList() {
                 {auditJobFailed} post{auditJobFailed !== 1 ? "s" : ""} failed — will be skipped.
               </p>
             )}
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-[var(--fg-3)] mt-1">
               Processing in batches of 5. Do not close this page.
             </p>
           </div>
         )}
         {/* Failed posts list after audit */}
         {!auditingAll && auditJobFailedPosts.length > 0 && (
-          <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+          <div className="mb-4 rounded-[var(--r-md)] border border-amber-500/30 bg-amber-500/5 p-3">
             <p className="text-xs font-medium text-amber-600 mb-1">
               {auditJobFailedPosts.length} post{auditJobFailedPosts.length !== 1 ? "s" : ""} could not be audited:
             </p>
-            <ul className="text-xs text-muted-foreground space-y-0.5">
+            <ul className="text-xs text-[var(--fg-3)] space-y-0.5">
               {auditJobFailedPosts.slice(0, 5).map((fp) => (
                 <li key={fp.postId} className="truncate">• {fp.title || fp.postId}</li>
               ))}
               {auditJobFailedPosts.length > 5 && (
-                <li className="text-muted-foreground">…and {auditJobFailedPosts.length - 5} more</li>
+                <li className="text-[var(--fg-3)]">…and {auditJobFailedPosts.length - 5} more</li>
               )}
             </ul>
           </div>
@@ -2009,25 +2009,25 @@ export default function PostList() {
 
         {/* Post list */}
         {posts.length === 0 ? (
-          <div className="bg-card border border-border rounded-xl p-12 text-center">
+          <div className="bg-[var(--bg-card)] border border-[var(--border-1)] rounded-[var(--r-md)] p-12 text-center">
             <div className="flex flex-col items-center gap-4">
-              <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
-                <FileText className="h-7 w-7 text-primary/60" />
+              <div className="h-14 w-14 rounded-full bg-[var(--volt)]/10 flex items-center justify-center">
+                <FileText className="h-7 w-7 text-[var(--ink)]/60" />
               </div>
               {titleSearchLower ? (
                 <div>
-                  <p className="text-base font-semibold text-foreground">No posts match &ldquo;{titleSearch}&rdquo;</p>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="text-base font-semibold text-[var(--fg-1)]">No posts match &ldquo;{titleSearch}&rdquo;</p>
+                  <p className="text-sm text-[var(--fg-3)] mt-1">
                     Try a different search term or{" "}
-                    <button className="underline hover:text-foreground" onClick={() => setTitleSearch("")}>
+                    <button className="underline hover:text-[var(--fg-1)]" onClick={() => setTitleSearch("")}>
                       clear the search
                     </button>.
                   </p>
                 </div>
               ) : (
                 <div>
-                  <p className="text-base font-semibold text-foreground">No posts imported yet</p>
-                  <p className="text-sm text-muted-foreground mt-1 max-w-xs mx-auto">
+                  <p className="text-base font-semibold text-[var(--fg-1)]">No posts imported yet</p>
+                  <p className="text-sm text-[var(--fg-3)] mt-1 max-w-xs mx-auto">
                     Connect your CMS and import your blog posts to start auditing and rewriting them.
                   </p>
                 </div>
@@ -2048,10 +2048,10 @@ export default function PostList() {
         ) : (
           <div className="space-y-2">
             {/* Column headers */}
-            <div className="px-5 py-2 flex items-center gap-4 text-xs font-semibold text-muted-foreground uppercase tracking-wide border-b border-border">
+            <div className="px-5 py-2 flex items-center gap-4 text-xs font-semibold text-[var(--fg-3)] uppercase tracking-wide border-b border-[var(--border-1)]">
               <div className="flex-1 min-w-0">
                 <button
-                  className="flex items-center gap-1 hover:text-foreground transition-colors"
+                  className="flex items-center gap-1 hover:text-[var(--fg-1)] transition-colors"
                   onClick={() => { if (sortField === "title") setSortDir(d => d === "asc" ? "desc" : "asc"); else { setSortField("title"); setSortDir("asc"); } }}
                 >
                   Post {sortField === "title" ? (sortDir === "asc" ? <ChevronUp size={12} /> : <ChevronDown size={12} />) : null}
@@ -2059,7 +2059,7 @@ export default function PostList() {
               </div>
               <div className="shrink-0 w-16 text-right">
                 <button
-                  className="flex items-center gap-1 hover:text-foreground transition-colors ml-auto"
+                  className="flex items-center gap-1 hover:text-[var(--fg-1)] transition-colors ml-auto"
                   onClick={() => { if (sortField === "score") setSortDir(d => d === "asc" ? "desc" : "asc"); else { setSortField("score"); setSortDir("asc"); } }}
                 >
                   Score {sortField === "score" ? (sortDir === "asc" ? <ChevronUp size={12} /> : <ChevronDown size={12} />) : null}
@@ -2067,7 +2067,7 @@ export default function PostList() {
               </div>
               <div className="shrink-0 w-24">
                 <button
-                  className="flex items-center gap-1 hover:text-foreground transition-colors"
+                  className="flex items-center gap-1 hover:text-[var(--fg-1)] transition-colors"
                   onClick={() => { if (sortField === "grade") setSortDir(d => d === "asc" ? "desc" : "asc"); else { setSortField("grade"); setSortDir("asc"); } }}
                 >
                   Grade {sortField === "grade" ? (sortDir === "asc" ? <ChevronUp size={12} /> : <ChevronDown size={12} />) : null}
@@ -2083,10 +2083,10 @@ export default function PostList() {
               return (
                 <div
                   key={post.id}
-                  className={`bg-card border rounded-xl transition-colors ${
+                  className={`bg-[var(--bg-card)] border rounded-[var(--r-md)] transition-colors ${
                     post.cannibalizationFlag
                       ? "border-red-500/40 bg-red-500/5"
-                      : "border-border"
+                      : "border-[var(--border-1)]"
                   }`}
                 >
                   {/* Post row */}
@@ -2112,11 +2112,11 @@ export default function PostList() {
                       <button
                         onClick={() => setPreviewPost(post)}
                         title={post.title}
-                        className="text-sm font-medium text-foreground hover:text-primary truncate block text-left w-full"
+                        className="text-sm font-medium text-[var(--fg-1)] hover:text-[var(--ink)] truncate block text-left w-full"
                       >
                         {post.title}
                       </button>
-                      <p className="text-xs text-muted-foreground truncate mt-0.5">
+                      <p className="text-xs text-[var(--fg-3)] truncate mt-0.5">
                         {post.url}
                       </p>
                     </div>
@@ -2138,13 +2138,13 @@ export default function PostList() {
                     {post.auditScore !== null && post.auditScore !== undefined && (
                       <div className="shrink-0 flex flex-col items-end gap-0.5">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-bold text-foreground">
+                          <span className="text-xs font-bold text-[var(--fg-1)]">
                             {post.auditScore}/100
                           </span>
                           <GradeBadge grade={post.auditGrade} />
                         </div>
                         {post.auditedAt && (
-                          <span className="text-[10px] text-muted-foreground/70 leading-none">
+                          <span className="text-[10px] text-[var(--fg-3)]/70 leading-none">
                             Audited{" "}
                             {new Date(post.auditedAt).toLocaleDateString("en-AU", {
                               day: "numeric",
@@ -2208,7 +2208,7 @@ export default function PostList() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="text-xs h-7 px-2 text-muted-foreground hover:text-foreground"
+                          className="text-xs h-7 px-2 text-[var(--fg-3)] hover:text-[var(--fg-1)]"
                           onClick={() =>
                             setExpandedAuditPostId(
                               isExpanded ? null : post.id
@@ -2326,7 +2326,7 @@ export default function PostList() {
 
                   {/* Expanded audit results */}
                   {isExpanded && iauditUserId && (
-                    <div className="border-t border-border px-5 py-4">
+                    <div className="border-t border-[var(--border-1)] px-5 py-4">
                       <AuditResultsPanel
                         postId={post.id}
                         iauditUserId={iauditUserId}
@@ -2338,7 +2338,7 @@ export default function PostList() {
                   )}
                   {/* Expanded rewrite result */}
                   {expandedRewritePostId === post.id && iauditUserId && (
-                    <div className="border-t border-border px-5 py-4">
+                    <div className="border-t border-[var(--border-1)] px-5 py-4">
                       <RewriteResultPanel
                         postId={post.id}
                         iauditUserId={iauditUserId}

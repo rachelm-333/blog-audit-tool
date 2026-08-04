@@ -227,23 +227,23 @@ export default function BusinessSetup() {
     return (
       <div className="flex items-center justify-center p-4">
         <div className="w-full max-w-lg">
-          <div className="bg-card border border-border rounded-xl p-8 shadow-lg">
-            <h1 className="text-xl font-bold text-foreground mb-1">Enter your website URL</h1>
-            <p className="text-sm text-muted-foreground mb-6">
+          <div className="bg-[var(--bg-card)] border border-[var(--border-1)] rounded-[var(--r-md)] p-8 shadow-lg">
+            <h1 className="text-xl font-bold text-[var(--fg-1)] mb-1">Enter your website URL</h1>
+            <p className="text-sm text-[var(--fg-3)] mb-6">
               We'll scan your website to pre-fill your business profile. You can review and edit everything before confirming.
             </p>
             <form onSubmit={handleStartScrape} className="space-y-4">
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Website URL</Label>
+                <Label className="text-xs font-semibold uppercase tracking-wide text-[var(--fg-3)]">Website URL</Label>
                 <div className="relative">
-                  <Globe size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Globe size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--fg-3)]" />
                   <Input
                     type="url"
                     placeholder="https://yourbusiness.com.au"
                     value={urlInput}
                     onChange={(e) => setUrlInput(e.target.value)}
                     required
-                    className="bg-secondary border-border pl-9"
+                    className="bg-secondary border-[var(--border-1)] pl-9"
                   />
                 </div>
               </div>
@@ -262,18 +262,18 @@ export default function BusinessSetup() {
     return (
       <div className="flex items-center justify-center p-4">
         <div className="w-full max-w-md text-center">
-          <div className="bg-card border border-border rounded-xl p-8">
+          <div className="bg-[var(--bg-card)] border border-[var(--border-1)] rounded-[var(--r-md)] p-8">
             <div className="flex justify-center mb-4">
               <div className="relative">
-                <div className="w-16 h-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+                <div className="w-16 h-16 rounded-full border-4 border-[var(--ink)]/20 border-t-primary animate-spin" />
               </div>
             </div>
-            <h2 className="text-lg font-bold text-foreground mb-2">Scanning your website…</h2>
-            <p className="text-sm text-muted-foreground">
+            <h2 className="text-lg font-bold text-[var(--fg-1)] mb-2">Scanning your website…</h2>
+            <p className="text-sm text-[var(--fg-3)]">
               We're reading your homepage, about page, services, and contact page to build your business profile. This takes up to 30 seconds.
             </p>
-            <div className="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            <div className="mt-4 flex items-center justify-center gap-2 text-xs text-[var(--fg-3)]">
+              <div className="w-2 h-2 rounded-full bg-[var(--volt)] animate-pulse" />
               Analysing copy and inferring brand voice…
             </div>
           </div>
@@ -306,7 +306,7 @@ export default function BusinessSetup() {
       <div>
         {/* Failure banner */}
         {failureInfo && (
-          <div className="flex gap-3 bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+          <div className="flex gap-3 bg-amber-500/10 border border-amber-500/30 rounded-[var(--r-md)] p-4">
             <AlertCircle size={18} className="text-amber-400 flex-shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-semibold text-amber-300">{failureInfo.title}</p>
@@ -317,9 +317,9 @@ export default function BusinessSetup() {
 
         {/* Required fields notice */}
         {!isFormComplete && (
-          <div className="flex gap-3 bg-primary/10 border border-primary/30 rounded-lg p-4">
-            <AlertCircle size={18} className="text-primary flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-primary/90">
+          <div className="flex gap-3 bg-[var(--volt)]/10 border border-[var(--ink)]/30 rounded-[var(--r-md)] p-4">
+            <AlertCircle size={18} className="text-[var(--ink)] flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-[var(--ink)]/90">
               Fields marked <span className="text-destructive font-bold">*</span> are required before you can confirm your profile.
             </p>
           </div>
@@ -369,14 +369,14 @@ export default function BusinessSetup() {
         </FormSection>
 
         {/* Bottom action bar */}
-        <div className="flex items-center justify-between pt-4 border-t border-border">
+        <div className="flex items-center justify-between pt-4 border-t border-[var(--border-1)]">
           <Button variant="outline" onClick={handleSaveProgress} disabled={isSaving}>
             {isSaving ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Save size={14} className="mr-1.5" />}
             Save Progress
           </Button>
           <div className="flex items-center gap-3">
             {!isFormComplete && (
-              <span className="text-xs text-muted-foreground">Fill all required fields to continue</span>
+              <span className="text-xs text-[var(--fg-3)]">Fill all required fields to continue</span>
             )}
             <Button onClick={handleConfirm} disabled={!isFormComplete || isConfirming} className="font-semibold px-6">
               {isConfirming ? <><Loader2 size={14} className="animate-spin mr-1.5" />Confirming…</> : <><CheckCircle2 size={14} className="mr-1.5" />Confirm & Continue</>}
@@ -392,8 +392,8 @@ export default function BusinessSetup() {
 
 function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-card border border-border rounded-xl p-6 space-y-4">
-      <h2 className="text-sm font-bold text-foreground uppercase tracking-wide border-b border-border pb-2">{title}</h2>
+    <div className="bg-[var(--bg-card)] border border-[var(--border-1)] rounded-[var(--r-md)] p-6 space-y-4">
+      <h2 className="text-sm font-bold text-[var(--fg-1)] uppercase tracking-wide border-b border-[var(--border-1)] pb-2">{title}</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{children}</div>
     </div>
   );
@@ -410,10 +410,10 @@ function FormField({
   const hasError = required && !value.trim();
   const borderClass = hasError
     ? "border-destructive focus:border-destructive ring-destructive/20"
-    : "border-border";
+    : "border-[var(--border-1)]";
   return (
     <div className={`space-y-1.5 ${textarea ? "md:col-span-2" : ""}`}>
-      <Label htmlFor={id} className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center">
+      <Label htmlFor={id} className="text-xs font-semibold uppercase tracking-wide text-[var(--fg-3)] flex items-center">
         {label}{required && <span className="text-destructive ml-1">*</span>}
         {tooltip && <HelpTooltip text={tooltip} />}
       </Label>
