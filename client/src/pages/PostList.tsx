@@ -109,31 +109,31 @@ const GRADE_CONFIG: Record<
   { label: string; color: string; bg: string; border: string }
 > = {
   optimised: {
-    label: "Optimised",
+    label: "Great Score",
     color: "text-emerald-400",
     bg: "bg-emerald-500/10",
     border: "border-emerald-500/30",
   },
   strong: {
-    label: "Strong",
+    label: "Good Score",
     color: "text-sky-400",
     bg: "bg-sky-500/10",
     border: "border-sky-500/30",
   },
   needs_work: {
-    label: "Needs Work",
+    label: "Needs a Refresh",
     color: "text-yellow-400",
     bg: "bg-yellow-500/10",
     border: "border-yellow-500/30",
   },
   poor: {
-    label: "Poor",
+    label: "Needs Improvement",
     color: "text-orange-400",
     bg: "bg-orange-500/10",
     border: "border-orange-500/30",
   },
   critical: {
-    label: "Critical",
+    label: "Requires Full Rewrite",
     color: "text-red-400",
     bg: "bg-red-500/10",
     border: "border-red-500/30",

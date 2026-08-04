@@ -36,16 +36,16 @@ function GradeBadge({ grade, score }: { grade: string | null; score: number | nu
     critical: "bg-red-100 text-red-800 border-red-200",
   };
   const label: Record<string, string> = {
-    optimised: "Optimised",
-    strong: "Strong",
-    needs_work: "Needs Work",
-    poor: "Poor",
-    critical: "Critical",
+    optimised: "Great Score",
+    strong: "Good Score",
+    needs_work: "Needs a Refresh",
+    poor: "Needs Improvement",
+    critical: "Requires Full Rewrite",
   };
   const cls = map[grade ?? ""] ?? "bg-slate-100 text-slate-600 border-slate-200";
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border ${cls}`}>
-      {score !== null ? `${score}/16` : ""} {label[grade ?? ""] ?? "—"}
+      {score !== null ? `${score}/100` : ""} {label[grade ?? ""] ?? "—"}
     </span>
   );
 }
@@ -375,7 +375,7 @@ export default function ReviewQueue() {
                 <div className="rounded-lg border border-slate-200 p-4">
                   <p className="text-xs font-medium text-slate-500 mb-1">SEO Score After Rewrite</p>
                   <p className="text-2xl font-bold text-slate-900">
-                    {selectedPost.rewriteScore ?? "—"}<span className="text-sm font-normal text-slate-400">/16</span>
+                    {selectedPost.rewriteScore ?? "—"}<span className="text-sm font-normal text-slate-400">/100</span>
                   </p>
                   <GradeBadge grade={selectedPost.rewriteGrade} score={null} />
                 </div>

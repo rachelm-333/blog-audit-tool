@@ -22,11 +22,11 @@ import { Link } from "wouter";
 type Grade = "optimised" | "strong" | "needs_work" | "poor" | "critical";
 
 const GRADE_LABELS: Record<Grade, string> = {
-  optimised: "Optimised",
-  strong: "Strong",
-  needs_work: "Needs Work",
-  poor: "Poor",
-  critical: "Critical",
+  optimised: "Great Score",
+  strong: "Good Score",
+  needs_work: "Needs a Refresh",
+  poor: "Needs Improvement",
+  critical: "Requires Full Rewrite",
 };
 
 const GRADE_COLORS: Record<Grade, { bg: string; text: string; border: string }> = {
@@ -237,7 +237,7 @@ function Stage2Form({
         <div className="text-xl font-bold text-white mb-2">Fix this post for free</div>
         <div className="text-sm text-[#8892A4]">
           Tell us about your business and we'll rewrite this post to a{" "}
-          <span className="text-[#22A064] font-semibold">{potentialScore}/100 — Optimised</span>{" "}
+          <span className="text-[#22A064] font-semibold">{potentialScore}/100 — Great Score</span>{" "}
           score — ready to copy back to your site.
         </div>
       </div>
@@ -527,7 +527,7 @@ function AuditResults({
         </div>
         <div className="text-sm text-[#8892A4] mt-1">
           After a free rewrite, this post could score{" "}
-          <span className="text-[#22A064] font-semibold">{potentialScore}/100 — Optimised</span>
+          <span className="text-[#22A064] font-semibold">{potentialScore}/100 — Great Score</span>
         </div>
       </div>
 

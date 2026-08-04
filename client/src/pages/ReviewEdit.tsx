@@ -64,18 +64,18 @@ const GRADE_CONFIG: Record<
   { label: string; color: string; bg: string }
 > = {
   optimised: {
-    label: "Optimised",
+    label: "Great Score",
     color: "text-emerald-400",
     bg: "bg-emerald-400/10",
   },
-  strong: { label: "Strong", color: "text-blue-400", bg: "bg-blue-400/10" },
+  strong: { label: "Good Score", color: "text-blue-400", bg: "bg-blue-400/10" },
   needs_work: {
-    label: "Needs Work",
+    label: "Needs a Refresh",
     color: "text-amber-400",
     bg: "bg-amber-400/10",
   },
-  poor: { label: "Poor", color: "text-orange-400", bg: "bg-orange-400/10" },
-  critical: { label: "Critical", color: "text-red-400", bg: "bg-red-400/10" },
+  poor: { label: "Needs Improvement", color: "text-orange-400", bg: "bg-orange-400/10" },
+  critical: { label: "Requires Full Rewrite", color: "text-red-400", bg: "bg-red-400/10" },
 };
 
 // ---------------------------------------------------------------------------
@@ -135,7 +135,7 @@ function GradeBadge({ grade, score }: { grade: string; score: number }) {
     <span
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold ${cfg.color} ${cfg.bg}`}
     >
-      {score}/16 · {cfg.label}
+      {score}/100 · {cfg.label}
     </span>
   );
 }
@@ -228,7 +228,7 @@ function MetaDescriptionField({
                   : "text-muted-foreground"
           }`}
         >
-          {len}/160
+          {len}/1000
           {isGood && " ✓ ideal length"}
           {isOver && " — too long, Google will truncate"}
           {isShort && " — too short (aim for 140–160)"}
@@ -1028,7 +1028,7 @@ export default function ReviewEdit() {
           );
         }
         toast.success(
-          `Keyword saved. SEO score updated to ${result.score}/16 (${result.grade.replace("_", " ")}). Content was not changed.`
+          `Keyword saved. SEO score updated to ${result.score}/100 (${result.grade.replace("_", " ")}). Content was not changed.`
         );
       } else {
         toast.success("Keyword saved. Run an audit to update the SEO score.");
@@ -1072,10 +1072,10 @@ export default function ReviewEdit() {
           if (latest.rewriteStatus === "failed") {
             toast.error("Rewrite failed. No credit was charged. Please try again.");
           } else if (latest.rewriteStatus === "needs_manual_review") {
-            toast.warning(`Rewrite scored ${latest.rewriteScore ?? 0}/16. Credit refunded. Please review the highlighted points before publishing.`, { duration: 8000 });
+            toast.warning(`Rewrite scored ${latest.rewriteScore ?? 0}/100. Credit refunded. Please review the highlighted points before publishing.`, { duration: 8000 });
             window.location.reload();
           } else {
-            toast.success(`Rewrite complete — scored ${latest.rewriteScore ?? 0}/16!`);
+            toast.success(`Rewrite complete — scored ${latest.rewriteScore ?? 0}/100!`);
             window.location.reload();
           }
         }

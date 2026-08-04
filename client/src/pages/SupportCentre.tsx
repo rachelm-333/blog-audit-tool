@@ -95,7 +95,7 @@ const ARTICLES: Article[] = [
         <h3 className="font-semibold text-base">How long does it take?</h3>
         <p>A single post audit takes about 10–20 seconds. Auditing all posts at once takes a bit longer — usually 1–3 minutes depending on how many posts you have.</p>
         <h3 className="font-semibold text-base">What you see when it finishes</h3>
-        <p>Each post will show a score (for example, 11/16) and a grade badge (Optimised, Strong, Needs Work, Poor, or Critical). Click any post to see exactly which of the 16 checks it passed and which it failed, with a plain-English explanation for each.</p>
+        <p>Each post will show a score out of 100 and a rating badge. Click any post to see exactly which of the 29 checks it passed and which it failed, with a plain-English explanation for each.</p>
       </div>
     ),
   },
@@ -118,11 +118,11 @@ const ARTICLES: Article[] = [
           </thead>
           <tbody className="space-y-1">
             {[
-              ["Optimised", "14–16", "Your post is doing very well. Minor improvements only."],
-              ["Strong", "11–13", "Good post. A few things to fix to reach the top."],
-              ["Needs Work", "8–10", "Several issues. A rewrite will make a big difference."],
-              ["Poor", "5–7", "Many issues. This post needs significant work."],
-              ["Critical", "0–4", "This post is unlikely to rank. A full rewrite is recommended."],
+              ["Great Score", "90–100", "Your post is fully optimised. Minor improvements only."],
+              ["Good Score", "75–89", "Good post. A few things to tighten up to reach the top."],
+              ["Needs a Refresh", "60–74", "Several issues. A targeted refresh will make a big difference."],
+              ["Needs Improvement", "40–59", "Many issues. This post needs significant work."],
+              ["Requires Full Rewrite", "0–39", "This post is unlikely to rank. A full rewrite is recommended."],
             ].map(([grade, score, meaning]) => (
               <tr key={grade} className="border-b border-border/50">
                 <td className="py-1 pr-4 font-medium">{grade}</td>
@@ -254,16 +254,16 @@ const ARTICLES: Article[] = [
           <div className="rounded-lg border border-border p-3">
             <h4 className="font-semibold mb-1">Full Rewrite</h4>
             <p className="text-muted-foreground text-xs mb-2">Best for posts that need rebuilding from scratch</p>
-            <p>A Full Rewrite rewrites your entire post from the beginning. It keeps your key facts and your business information, but it rebuilds the structure, headings, and language to fix all 16 SEO points. Use this when your post scores below 8/16, when the writing is hard to follow, or when the post is very short and needs to be expanded.</p>
+            <p>A Full Rewrite rewrites your entire post from the beginning. It keeps your key facts and your business information, but it rebuilds the structure, headings, and language to pass all 29 SEO checks. Use this when your post scores below 50/100, when the writing is hard to follow, or when the post is very short and needs to be expanded.</p>
           </div>
           <div className="rounded-lg border border-border p-3">
-            <h4 className="font-semibold mb-1">Smart Patch</h4>
-            <p className="text-muted-foreground text-xs mb-2">Best for posts where the writing is good but the SEO structure needs fixing</p>
-            <p>A Smart Patch makes targeted fixes to your post without changing the overall writing style or voice. It fixes things like missing keywords in headings, short meta descriptions, and missing internal links — but it tries to preserve the way you write. Use this when your post scores 8/16 or above and the writing feels right, but a few technical SEO things are failing.</p>
+            <h4 className="font-semibold mb-1">Improve Writing</h4>
+            <p className="text-muted-foreground text-xs mb-2">Best for posts where the content is solid but the writing needs polishing</p>
+            <p>Improve Writing rewrites your post sentence by sentence for readability and removes AI language patterns — while keeping your stories, stats, and examples intact. It also fixes failing SEO checks. Use this when your post scores 50/100 or above and the content is good but the writing feels stiff or AI-generated.</p>
           </div>
         </div>
         <h3 className="font-semibold text-base">Not sure which to choose?</h3>
-        <p>If your post scores below 8, choose Full Rewrite. If it scores 8 or above and you like the way it reads, choose Smart Patch.</p>
+        <p>If your post scores below 50, choose Full Rewrite. If it scores 50 or above and the content is solid, choose Improve Writing.</p>
       </div>
     ),
   },
@@ -286,7 +286,7 @@ const ARTICLES: Article[] = [
         <h3 className="font-semibold text-base">How long does it take?</h3>
         <p>A rewrite usually takes 2–4 minutes. The progress bar shows you which step is running. Do not close the page while the rewrite is running.</p>
         <h3 className="font-semibold text-base">What you see when it finishes</h3>
-        <p>When the rewrite is done, iAudit shows you the new score and grade. Most rewrites score 13/16 or higher. If the score is below 13, iAudit automatically tries again once. If the second attempt also scores below 13, your credit is refunded and iAudit flags the post for manual review.</p>
+        <p>When the rewrite is done, iAudit shows you the new score and grade. Most rewrites score 80/100 or higher. If the score is below 13, iAudit automatically tries again once. If the second attempt also scores below 13, your credit is refunded and iAudit flags the post for manual review.</p>
       </div>
     ),
   },
@@ -423,7 +423,7 @@ const ARTICLES: Article[] = [
           <li>After payment, your credits will be added to your account immediately.</li>
         </ol>
         <h3 className="font-semibold text-base">Credit refunds</h3>
-        <p>If a rewrite fails to reach a score of 13/16 even after a second attempt, iAudit automatically refunds your credit. You will see the refund in your credit history.</p>
+        <p>If a rewrite fails to reach a score of 80/100 even after a second attempt, iAudit automatically refunds your credit. You will see the refund in your credit history.</p>
       </div>
     ),
   },

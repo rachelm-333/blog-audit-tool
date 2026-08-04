@@ -51,7 +51,7 @@ import { cn } from "@/lib/utils";
 
 const GRADE_CONFIG = {
   optimised: {
-    label: "Optimised",
+    label: "Great Score",
     bg: "bg-[#1A7A4A]",
     text: "text-white",
     border: "border-[#1A7A4A]",
@@ -59,7 +59,7 @@ const GRADE_CONFIG = {
     barColor: "bg-[#1A7A4A]",
   },
   strong: {
-    label: "Strong",
+    label: "Good Score",
     bg: "bg-[#2E6DA4]",
     text: "text-white",
     border: "border-[#2E6DA4]",
@@ -67,7 +67,7 @@ const GRADE_CONFIG = {
     barColor: "bg-[#2E6DA4]",
   },
   needs_work: {
-    label: "Needs Work",
+    label: "Needs a Refresh",
     bg: "bg-[#B8860B]",
     text: "text-white",
     border: "border-[#B8860B]",
@@ -75,7 +75,7 @@ const GRADE_CONFIG = {
     barColor: "bg-[#B8860B]",
   },
   poor: {
-    label: "Poor",
+    label: "Needs Improvement",
     bg: "bg-[#C75B00]",
     text: "text-white",
     border: "border-[#C75B00]",
@@ -83,7 +83,7 @@ const GRADE_CONFIG = {
     barColor: "bg-[#C75B00]",
   },
   critical: {
-    label: "Critical",
+    label: "Requires Full Rewrite",
     bg: "bg-[#A30000]",
     text: "text-white",
     border: "border-[#A30000]",
@@ -142,7 +142,7 @@ function ScoreBar({
   if (score === null) {
     return <span className="text-xs text-muted-foreground">Not audited</span>;
   }
-  const pct = Math.round((score / 16) * 100);
+  const pct = Math.round(score); // score is already 0–100
   const cfg = grade ? GRADE_CONFIG[grade] : null;
   return (
     <div className="flex items-center gap-2">
@@ -158,7 +158,7 @@ function ScoreBar({
           cfg?.scoreColor ?? "text-foreground"
         )}
       >
-        {score}/16
+        {score}/100
       </span>
     </div>
   );
@@ -520,7 +520,7 @@ export default function Dashboard() {
                   >
                     {Math.round(stats.healthScore * 10) / 10}
                   </span>
-                  <span className="text-base text-muted-foreground">/16</span>
+                  <span className="text-base text-muted-foreground">/100</span>
                 </>
               ) : (
                 <span className="text-muted-foreground text-xl">No data</span>
@@ -733,7 +733,7 @@ export default function Dashboard() {
                   {g === "all"
                     ? `All (${gradeCounts.all})`
                     : g === "needs_work"
-                    ? `Needs Work (${gradeCounts.needs_work})`
+                    ? `Needs a Refresh (${gradeCounts.needs_work})`
                     : `${GRADE_CONFIG[g as GradeKey]?.label ?? g} (${gradeCounts[g]})`}
                 </FilterBtn>
               ))}
