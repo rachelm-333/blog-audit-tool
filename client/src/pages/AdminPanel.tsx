@@ -734,6 +734,10 @@ export default function AdminPanel() {
               <AlertTriangle className="h-3.5 w-3.5" />
               Error Log
             </TabsTrigger>
+            <TabsTrigger value="auditrules" className="gap-1.5">
+              <Shield className="h-3.5 w-3.5" />
+              Audit Rules
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="users">
@@ -748,8 +752,93 @@ export default function AdminPanel() {
           <TabsContent value="errors">
             <ErrorLogTab iauditUserId={iauditUserId} />
           </TabsContent>
+          <TabsContent value="auditrules">
+            <AuditRulesTab />
+          </TabsContent>
         </Tabs>
       </div>
     </DashboardLayout>
+  );
+}
+
+// ── Audit Rules Tab ────────────────────────────────────────────────────────────
+
+const AUDIT_RULES_FULL = [
+  // Macro Architecture
+  { id: "MAC-01", name: "URL Structure",        phase: "Macro", pts: 3,  criteria: "URL path has ≥ 2 segments and no date in path (e.g. /blog/brand-strategy not /2024/06/post)" },
+  { id: "MAC-02", name: "Meta Title",           phase: "Macro", pts: 2,  criteria: "Meta title is present and ≤ 60 characters" },
+  { id: "MAC-03", name: "Meta Description",     phase: "Macro", pts: 1,  criteria: "Meta description is present and ≤ 160 characters" },
+  { id: "MAC-04", name: "Keyword Optimisation", phase: "Macro", pts: 4,  criteria: "Focus keyword appears in both meta title and meta description" },
+  { id: "MAC-05", name: "Article Schema",       phase: "Macro", pts: 3,  criteria: "Page includes Article or BlogPosting schema markup (JSON-LD)" },
+  { id: "MAC-06", name: "FAQ Schema",           phase: "Macro", pts: 4,  criteria: "Page includes FAQPage schema markup (JSON-LD)" },
+  { id: "MAC-07", name: "Brand Schema",         phase: "Macro", pts: 2,  criteria: "Page includes Organization schema markup (JSON-LD)" },
+  { id: "MAC-08", name: "Author Schema",        phase: "Macro", pts: 3,  criteria: "Page includes Person schema markup for the author (JSON-LD)" },
+  { id: "MAC-09", name: "Pillar Link",          phase: "Macro", pts: 7,  criteria: "Post contains an internal anchor link whose exact text matches the hub keyword" },
+  { id: "MAC-10", name: "Child Links",          phase: "Macro", pts: 3,  criteria: "Hub pages only: contains ≥ 1 internal link pointing to a deeper child page (path depth ≥ 2)" },
+  { id: "MAC-11", name: "Internal Links",       phase: "Macro", pts: 3,  criteria: "Post contains ≥ 1 internal link (href starting with /)" },
+  // Micro Architecture
+  { id: "MIC-01", name: "Heading Structure",    phase: "Micro", pts: 3,  criteria: "Page has exactly one H1 tag" },
+  { id: "MIC-02", name: "Keyword in Heading",   phase: "Micro", pts: 6,  criteria: "The focus keyword appears in the H1" },
+  { id: "MIC-03", name: "Question Headlines",   phase: "Micro", pts: 6,  criteria: "≥ 50% of H2s are phrased as questions (end with ? or start with who/what/where/why/when/how/do/does/can/is/are/should)" },
+  { id: "MIC-04", name: "Heading Depth",        phase: "Micro", pts: 3,  criteria: "Post contains at least one H3 tag" },
+  { id: "MIC-05", name: "Answer Clarity",       phase: "Micro", pts: 5,  criteria: "First paragraph after each H2 is ≤ 60 words (direct answer pattern)" },
+  { id: "MIC-06", name: "Content Lists",        phase: "Micro", pts: 5,  criteria: "Post contains at least one unordered (ul) or ordered (ol) list" },
+  { id: "MIC-07", name: "Comparison Content",   phase: "Micro", pts: 4,  criteria: "Post contains a comparison table OR a list with ≥ 2 bold-label items (e.g. <strong>Label:</strong> value)" },
+  { id: "MIC-08", name: "Paragraph Length",     phase: "Micro", pts: 5,  criteria: "No paragraph exceeds ~100 words or 4 sentences" },
+  // E-E-A-T & Voice
+  { id: "EAT-01", name: "Data & Stats",         phase: "E-E-A-T", pts: 6,  criteria: "Body contains a percentage, a number ≥ 10, or the phrase 'case study'" },
+  { id: "EAT-02", name: "Experience Signals",   phase: "E-E-A-T", pts: 4,  criteria: "Body contains first-hand phrasing: 'in our experience', 'we tested', 'we found', 'when we', etc." },
+  { id: "EAT-03", name: "Authenticity Signals", phase: "E-E-A-T", pts: 2,  criteria: "Body acknowledges a failed approach: 'mistake', 'doesn't work', 'avoid', 'pitfall', 'failed', etc." },
+  { id: "EAT-04", name: "Expert Citations",     phase: "E-E-A-T", pts: 5,  criteria: "Post contains a blockquote attributed to a named person (— First Last pattern or <cite> tag)" },
+  { id: "EAT-05", name: "Outbound Links",       phase: "E-E-A-T", pts: 4,  criteria: "Post links to a .gov, .gov.au, .edu, or wikipedia.org domain" },
+  { id: "EAT-06", name: "External References",  phase: "E-E-A-T", pts: 2,  criteria: "Post links to ≥ 2 unique external domains" },
+  { id: "EAT-07", name: "Writing Style",        phase: "E-E-A-T", pts: 2,  criteria: "≥ 70% of sentences use active voice (passive = is/are/was/were/be/been/being + past participle)" },
+  { id: "EAT-08", name: "Natural Language",     phase: "E-E-A-T", pts: 3,  criteria: "Body contains none of the AI buzzword blocklist (leveraging, delve, tapestry, multifaceted, etc.)" },
+];
+
+const PHASE_COLORS: Record<string, string> = {
+  Macro:   "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  Micro:   "bg-purple-500/10 text-purple-400 border-purple-500/20",
+  "E-E-A-T": "bg-amber-500/10 text-amber-400 border-amber-500/20",
+};
+
+function AuditRulesTab() {
+  const total = AUDIT_RULES_FULL.reduce((s, r) => s + r.pts, 0);
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">27-Point Authority Standard</h2>
+          <p className="text-sm text-[var(--fg-3)] mt-0.5">Full criteria for each check — admin view only. Users see check names only.</p>
+        </div>
+        <div className="text-sm font-bold text-[var(--fg-3)]">Total: {total} pts</div>
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-24">ID</TableHead>
+            <TableHead className="w-32">Phase</TableHead>
+            <TableHead className="w-48">Check Name</TableHead>
+            <TableHead className="w-12 text-right">Pts</TableHead>
+            <TableHead>What it checks</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {AUDIT_RULES_FULL.map((r) => (
+            <TableRow key={r.id}>
+              <TableCell className="font-mono text-xs text-[var(--fg-3)]">{r.id}</TableCell>
+              <TableCell>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${PHASE_COLORS[r.phase]}`}>
+                  {r.phase}
+                </span>
+              </TableCell>
+              <TableCell className="text-sm font-medium">{r.name}</TableCell>
+              <TableCell className="text-right text-sm font-bold">{r.pts}</TableCell>
+              <TableCell className="text-xs text-[var(--fg-3)] leading-relaxed">{r.criteria}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }

@@ -381,11 +381,6 @@ function SeoScorePanel({
                             <div className="text-xs font-semibold text-[var(--fg-1)] leading-tight">
                               {p.point} — {p.name}
                             </div>
-                            {p.note && (
-                              <div className="text-[10px] text-[var(--fg-3)] mt-0.5 leading-snug">
-                                {p.note}
-                              </div>
-                            )}
                           </div>
                         </div>
                         {/* P6 manual action callout */}

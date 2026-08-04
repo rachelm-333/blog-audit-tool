@@ -407,9 +407,6 @@ function AuditResultsPanel({
                   <div className="text-xs font-semibold text-[var(--fg-1)]">
                     {p.point} — {p.name}
                   </div>
-                  <div className="text-xs text-[var(--fg-3)] mt-0.5">
-                    {p.note}
-                  </div>
                 </div>
               </div>
             ))}
