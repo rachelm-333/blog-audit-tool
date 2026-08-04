@@ -48,6 +48,7 @@ export interface AuditResult {
 
 export interface PostAuditInput {
   bodyHtml: string;
+  pageSource?: string | null; // full page HTML including <head> — used for schema detection
   focusKeyword: string | null;
   url: string;
   metaTitle: string | null;
@@ -262,7 +263,8 @@ function makeCheck(
 // ---------------------------------------------------------------------------
 
 function runMechanicalCheckItems(input: PostAuditInput): AuditCheck[] {
-  const { bodyHtml, focusKeyword, url, metaTitle, metaDescription, hubKeyword, isHub, liveChecks, schemaJson } = input;
+  const { bodyHtml, pageSource, focusKeyword, url, metaTitle, metaDescription, hubKeyword, isHub, liveChecks, schemaJson } = input;
+  const schemaSource = pageSource || bodyHtml; // prefer full page HTML for schema detection
   const results: AuditCheck[] = [];
 
   const bodyText = stripHtml(bodyHtml);
@@ -336,8 +338,7 @@ function runMechanicalCheckItems(input: PostAuditInput): AuditCheck[] {
   // ── MAC-05: Article or BlogPosting schema ────────────────────────────────
   {
     const hasSchemaInBody =
-      /<script[^>]+type=["']application\/ld\+json["'][^>]*>/i.test(bodyHtml) &&
-      (/"@type"\s*:\s*"Article"/i.test(bodyHtml) || /"@type"\s*:\s*"BlogPosting"/i.test(bodyHtml));
+      /"@type"\s*:\s*"(Article|BlogPosting)"/i.test(schemaSource);
     const hasStoredSchema = !!schemaJson && typeof schemaJson === 'object' &&
       (JSON.stringify(schemaJson).includes('"Article"') || JSON.stringify(schemaJson).includes('"BlogPosting"'));
     const passed = hasSchemaInBody || hasStoredSchema;
@@ -349,7 +350,7 @@ function runMechanicalCheckItems(input: PostAuditInput): AuditCheck[] {
 
   // ── MAC-06: FAQPage schema ───────────────────────────────────────────────
   {
-    const hasInBody = /"@type"\s*:\s*"FAQPage"/i.test(bodyHtml);
+    const hasInBody = /"@type"\s*:\s*"FAQPage"/i.test(schemaSource);
     const hasStored = !!schemaJson && JSON.stringify(schemaJson).includes('"FAQPage"');
     const passed = hasInBody || hasStored;
     results.push(makeCheck('MAC-06',
@@ -360,7 +361,7 @@ function runMechanicalCheckItems(input: PostAuditInput): AuditCheck[] {
 
   // ── MAC-07: Organization schema ──────────────────────────────────────────
   {
-    const hasInBody = /"@type"\s*:\s*"Organization"/i.test(bodyHtml);
+    const hasInBody = /"@type"\s*:\s*"Organization"/i.test(schemaSource);
     const hasStored = !!schemaJson && JSON.stringify(schemaJson).includes('"Organization"');
     const passed = hasInBody || hasStored;
     results.push(makeCheck('MAC-07',
@@ -371,7 +372,7 @@ function runMechanicalCheckItems(input: PostAuditInput): AuditCheck[] {
 
   // ── MAC-08: Author / Person schema ───────────────────────────────────────
   {
-    const hasInBody = /"@type"\s*:\s*"Person"/i.test(bodyHtml) || /"@type"\s*:\s*"Author"/i.test(bodyHtml);
+    const hasInBody = /"@type"\s*:\s*"Person"/i.test(schemaSource) || /"@type"\s*:\s*"Author"/i.test(schemaSource);
     const hasStored = !!schemaJson && (JSON.stringify(schemaJson).includes('"Person"') || JSON.stringify(schemaJson).includes('"Author"'));
     const passed = hasInBody || hasStored;
     results.push(makeCheck('MAC-08',

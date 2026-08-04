@@ -1,7 +1,7 @@
 /**
  * Audit.tsx — Layer 10: Free Public Audit Tool (/audit)
  *
- * Stage 1: URL input → 16-point audit results
+ * Stage 1: URL input → 29-point audit results
  * Stage 2: Free rewrite unlock form → rewrite delivery in 3 formats + Blog Batcher upsell
  *
  * No login required. Accessible to anyone.
@@ -237,7 +237,7 @@ function Stage2Form({
         <div className="text-xl font-bold text-white mb-2">Fix this post for free</div>
         <div className="text-sm text-[#8892A4]">
           Tell us about your business and we'll rewrite this post to a{" "}
-          <span className="text-[#22A064] font-semibold">{potentialScore}/16 — Optimised</span>{" "}
+          <span className="text-[#22A064] font-semibold">{potentialScore}/100 — Optimised</span>{" "}
           score — ready to copy back to your site.
         </div>
       </div>
@@ -384,21 +384,21 @@ function RewriteDeliveryPanel({ result }: { result: RewriteDelivery }) {
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
           <div className="text-center">
             <div className="text-xs text-[#8892A4] uppercase tracking-wide mb-1">Before</div>
-            <div className="text-3xl font-black text-[#C75B00]">{result.auditScoreBefore}/16</div>
+            <div className="text-3xl font-black text-[#C75B00]">{result.auditScoreBefore}/100</div>
           </div>
           <div className="text-2xl text-[#2A3560] hidden sm:block">→</div>
           <div className="text-center">
             <div className="text-xs text-[#8892A4] uppercase tracking-wide mb-1">After Rewrite</div>
-            <div className="text-3xl font-black text-[#22A064]">{result.rewriteScore}/16</div>
+            <div className="text-3xl font-black text-[#22A064]">{result.rewriteScore}/100</div>
           </div>
           <div className="sm:ml-auto">
             <GradeBadge grade={result.rewriteGrade} />
           </div>
         </div>
         <p className="text-sm text-[#8892A4] mt-3">
-          Your post scored {result.auditScoreBefore}/16. After rewrite:{" "}
+          Your post scored {result.auditScoreBefore}/100. After rewrite:{" "}
           <span className="text-[#22A064] font-semibold">
-            {result.rewriteScore}/16 — {GRADE_LABELS[result.rewriteGrade]}
+            {result.rewriteScore}/100 — {GRADE_LABELS[result.rewriteGrade]}
           </span>
         </p>
       </div>
@@ -517,7 +517,7 @@ function AuditResults({
       {/* Score summary */}
       <div className={`rounded-xl border ${gradeColors.border} bg-[#16213E] p-6 text-center`}>
         <div className={`text-4xl font-black ${grade === "poor" || grade === "critical" ? "text-[#F0A800]" : "text-[#22A064]"} mb-1`}>
-          {score} / 16
+          {score} / 100
         </div>
         <div className="flex items-center justify-center gap-2 mb-2">
           <GradeBadge grade={grade} />
@@ -527,7 +527,7 @@ function AuditResults({
         </div>
         <div className="text-sm text-[#8892A4] mt-1">
           After a free rewrite, this post could score{" "}
-          <span className="text-[#22A064] font-semibold">{potentialScore}/16 — Optimised</span>
+          <span className="text-[#22A064] font-semibold">{potentialScore}/100 — Optimised</span>
         </div>
       </div>
 
@@ -734,7 +734,7 @@ export default function AuditPage() {
             <span className="text-[#4A90D9]">ranking on Google?</span>
           </h1>
           <p className="text-[#8892A4] text-base mb-8 max-w-lg mx-auto">
-            Paste any blog post URL and get an instant 16-point score with specific fixes.
+            Paste any blog post URL and get an instant 29-point score with specific fixes.
             Free, no account needed.
           </p>
 
@@ -769,7 +769,7 @@ export default function AuditPage() {
 
           {/* Trust signals */}
           <div className="flex items-center justify-center gap-6 mt-5 text-xs text-[#8892A4]">
-            <span>✓ 16-point SEO check</span>
+            <span>✓ 29-point SEO check</span>
             <span>✓ Instant results</span>
             <span>✓ No credit card</span>
           </div>

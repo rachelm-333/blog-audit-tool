@@ -454,11 +454,11 @@ export async function auditPublicPost(
 
   const auditInput: PostAuditInput = {
     bodyHtml: scrape.bodyHtml,
+    pageSource: scrape.pageSource,
     url: scrape.url,
     focusKeyword: keyword,
     metaTitle: scrape.metaTitle,
     metaDescription: scrape.metaDescription,
-    // No CTA URLs available for public audits (no business profile yet)
     primaryCtaUrl: null,
     secondaryCtaUrls: [],
   };
