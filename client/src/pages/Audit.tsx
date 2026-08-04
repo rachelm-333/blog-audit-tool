@@ -7,7 +7,7 @@
  * No login required. Accessible to anyone.
  */
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -152,316 +152,97 @@ function BlogBatcherBanner() {
 }
 
 // ---------------------------------------------------------------------------
-// Stage 2 — Rewrite unlock form
+// Stage 2 — Sign-up CTA with countdown
 // ---------------------------------------------------------------------------
 
-type BrandVoice = "Professional" | "Friendly" | "Bold" | "Conversational";
-const BRAND_VOICES: BrandVoice[] = ["Professional", "Friendly", "Bold", "Conversational"];
+const CLAIM_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 
-interface Stage2FormProps {
-  auditScore: number;
+export const PENDING_AUDIT_KEY = "iaudit_pending_audit";
+
+interface PendingAudit {
+  url: string;
+  score: number;
   potentialScore: number;
-  postUrl: string;
-  scrapedTitle: string;
-  scrapedBodyHtml: string;
-  scrapedMetaTitle: string | null;
-  scrapedMetaDescription: string | null;
   focusKeyword: string;
-  onSuccess: (result: RewriteDelivery) => void;
+  expiresAt: number;
 }
 
-interface RewriteDelivery {
-  bodyRewritten: string;
-  metaTitleRewritten: string;
-  metaDescriptionRewritten: string;
-  rewriteScore: number;
-  rewriteGrade: Grade;
-  auditScoreBefore: number;
+function savePendingAudit(data: Omit<PendingAudit, "expiresAt">) {
+  try {
+    localStorage.setItem(
+      PENDING_AUDIT_KEY,
+      JSON.stringify({ ...data, expiresAt: Date.now() + CLAIM_WINDOW_MS })
+    );
+  } catch { /* storage unavailable */ }
 }
 
-function Stage2Form({
+function SignUpCTA({
   auditScore,
   potentialScore,
   postUrl,
-  scrapedTitle,
-  scrapedBodyHtml,
-  scrapedMetaTitle,
-  scrapedMetaDescription,
   focusKeyword,
-  onSuccess,
-}: Stage2FormProps) {
-  const [businessName, setBusinessName] = useState("");
-  const [industry, setIndustry] = useState("");
-  const [targetAudience, setTargetAudience] = useState("");
-  const [primaryCtaUrl, setPrimaryCtaUrl] = useState("");
-  const [brandVoice, setBrandVoice] = useState<BrandVoice>("Professional");
-  const [email, setEmail] = useState("");
-  const [duplicateEmail, setDuplicateEmail] = useState(false);
+}: {
+  auditScore: number;
+  potentialScore: number;
+  postUrl: string;
+  focusKeyword: string;
+}) {
+  const [secsLeft, setSecsLeft] = useState(CLAIM_WINDOW_MS / 1000);
 
-  const runFreeRewrite = trpc.publicAudit.runFreeRewrite.useMutation({
-    onSuccess: (data) => {
-      onSuccess(data as RewriteDelivery);
-    },
-    onError: (err) => {
-      if (err.data?.code === "CONFLICT") {
-        setDuplicateEmail(true);
-      } else {
-        toast.error(err.message ?? "Rewrite failed. Please try again.");
-      }
-    },
+  // Save pending audit and start countdown on mount
+  useState(() => {
+    savePendingAudit({ url: postUrl, score: auditScore, potentialScore, focusKeyword });
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setDuplicateEmail(false);
-    runFreeRewrite.mutate({
-      url: postUrl,
-      focusKeyword,
-      auditScoreBefore: auditScore,
-      email,
-      businessName,
-      industry,
-      targetAudience,
-      primaryCtaUrl,
-      brandVoice,
-      scrapedTitle,
-      scrapedBodyHtml,
-      scrapedMetaTitle,
-      scrapedMetaDescription,
-    });
-  };
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSecsLeft((s) => {
+        if (s <= 1) { clearInterval(interval); return 0; }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const mins = Math.floor(secsLeft / 60);
+  const secs = secsLeft % 60;
+  const expired = secsLeft === 0;
 
   return (
-    <div className="mt-6 rounded-[var(--r-md)] border border-[#2E6DA4] bg-gradient-to-br from-[#1E3A5F] to-[#0D2040] p-6 sm:p-8">
-      <div className="text-center mb-6">
-        <div className="text-xl font-bold text-white mb-2">Fix this post for free</div>
-        <div className="text-sm text-[#8892A4]">
-          Tell us about your business and we'll rewrite this post to a{" "}
-          <span className="text-[#22A064] font-semibold">{potentialScore}/100 — Great Score</span>{" "}
-          score — ready to copy back to your site.
-        </div>
+    <div className="mt-6 rounded-[var(--r-md)] border border-[#2E6DA4] bg-gradient-to-br from-[#1E3A5F] to-[#0D2040] p-6 sm:p-8 text-center">
+      <div className="text-2xl font-black text-white mb-2">
+        Your post can score <span className="text-[#22A064]">{potentialScore}/100</span>
+      </div>
+      <div className="text-sm text-[#8892A4] mb-6 max-w-md mx-auto">
+        Join iAudit and we'll rewrite this post to a{" "}
+        <span className="text-[#22A064] font-semibold">Great Score</span> — fixing every failing check
+        so your post ranks higher and gets cited by AI.
       </div>
 
-      <form onSubmit={handleSubmit} className="max-w-md mx-auto space-y-4">
-        <div>
-          <label className="block text-xs font-semibold text-[#8892A4] uppercase tracking-wide mb-1">
-            Business Name
-          </label>
-          <Input
-            value={businessName}
-            onChange={(e) => setBusinessName(e.target.value)}
-            placeholder="e.g. Luxia Pools"
-            required
-            className="bg-[#0F0F1A] border-[#2A3560] text-white placeholder:text-[#4A5568]"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-[#8892A4] uppercase tracking-wide mb-1">
-            Industry
-          </label>
-          <Input
-            value={industry}
-            onChange={(e) => setIndustry(e.target.value)}
-            placeholder="e.g. Pool Installation, Dental Practice"
-            required
-            className="bg-[#0F0F1A] border-[#2A3560] text-white placeholder:text-[#4A5568]"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-[#8892A4] uppercase tracking-wide mb-1">
-            Who is your customer?
-          </label>
-          <Input
-            value={targetAudience}
-            onChange={(e) => setTargetAudience(e.target.value)}
-            placeholder="e.g. Sydney homeowners planning a renovation"
-            required
-            className="bg-[#0F0F1A] border-[#2A3560] text-white placeholder:text-[#4A5568]"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-[#8892A4] uppercase tracking-wide mb-1">
-            Your most important page URL
-          </label>
-          <Input
-            type="url"
-            value={primaryCtaUrl}
-            onChange={(e) => setPrimaryCtaUrl(e.target.value)}
-            placeholder="e.g. your bookings or contact page"
-            required
-            className="bg-[#0F0F1A] border-[#2A3560] text-white placeholder:text-[#4A5568]"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-[#8892A4] uppercase tracking-wide mb-1">
-            Brand Voice
-          </label>
-          <div className="flex flex-wrap gap-2 mt-1">
-            {BRAND_VOICES.map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => setBrandVoice(v)}
-                className={`px-3 py-1.5 rounded-[var(--r-md)] text-xs font-semibold border transition-all ${
-                  brandVoice === v
-                    ? "bg-[#2E6DA4] border-[#4A90D9] text-white"
-                    : "bg-transparent border-[#2A3560] text-[#8892A4] hover:border-[#4A90D9] hover:text-white"
-                }`}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-[#8892A4] uppercase tracking-wide mb-1">
-            Email Address{" "}
-            <span className="text-[#4A5568] normal-case font-normal">(one free rewrite per address)</span>
-          </label>
-          <Input
-            type="email"
-            value={email}
-            onChange={(e) => { setEmail(e.target.value); setDuplicateEmail(false); }}
-            placeholder="you@yourbusiness.com.au"
-            required
-            className={`bg-[#0F0F1A] border-[#2A3560] text-white placeholder:text-[#4A5568] ${duplicateEmail ? "border-red-500" : ""}`}
-          />
-          {duplicateEmail && (
-            <p className="mt-1.5 text-xs text-red-400">
-              This email address has already used its free rewrite.{" "}
-              <Link href="/register" className="underline text-[#4A90D9]">
-                Sign up for an account
-              </Link>{" "}
-              to fix all your posts.
-            </p>
-          )}
-        </div>
-
-        <Button
-          type="submit"
-          disabled={runFreeRewrite.isPending}
-          className="w-full bg-[#1A7A4A] hover:bg-[#22A064] text-white font-semibold py-3 text-sm mt-2"
-        >
-          {runFreeRewrite.isPending ? (
-            <span className="flex items-center gap-2 justify-center">
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              Rewriting your post… this takes 30–60 seconds
-            </span>
-          ) : (
-            "✨ Rewrite My Post Free"
-          )}
-        </Button>
-      </form>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Rewrite delivery panel
-// ---------------------------------------------------------------------------
-
-function RewriteDeliveryPanel({ result }: { result: RewriteDelivery }) {
-  const [activeTab, setActiveTab] = useState<"html" | "markdown" | "plaintext">("html");
-
-  const getContent = () => {
-    if (activeTab === "html") return result.bodyRewritten;
-    if (activeTab === "markdown") return htmlToMarkdown(result.bodyRewritten);
-    return htmlToPlainText(result.bodyRewritten);
-  };
-
-  return (
-    <div className="mt-6 space-y-4">
-      {/* Before / after score */}
-      <div className="rounded-[var(--r-md)] border border-[#2A3560] bg-[#16213E] p-5">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
-          <div className="text-center">
-            <div className="text-xs text-[#8892A4] uppercase tracking-wide mb-1">Before</div>
-            <div className="text-3xl font-black text-[#C75B00]">{result.auditScoreBefore}/100</div>
-          </div>
-          <div className="text-2xl text-[#2A3560] hidden sm:block">→</div>
-          <div className="text-center">
-            <div className="text-xs text-[#8892A4] uppercase tracking-wide mb-1">After Rewrite</div>
-            <div className="text-3xl font-black text-[#22A064]">{result.rewriteScore}/100</div>
-          </div>
-          <div className="sm:ml-auto">
-            <GradeBadge grade={result.rewriteGrade} />
-          </div>
-        </div>
-        <p className="text-sm text-[#8892A4] mt-3">
-          Your post scored {result.auditScoreBefore}/100. After rewrite:{" "}
-          <span className="text-[#22A064] font-semibold">
-            {result.rewriteScore}/100 — {GRADE_LABELS[result.rewriteGrade]}
+      {/* Countdown */}
+      {!expired ? (
+        <div className="inline-flex items-center gap-2 bg-[#0F0F1A] border border-[#C75B00]/50 rounded-full px-4 py-2 mb-6">
+          <span className="text-[#C75B00] text-xs font-bold uppercase tracking-wide">⏱ Offer expires in</span>
+          <span className="text-white font-black text-base tabular-nums">
+            {mins}:{secs.toString().padStart(2, "0")}
           </span>
-        </p>
-      </div>
+        </div>
+      ) : (
+        <div className="inline-flex items-center gap-2 bg-[#0F0F1A] border border-[#4A5568]/50 rounded-full px-4 py-2 mb-6">
+          <span className="text-[#4A5568] text-xs font-semibold">Offer expired — sign up to audit &amp; fix any post</span>
+        </div>
+      )}
 
-      {/* Meta fields */}
-      <div className="rounded-[var(--r-md)] border border-[#2A3560] bg-[#16213E] p-5 space-y-3">
-        <div className="text-xs font-bold uppercase tracking-wide text-[#8892A4] mb-2">
-          Updated Meta Fields
-        </div>
-        <div>
-          <div className="text-xs text-[#8892A4] mb-1">Meta Title ({result.metaTitleRewritten.length} chars)</div>
-          <div className="text-sm text-white font-medium bg-[#0F0F1A] rounded p-2 border border-[#2A3560]">
-            {result.metaTitleRewritten}
-          </div>
-        </div>
-        <div>
-          <div className="text-xs text-[#8892A4] mb-1">Meta Description ({result.metaDescriptionRewritten.length} chars)</div>
-          <div className="text-sm text-white bg-[#0F0F1A] rounded p-2 border border-[#2A3560]">
-            {result.metaDescriptionRewritten}
-          </div>
-        </div>
-      </div>
-
-      {/* Rewritten body with format tabs */}
-      <div className="rounded-[var(--r-md)] border border-[#2A3560] bg-[#16213E] overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#2A3560]">
-          <div className="flex gap-1">
-            {(["html", "markdown", "plaintext"] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-3 py-1 rounded text-xs font-semibold transition-all ${
-                  activeTab === tab
-                    ? "bg-[#2E6DA4] text-white"
-                    : "text-[#8892A4] hover:text-white"
-                }`}
-              >
-                {tab === "html" ? "HTML" : tab === "markdown" ? "Markdown" : "Plain Text"}
-              </button>
-            ))}
-          </div>
-          <CopyButton
-            label={activeTab === "html" ? "HTML" : activeTab === "markdown" ? "Markdown" : "Plain Text"}
-            getValue={getContent}
-          />
-        </div>
-        <div className="p-4 max-h-96 overflow-y-auto">
-          <pre className="text-xs text-[#8892A4] whitespace-pre-wrap font-mono leading-relaxed">
-            {getContent()}
-          </pre>
-        </div>
-      </div>
-
-      {/* CTA */}
-      <div className="text-center py-2">
+      <div className="space-y-3 max-w-xs mx-auto">
         <Link href="/register">
-          <Button variant="outline" className="border-[#2E6DA4] text-[#4A90D9] hover:bg-[#2E6DA4] hover:text-white">
-            Fix all your posts with iAudit →
+          <Button className="w-full bg-[#1A7A4A] hover:bg-[#22A064] text-white font-bold py-3 text-base">
+            Join Now &amp; Fix This Post →
           </Button>
         </Link>
+        <p className="text-xs text-[#4A5568]">
+          Your audit results are saved for 10 minutes — create an account and they'll be added automatically.
+        </p>
       </div>
-
-      <BlogBatcherBanner />
     </div>
   );
 }
@@ -499,8 +280,6 @@ function AuditResults({
   scrapedMetaTitle,
   scrapedMetaDescription,
 }: AuditResultsProps) {
-  const [showRewriteForm, setShowRewriteForm] = useState(false);
-  const [rewriteResult, setRewriteResult] = useState<RewriteDelivery | null>(null);
   const [keyword, setKeyword] = useState(focusKeyword ?? "");
   // Auto-detected keywords are pre-confirmed; only show prompt if truly no keyword at all
   const [keywordConfirmed, setKeywordConfirmed] = useState(!!focusKeyword);
@@ -627,36 +406,13 @@ function AuditResults({
         </div>
       </div>
 
-      {/* Stage 2 CTA or form */}
-      {!rewriteResult && !showRewriteForm && (
-        <div className="text-center">
-          <Button
-            onClick={() => setShowRewriteForm(true)}
-            className="bg-[#1A7A4A] hover:bg-[#22A064] text-white font-semibold px-8 py-3 text-sm"
-          >
-            Fix This Post Free →
-          </Button>
-        </div>
-      )}
-
-      {showRewriteForm && !rewriteResult && (
-        <Stage2Form
-          auditScore={score}
-          potentialScore={potentialScore}
-          postUrl={url}
-          scrapedTitle={title}
-          scrapedBodyHtml={scrapedBodyHtml}
-          scrapedMetaTitle={scrapedMetaTitle}
-          scrapedMetaDescription={scrapedMetaDescription}
-          focusKeyword={keyword}
-          onSuccess={(result) => {
-            setRewriteResult(result);
-            setShowRewriteForm(false);
-          }}
-        />
-      )}
-
-      {rewriteResult && <RewriteDeliveryPanel result={rewriteResult} />}
+      {/* Stage 2 — Sign-up CTA */}
+      <SignUpCTA
+        auditScore={score}
+        potentialScore={potentialScore}
+        postUrl={url}
+        focusKeyword={keyword}
+      />
     </div>
   );
 }
