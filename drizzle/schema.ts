@@ -483,3 +483,33 @@ export const auditJobs = mysqlTable(
 
 export type AuditJob = typeof auditJobs.$inferSelect;
 export type InsertAuditJob = typeof auditJobs.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// import_jobs — tracks progress of a background CMS import run
+// Created when importPosts is called; polled by the frontend every 3 seconds.
+// ---------------------------------------------------------------------------
+export const importJobs = mysqlTable(
+  "import_jobs",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(), // nanoid
+    businessId: varchar("business_id", { length: 36 })
+      .notNull()
+      .references(() => businesses.id),
+    connectionId: varchar("connection_id", { length: 36 }).notNull(),
+    status: mysqlEnum("status", ["running", "complete", "failed"])
+      .notNull()
+      .default("running"),
+    total: int("total").notNull().default(0),
+    imported: int("imported").notNull().default(0),
+    keywordsAutoDetected: int("keywords_auto_detected").notNull().default(0),
+    errors: json("errors"), // string[]
+    startedAt: timestamp("started_at").defaultNow().notNull(),
+    finishedAt: timestamp("finished_at"),
+  },
+  (table) => [
+    index("import_jobs_business_id_idx").on(table.businessId),
+    index("import_jobs_status_idx").on(table.status),
+  ]
+);
+export type ImportJob = typeof importJobs.$inferSelect;
+export type InsertImportJob = typeof importJobs.$inferInsert;

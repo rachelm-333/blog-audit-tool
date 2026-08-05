@@ -56,6 +56,13 @@ import { encryptCredentials } from "../encryption.service";
 import { nanoid } from "nanoid";
 import { extractKeywordFromTitle, validateKeyword } from "../keyword.service";
 import { saveKeyword, getPostForKeyword } from "../keyword.db";
+import {
+  createImportJob,
+  getImportJob,
+  setImportJobTotal,
+  updateImportJobProgress,
+  finishImportJob,
+} from "../import.db";
 
 // ─── Ownership guard ──────────────────────────────────────────────────────────
 
@@ -534,126 +541,169 @@ export const cmsRouter = router({
     }),
 
   /**
-   * Import posts from a connected WordPress site.
-   * Status filter: published / scheduled / draft / all.
-   * Trash posts are NEVER imported regardless of filter.
-   * Upserts by (businessId, cmsPostId, cmsPlatform) — safe to re-run.
+   * Import posts from a connected CMS — runs as a background job.
+   * Returns a jobId immediately; frontend polls cms.getImportJobStatus every 3s.
+   * This avoids the 180s production timeout for large sites (e.g. 271 Wix posts).
    */
   importPosts: publicProcedure
     .input(importPostsSchema)
     .mutation(async ({ input }) => {
       const connection = await assertConnectionOwnership(input.connectionId, input.iauditUserId);
 
-      const rawCreds = decryptConnectionCredentials(connection);
-      let importResult: { posts: any[]; errors: string[] };
+      // Create a job row immediately so the frontend can start polling
+      const jobId = await createImportJob(connection.businessId, connection.id);
 
-      try {
-        if (connection.platform === "wordpress") {
-          const creds: WordPressCredentials = {
-            siteUrl: rawCreds["siteUrl"] ?? "",
-            username: rawCreds["username"] ?? "",
-            applicationPassword: rawCreds["applicationPassword"] ?? "",
-          };
-          importResult = await importWordPressPosts(creds, { statusFilter: input.statusFilter });
-        } else if (connection.platform === "wix") {
-          const creds: WixCredentials = {
-            siteId: rawCreds["siteId"] ?? "",
-            apiKey: rawCreds["apiKey"] ?? "",
-          };
-          importResult = await importWixPosts(creds, input.statusFilter, connection.businessId);
-        } else if (connection.platform === "shopify") {
-          const creds: ShopifyCredentials = {
-            shop: rawCreds["shop"] ?? rawCreds["shopDomain"] ?? "",
-            accessToken: rawCreds["accessToken"] ?? "",
-          };
-          importResult = await importShopifyPosts(creds);
-        } else if (connection.platform === "webflow") {
-          const creds: WebflowCredentials = {
-            apiKey: rawCreds["apiKey"] ?? "",
-            collectionId: rawCreds["collectionId"] ?? "",
-          };
-          importResult = await importWebflowPosts(creds, input.statusFilter);
-        } else {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: `Post import is not yet supported for ${connection.platform} connections.`,
-          });
-        }
-      } catch (err) {
-        // Only mark as error for credential/auth failures — not for transient import errors
-        const isAuthFailure =
-          (err instanceof WpImportException && err.code === "invalid_credentials") ||
-          (err instanceof WixImportException && err.code === "invalid_credentials") ||
-          (err instanceof ShopifyImportException && err.code === "invalid_credentials") ||
-          (err instanceof WebflowImportException && err.code === "invalid_credentials");
-        if (isAuthFailure) {
-          await updateCmsConnectionStatus(connection.id, "error");
-        }
-        if (err instanceof WpImportException) throw mapWpError(err);
-        if (err instanceof WixImportException) throw mapWixError(err);
-        if (err instanceof ShopifyImportException) throw mapShopifyError(err);
-        if (err instanceof WebflowImportException) throw mapWebflowError(err);
-        if (err instanceof TRPCError) throw err;
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "An unexpected error occurred during import.",
-        });
-      }
+      // Run the import asynchronously — do NOT await so we return jobId right away
+      (async () => {
+        const rawCreds = decryptConnectionCredentials(connection);
+        let importResult: { posts: any[]; errors: string[] };
 
-      // Upsert all imported posts
-      const upsertedIds: string[] = [];
-      const upsertErrors: string[] = [];
-      const platform = connection.platform as "wordpress" | "wix" | "shopify" | "webflow" | "zapier";
-
-      for (const post of importResult.posts) {
         try {
-          const id = await upsertPost({
-            ...post,
-            businessId: connection.businessId,
-            cmsPlatform: platform,
-          });
-          upsertedIds.push(id);
-        } catch (err: any) {
-          upsertErrors.push(`Post ${post.cmsPostId}: ${err?.message ?? "DB error"}`);
-        }
-      }
-
-      // Update last sync timestamp
-      await updateCmsConnectionStatus(connection.id, "connected", new Date());
-
-      // Count by status
-      const counts = { published: 0, scheduled: 0, draft: 0 };
-      for (const post of importResult.posts) {
-        const s = post.status as "published" | "scheduled" | "draft";
-        if (s in counts) counts[s] = (counts[s] ?? 0) + 1;
-      }
-
-      // Auto-detect focus keywords for newly imported posts that don't have one yet.
-      // Runs in the background — does not block the import response.
-      let keywordsAutoDetected = 0;
-      for (const postId of upsertedIds) {
-        try {
-          const fullPost = await getPostForKeyword(postId);
-          if (!fullPost || fullPost.focusKeyword) continue; // already has keyword
-          const keyword = extractKeywordFromTitle(
-            fullPost.title,
-            fullPost.bodyOriginal ?? "",
-            fullPost.metaTitleOriginal ?? "",
-            fullPost.metaDescriptionOriginal ?? ""
-          );
-          if (keyword && validateKeyword(keyword)) {
-            await saveKeyword(postId, keyword, [], "auto_detected", false);
-            keywordsAutoDetected++;
+          if (connection.platform === "wordpress") {
+            const creds: WordPressCredentials = {
+              siteUrl: rawCreds["siteUrl"] ?? "",
+              username: rawCreds["username"] ?? "",
+              applicationPassword: rawCreds["applicationPassword"] ?? "",
+            };
+            importResult = await importWordPressPosts(creds, { statusFilter: input.statusFilter });
+          } else if (connection.platform === "wix") {
+            const creds: WixCredentials = {
+              siteId: rawCreds["siteId"] ?? "",
+              apiKey: rawCreds["apiKey"] ?? "",
+            };
+            importResult = await importWixPosts(creds, input.statusFilter, connection.businessId);
+          } else if (connection.platform === "shopify") {
+            const creds: ShopifyCredentials = {
+              shop: rawCreds["shop"] ?? rawCreds["shopDomain"] ?? "",
+              accessToken: rawCreds["accessToken"] ?? "",
+            };
+            importResult = await importShopifyPosts(creds);
+          } else if (connection.platform === "webflow") {
+            const creds: WebflowCredentials = {
+              apiKey: rawCreds["apiKey"] ?? "",
+              collectionId: rawCreds["collectionId"] ?? "",
+            };
+            importResult = await importWebflowPosts(creds, input.statusFilter);
+          } else {
+            await finishImportJob(jobId, "failed");
+            return;
           }
-        } catch {
-          // skip silently — keyword auto-detection is best-effort
+        } catch (err) {
+          // Mark auth failures on the connection
+          const isAuthFailure =
+            (err instanceof WpImportException && err.code === "invalid_credentials") ||
+            (err instanceof WixImportException && err.code === "invalid_credentials") ||
+            (err instanceof ShopifyImportException && err.code === "invalid_credentials") ||
+            (err instanceof WebflowImportException && err.code === "invalid_credentials");
+          if (isAuthFailure) {
+            await updateCmsConnectionStatus(connection.id, "error");
+          }
+          const errMsg =
+            err instanceof WpImportException ? mapWpError(err).message
+            : err instanceof WixImportException ? mapWixError(err).message
+            : err instanceof ShopifyImportException ? mapShopifyError(err).message
+            : err instanceof WebflowImportException ? mapWebflowError(err).message
+            : err instanceof Error ? err.message
+            : "Import failed";
+          await updateImportJobProgress(jobId, { error: errMsg });
+          await finishImportJob(jobId, "failed");
+          return;
         }
+
+        // Set total now that we know how many posts were fetched
+        await setImportJobTotal(jobId, importResult.posts.length);
+
+        // Upsert posts one by one, updating progress as we go
+        const upsertedIds: string[] = [];
+        const platform = connection.platform as "wordpress" | "wix" | "shopify" | "webflow" | "zapier";
+
+        for (const post of importResult.posts) {
+          try {
+            const id = await upsertPost({
+              ...post,
+              businessId: connection.businessId,
+              cmsPlatform: platform,
+            });
+            upsertedIds.push(id);
+            await updateImportJobProgress(jobId, { importedDelta: 1 });
+          } catch (err: any) {
+            await updateImportJobProgress(jobId, {
+              error: `Post ${post.cmsPostId}: ${err?.message ?? "DB error"}`,
+            });
+          }
+        }
+
+        // Propagate any fetch-level errors
+        for (const e of importResult.errors) {
+          await updateImportJobProgress(jobId, { error: e });
+        }
+
+        // Update last sync timestamp
+        await updateCmsConnectionStatus(connection.id, "connected", new Date());
+
+        // Auto-detect focus keywords for newly imported posts
+        let keywordsAutoDetected = 0;
+        for (const postId of upsertedIds) {
+          try {
+            const fullPost = await getPostForKeyword(postId);
+            if (!fullPost || fullPost.focusKeyword) continue;
+            const keyword = extractKeywordFromTitle(
+              fullPost.title,
+              fullPost.bodyOriginal ?? "",
+              fullPost.metaTitleOriginal ?? "",
+              fullPost.metaDescriptionOriginal ?? ""
+            );
+            if (keyword && validateKeyword(keyword)) {
+              await saveKeyword(postId, keyword, [], "auto_detected", false);
+              keywordsAutoDetected++;
+            }
+          } catch {
+            // skip silently
+          }
+        }
+        if (keywordsAutoDetected > 0) {
+          await updateImportJobProgress(jobId, { keywordsDelta: keywordsAutoDetected });
+        }
+
+        await finishImportJob(jobId, "complete");
+      })().catch(async (err) => {
+        console.error("[importPosts] Unexpected background error:", err);
+        await finishImportJob(jobId, "failed");
+      });
+
+      return { jobId };
+    }),
+
+  /**
+   * Poll the status of a background import job.
+   */
+  getImportJobStatus: publicProcedure
+    .input(
+      z.object({
+        jobId: z.string().min(1),
+        iauditUserId: z.string().min(1),
+      })
+    )
+    .query(async ({ input }) => {
+      const job = await getImportJob(input.jobId);
+      if (!job) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Import job not found." });
+      }
+      // Verify ownership via the business
+      const { getBusinessById: getBiz } = await import("../businesses.db");
+      const business = await getBiz(job.businessId);
+      if (!business || business.userId !== input.iauditUserId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Access denied." });
       }
       return {
-        totalImported: upsertedIds.length,
-        keywordsAutoDetected,
-        counts,
-        errors: [...importResult.errors, ...upsertErrors],
+        jobId: job.id,
+        status: job.status,
+        total: job.total,
+        imported: job.imported,
+        keywordsAutoDetected: job.keywordsAutoDetected,
+        errors: job.errors ?? [],
+        startedAt: job.startedAt,
+        finishedAt: job.finishedAt ?? null,
       };
     }),
 

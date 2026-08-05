@@ -127,6 +127,13 @@
       "when": 1781473133149,
       "tag": "0017_empty_carmella_unuscione",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "5",
+      "when": 1785926000041,
+      "tag": "0018_dazzling_warbound",
+      "breakpoints": true
     }
   ]
 }

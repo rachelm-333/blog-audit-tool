@@ -54,6 +54,7 @@ interface ErrorState {
 
 interface ImportResults {
   totalImported: number;
+  keywordsAutoDetected: number;
   counts: { published: number; scheduled: number; draft: number };
   errors: string[];
 }
@@ -179,6 +180,7 @@ export default function CmsConnect() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [error, setError] = useState<ErrorState | null>(null);
   const [importResults, setImportResults] = useState<ImportResults | null>(null);
+  const [importJobId, setImportJobId] = useState<string | null>(null);
   const [justConnected, setJustConnected] = useState<string | null>(null); // platform name after successful connect
 
   // WordPress form
@@ -1017,11 +1019,11 @@ export default function CmsConnect() {
     const handleImport = async () => {
       if (!iauditUserId || !activeConnectionId) return;
       setError(null);
+      setImportJobId(null);
       setView("importing");
       try {
-        const results = await importMutation.mutateAsync({ iauditUserId, connectionId: activeConnectionId, statusFilter });
-        setImportResults(results);
-        setView("results");
+        const { jobId } = await importMutation.mutateAsync({ iauditUserId, connectionId: activeConnectionId, statusFilter });
+        setImportJobId(jobId);
       } catch (err: any) {
         const msg: string = err?.message ?? "Import failed.";
         const code = Object.entries(ERROR_MESSAGES).find(([, v]) => v === msg)?.[0] ?? "unknown";
@@ -1067,24 +1069,23 @@ export default function CmsConnect() {
     );
   }
 
-  // ─── View: Importing progress ──────────────────────────────────────────────
+  // ─── View: Importing progress (polls background job) ─────────────────────
 
   if (view === "importing") {
-    const platformName = selectedPlatform === "wix" ? "Wix" : selectedPlatform === "shopify" ? "Shopify" : "WordPress";
     return (
-      <div className="flex items-center justify-center py-24">
-        <div className="text-center max-w-sm">
-          <div className="relative w-20 h-20 mx-auto mb-6">
-            <div className="absolute inset-0 rounded-full border-4 border-indigo-100" />
-            <div className="absolute inset-0 rounded-full border-4 border-t-indigo-500 animate-spin" />
-            <RefreshCw className="absolute inset-0 m-auto w-8 h-8 text-indigo-400" />
-          </div>
-          <h2 className="text-xl font-semibold text-[var(--fg-1)] mb-2">Importing Your Posts</h2>
-          <p className="text-[var(--fg-3)] text-sm">
-            Connecting to {platformName} and fetching your posts. This may take a moment for large sites.
-          </p>
-        </div>
-      </div>
+      <ImportingView
+        jobId={importJobId}
+        iauditUserId={iauditUserId ?? ""}
+        platformName={selectedPlatform === "wix" ? "Wix" : selectedPlatform === "shopify" ? "Shopify" : selectedPlatform === "webflow" ? "Webflow" : "WordPress"}
+        onComplete={(result) => {
+          setImportResults(result);
+          setView("results");
+        }}
+        onError={(msg) => {
+          setError({ code: "unknown", message: msg });
+          setView("import-options");
+        }}
+      />
     );
   }
 
@@ -1104,11 +1105,10 @@ export default function CmsConnect() {
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-2 gap-4 mb-8">
             {[
-              { label: "Published", count: importResults.counts.published, color: "text-emerald-600" },
-              { label: "Scheduled", count: importResults.counts.scheduled, color: "text-yellow-600" },
-              { label: "Drafts", count: importResults.counts.draft, color: "text-[var(--fg-3)]" },
+              { label: "Posts Imported", count: importResults.totalImported, color: "text-indigo-600" },
+              { label: "Keywords Detected", count: importResults.keywordsAutoDetected, color: "text-emerald-600" },
             ].map((item) => (
               <div key={item.label} className="text-center p-4 rounded-[var(--r-md)] bg-[var(--bg-inset)] border border-[var(--border-1)]">
                 <div className={`text-2xl font-bold ${item.color}`}>{item.count}</div>
@@ -1120,7 +1120,7 @@ export default function CmsConnect() {
           {importResults.errors.length > 0 && (
             <div className="mb-6 p-4 rounded-[var(--r-md)] bg-yellow-50 border border-yellow-200">
               <p className="text-yellow-700 text-sm font-medium mb-2">
-                {importResults.errors.length} post{importResults.errors.length !== 1 ? "s" : ""} could not be imported:
+                {importResults.errors.length} issue{importResults.errors.length !== 1 ? "s" : ""} during import:
               </p>
               <ul className="text-xs text-yellow-600 space-y-1">
                 {importResults.errors.slice(0, 5).map((e, i) => <li key={i}>• {e}</li>)}
@@ -1143,4 +1143,91 @@ export default function CmsConnect() {
   }
 
   return null;
+}
+
+// ─── ImportingView — polls getImportJobStatus every 3 seconds ────────────────
+
+function ImportingView({
+  jobId,
+  iauditUserId,
+  platformName,
+  onComplete,
+  onError,
+}: {
+  jobId: string | null;
+  iauditUserId: string;
+  platformName: string;
+  onComplete: (result: ImportResults) => void;
+  onError: (msg: string) => void;
+}) {
+  const [pollingEnabled, setPollingEnabled] = useState(false);
+
+  // Start polling once we have a jobId
+  useEffect(() => {
+    if (jobId) setPollingEnabled(true);
+  }, [jobId]);
+
+  const { data: jobStatus } = trpc.cms.getImportJobStatus.useQuery(
+    { jobId: jobId ?? "", iauditUserId },
+    {
+      enabled: pollingEnabled && !!jobId,
+      refetchInterval: (query) => {
+        const status = query.state.data?.status;
+        if (status === "complete" || status === "failed") return false;
+        return 3000;
+      },
+    }
+  );
+
+  useEffect(() => {
+    if (!jobStatus) return;
+    if (jobStatus.status === "complete") {
+      setPollingEnabled(false);
+      onComplete({
+        totalImported: jobStatus.imported,
+        keywordsAutoDetected: jobStatus.keywordsAutoDetected,
+        counts: { published: jobStatus.imported, scheduled: 0, draft: 0 },
+        errors: jobStatus.errors,
+      });
+    } else if (jobStatus.status === "failed") {
+      setPollingEnabled(false);
+      const msg = jobStatus.errors.length > 0 ? jobStatus.errors[0] : "Import failed. Please try again.";
+      onError(msg);
+    }
+  }, [jobStatus?.status]);
+
+  const progress = jobStatus && jobStatus.total > 0
+    ? Math.round((jobStatus.imported / jobStatus.total) * 100)
+    : null;
+
+  return (
+    <div className="flex items-center justify-center py-24">
+      <div className="text-center max-w-sm w-full px-4">
+        <div className="relative w-20 h-20 mx-auto mb-6">
+          <div className="absolute inset-0 rounded-full border-4 border-indigo-100" />
+          <div className="absolute inset-0 rounded-full border-4 border-t-indigo-500 animate-spin" />
+          <RefreshCw className="absolute inset-0 m-auto w-8 h-8 text-indigo-400" />
+        </div>
+        <h2 className="text-xl font-semibold text-[var(--fg-1)] mb-2">Importing Your Posts</h2>
+        {!jobId ? (
+          <p className="text-[var(--fg-3)] text-sm">Connecting to {platformName}…</p>
+        ) : progress !== null ? (
+          <>
+            <p className="text-[var(--fg-3)] text-sm mb-4">
+              {jobStatus!.imported} of {jobStatus!.total} posts imported
+            </p>
+            <div className="w-full bg-indigo-100 rounded-full h-2">
+              <div
+                className="bg-indigo-500 h-2 rounded-full transition-all duration-500"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <p className="text-xs text-[var(--fg-3)] mt-2">{progress}% complete</p>
+          </>
+        ) : (
+          <p className="text-[var(--fg-3)] text-sm">Fetching posts from {platformName}…</p>
+        )}
+      </div>
+    </div>
+  );
 }
