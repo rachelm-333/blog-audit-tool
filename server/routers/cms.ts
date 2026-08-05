@@ -27,6 +27,7 @@ import {
   upsertPost,
   getPostsByBusinessId,
   countPostsByBusiness,
+  deleteAllPostsByBusiness,
 } from "../cms.db";
 import { getBusinessById } from "../businesses.db";
 import {
@@ -654,6 +655,23 @@ export const cmsRouter = router({
         counts,
         errors: [...importResult.errors, ...upsertErrors],
       };
+    }),
+
+  /**
+   * Clear ALL posts for a business — hard delete so the user can start fresh.
+   * Does NOT delete the CMS connection itself.
+   */
+  clearAllPosts: publicProcedure
+    .input(
+      z.object({
+        iauditUserId: z.string().min(1),
+        businessId: z.string().min(1),
+      })
+    )
+    .mutation(async ({ input }) => {
+      await assertBusinessOwnership(input.businessId, input.iauditUserId);
+      const { deleted } = await deleteAllPostsByBusiness(input.businessId);
+      return { success: true, deleted };
     }),
 
   /**

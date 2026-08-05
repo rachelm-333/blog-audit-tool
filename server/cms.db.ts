@@ -293,3 +293,34 @@ export async function getExistingKeywordsByCmsIds(
   }
   return map;
 }
+
+/**
+ * Delete ALL posts for a business — used by the "Clear All Posts" feature.
+ * This is a hard delete: all audit results, rewrite data, and post records
+ * are permanently removed. The user must re-import from their CMS after this.
+ *
+ * Note: creditTransactions and errorLog rows that reference deleted posts
+ * will have their postId FK set to NULL (the FK is nullable in the schema).
+ */
+export async function deleteAllPostsByBusiness(businessId: string): Promise<{ deleted: number }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Nullify postId FK in credit_transactions before deleting posts
+  await db.execute(
+    sql`UPDATE credit_transactions SET post_id = NULL WHERE post_id IN (SELECT id FROM posts WHERE business_id = ${businessId})`
+  );
+
+  // Nullify postId FK in error_log before deleting posts
+  await db.execute(
+    sql`UPDATE error_log SET post_id = NULL WHERE post_id IN (SELECT id FROM posts WHERE business_id = ${businessId})`
+  );
+
+  // Now delete all posts for this business
+  const result = await db
+    .delete(posts)
+    .where(eq(posts.businessId, businessId));
+
+  const deleted = (result as any).rowsAffected ?? (result as any)[0]?.affectedRows ?? 0;
+  return { deleted };
+}

@@ -68,6 +68,7 @@ import {
   Send,
   Globe,
   RotateCcw,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { HelpTooltip } from "@/components/HelpTooltip";
@@ -1276,9 +1277,11 @@ export default function PostList() {
   const bulkSuggestMutation = trpc.keyword.bulkSuggest.useMutation();
   const backfillMutation = trpc.keyword.backfillFromTitles.useMutation();
   const resetKeywordsMutation = trpc.keyword.resetAllKeywords.useMutation();
+  const clearAllPostsMutation = trpc.cms.clearAllPosts.useMutation();
   const detectAllKeywordsMutation = trpc.keyword.detectAllKeywords.useMutation();
   const [bulkSuggestRunning, setBulkSuggestRunning] = useState(false);
   const [showResetKeywordsDialog, setShowResetKeywordsDialog] = useState(false);
+  const [showClearAllPostsDialog, setShowClearAllPostsDialog] = useState(false);
   const [detectingAllKeywords, setDetectingAllKeywords] = useState(false);
   const [detectKwProgress, setDetectKwProgress] = useState<{ processed: number; total: number } | null>(null);
   const updateAndRescoreMutation = trpc.keyword.updateAndRescore.useMutation();
@@ -1386,8 +1389,25 @@ export default function PostList() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data?.posts, isLoading]);
 
-  const postsWithoutKeyword = (data?.posts ?? []).filter((p) => !p.focusKeyword);
-
+    const postsWithoutKeyword = (data?.posts ?? []).filter((p) => !p.focusKeyword);
+  const handleClearAllPosts = () => {
+    if (!businessId || !iauditUserId) return;
+    clearAllPostsMutation.mutate(
+      { businessId, iauditUserId },
+      {
+        onSuccess: (result) => {
+          setShowClearAllPostsDialog(false);
+          toast.success(`Cleared ${result.deleted} post${result.deleted !== 1 ? "s" : ""}. Re-import from CMS Connect to start fresh.`);
+          trpcUtils.keyword.listPosts.invalidate();
+          refetch();
+        },
+        onError: () => {
+          setShowClearAllPostsDialog(false);
+          toast.error("Failed to clear posts. Please try again.");
+        },
+      }
+    );
+  };
   const handleResetAllKeywords = () => {
     if (!businessId || !iauditUserId) return;
     resetKeywordsMutation.mutate(
@@ -1864,6 +1884,24 @@ export default function PostList() {
               <TooltipContent>
                 Clear all auto-detected keywords and re-detect them fresh on next import.
                 Manually edited keywords are preserved.
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowClearAllPostsDialog(true)}
+                  disabled={clearAllPostsMutation.isPending}
+                  className="gap-2 border-red-700/60 text-red-600 hover:bg-red-600/10"
+                >
+                  <Trash2 size={14} />
+                  Clear All Posts
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Permanently delete all imported posts and audit data.
+                Your CMS connection is kept — re-import from CMS Connect to start fresh.
               </TooltipContent>
             </Tooltip>
           </div>
@@ -2415,6 +2453,39 @@ export default function PostList() {
         iauditUserId={iauditUserId ?? ""}
         onClose={() => setPreviewPost(null)}
       />
+
+      {/* Clear All Posts confirmation dialog */}
+      <AlertDialog open={showClearAllPostsDialog} onOpenChange={setShowClearAllPostsDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear all posts?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete all {allPosts.length} imported posts and their audit results.
+              Your CMS connection will be kept — re-import from the CMS Connect page to start fresh.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={clearAllPostsMutation.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleClearAllPosts}
+              disabled={clearAllPostsMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {clearAllPostsMutation.isPending ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="animate-spin" size={14} />
+                  Deleting…
+                </span>
+              ) : (
+                "Delete All Posts"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Reset All Keywords confirmation dialog */}
       <AlertDialog open={showResetKeywordsDialog} onOpenChange={setShowResetKeywordsDialog}>
