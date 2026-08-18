@@ -152,9 +152,6 @@ export const rewriteRouter = router({
         });
       }
 
-      // NOTE: Credit is deducted AFTER a successful rewrite result — not before.
-      // This ensures timeouts and errors never consume a credit.
-
       // --- Set status to running ---
       await setRewriteStatus(post.id, "running");
 
@@ -171,239 +168,161 @@ export const rewriteRouter = router({
         services: (business.services as Array<{ name: string; description?: string }>) ?? [],
         primaryCtaUrl: business.primaryCtaUrl,
         primaryCtaLabel: business.primaryCtaLabel,
-        secondaryCtas:
-          (business.secondaryCtas as Array<{ url: string; label: string }>) ?? [],
+        secondaryCtas: (business.secondaryCtas as Array<{ url: string; label: string }>) ?? [],
         awardsCredentials: business.awardsCredentials,
       };
-      // --- Build internal link map ---
-      const allPosts = await listPostsForBusiness(post.businessId);
-      const internalLinks = buildInternalLinkMap(
-        allPosts,
-        post.id,
-        post.publishDate
-      );
 
-      // --- Extract failing audit points for context ---
+      const allPosts = await listPostsForBusiness(post.businessId);
+      const internalLinks = buildInternalLinkMap(allPosts, post.id, post.publishDate);
+
       const failingPoints: string[] = [];
       if (post.auditResults) {
-        const auditResults = post.auditResults as {
-          points?: Array<{ point: string; name: string; status: string }>;
-        };
+        const auditResults = post.auditResults as { points?: Array<{ point: string; name: string; status: string }> };
         for (const p of auditResults.points ?? []) {
-          if (p.status === "fail") {
-            failingPoints.push(`${p.point} — ${p.name}`);
-          }
+          if (p.status === "fail") failingPoints.push(`${p.point} — ${p.name}`);
         }
       }
 
-      // --- Parse secondary keywords (needed for both first attempt and auto-retry) ---
       const secondaryKeywords = Array.isArray(post.secondaryKeywords)
         ? (post.secondaryKeywords as string[])
         : typeof post.secondaryKeywords === "string" && post.secondaryKeywords
           ? (post.secondaryKeywords as string).split(",").map((s: string) => s.trim()).filter(Boolean)
           : [];
 
-      // --- Run Pass 1 rewrite ---
-      let rewriteResult;
-      try {
-        rewriteResult = await runFullRewrite({
-          post: {
-            id: post.id,
-            title: post.title,
-            bodyOriginal: post.bodyOriginal,
-            url: post.url,
-            focusKeyword: post.focusKeyword,
-            metaTitleOriginal: post.metaTitleOriginal,
-            metaDescriptionOriginal: post.metaDescriptionOriginal,
-            publishDate: post.publishDate,
-            scheduledDate: post.scheduledDate,
-            status: post.status,
-          },
-          businessContext,
-          internalLinks,
-          failingPoints,
-          paaQuestion: input.paaQuestion,
-          secondaryKeywords,
-          rewriteMode: input.rewriteMode,
-          preserveFaq: input.preserveFaq,
-          preserveCta: input.preserveCta,
-          userInstructions: input.userInstructions,
-          originalScore: typeof post.auditScore === 'number' ? post.auditScore : undefined,
-        });
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        // Credit was NOT yet deducted — no refund needed on any error or timeout.
-        // For score regression, keep status as 'pending' so user can try again.
-        const isRegression = errMsg.includes('Rewrite quality check failed');
-        await setRewriteStatus(post.id, isRegression ? 'pending' : 'failed');
-        void logError({
-          userId: input.iauditUserId,
-          businessId: post.businessId,
-          postId: post.id,
-          errorType: "rewrite_failed",
-          errorMessage: errMsg,
-          layer: "layer_7_rewrite",
-        });
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: errMsg.includes("timed out")
-            ? "The rewrite timed out. No credit was charged. Please try again."
-            : errMsg.includes("Rewrite quality check failed")
-              ? errMsg  // Surface the regression message directly to the user
-              : "Rewrite failed. No credit was charged.",
-        });
-      }
-
-      // --- Deduct 1 credit — only after a successful rewrite result ---
-      await deductCredit(input.iauditUserId, post.id);
-
-      // --- Fixer loop for smart_patch (Improve Writing) — up to 3 rounds instead of full LLM retry ---
-      if (input.rewriteMode === "smart_patch" && rewriteResult.rewriteScore < 90) {
+      // --- Fire-and-forget: return immediately, run rewrite in background ---
+      // Avoids 504 Gateway Timeout from the load balancer.
+      // The frontend polls rewrite.getRewriteResult to check when status changes from 'running'.
+      void (async () => {
+        let rewriteResult;
         try {
-          const secondaryCtas = (business.secondaryCtas as Array<{ url: string; label: string }> | null) ?? [];
-          const fixerResult = await applyFixers({
-            bodyHtml: rewriteResult.bodyRewritten,
-            focusKeyword: post.focusKeyword,
-            url: post.url,
-            metaTitle: rewriteResult.metaTitleRewritten,
-            metaDescription: rewriteResult.metaDescriptionRewritten,
-            businessName: business.businessName ?? undefined,
-            websiteUrl: business.websiteUrl ?? undefined,
-            internalLinks: internalLinks.map(l => ({ url: l.url, title: l.title })),
-            primaryCtaUrl: business.primaryCtaUrl ?? undefined,
-          }, 'adjust');
-          // Use fixer output if it improved the score
-          if (fixerResult.finalAuditResult.normalized_score > rewriteResult.rewriteScore) {
-            const improved = {
-              ...rewriteResult,
-              bodyRewritten: fixerResult.output.bodyHtml,
-              metaTitleRewritten: fixerResult.output.metaTitle,
-              metaDescriptionRewritten: fixerResult.output.metaDescription,
-              rewriteScore: fixerResult.finalAuditResult.normalized_score,
-              rewriteGrade: fixerResult.finalAuditResult.grade as "optimised"|"strong"|"needs_work"|"poor"|"critical",
-              auditResult: fixerResult.finalAuditResult,
-            };
-            await saveRewriteResult(post.id, improved);
-            return {
-              success: true,
-              rewriteScore: improved.rewriteScore,
-              rewriteGrade: improved.rewriteGrade,
-              needsManualReview: improved.rewriteScore < 80,
-              retried: false,
-            };
-          }
-        } catch (err) {
-          console.warn('[Rewrite] Fixer loop failed, falling through to auto-retry:', err instanceof Error ? err.message : err);
-        }
-      }
-
-      // --- Auto-retry if score < 80 (full_rewrite and seo_refresh modes, or if fixer loop fell through) ---
-      if (rewriteResult.rewriteScore < 80) {
-        try {
-          // CRITICAL: Use the failing points from the FIRST REWRITE audit result (fresh, not original).
-          // The original pre-rewrite audit may have different failures than the rewrite output.
-          const retryFailingPoints: string[] = [];
-          if (rewriteResult.auditResult?.points) {
-            for (const p of rewriteResult.auditResult.points) {
-              if (p.status === "fail") {
-                retryFailingPoints.push(`${p.point} — ${p.name}`);
-              }
-            }
-          }
-          // Always use the fresh failing points from attempt 1 — never fall back to pre-rewrite list
-          const retryFailing = retryFailingPoints.length > 0 ? retryFailingPoints : failingPoints;
-
-          const retryResult = await runFullRewrite({
+          rewriteResult = await runFullRewrite({
             post: {
               id: post.id,
               title: post.title,
-              // Use the first rewrite output as input for the retry
-              bodyOriginal: rewriteResult.bodyRewritten,
+              bodyOriginal: post.bodyOriginal,
               url: post.url,
-              focusKeyword: post.focusKeyword,
-              metaTitleOriginal: rewriteResult.metaTitleRewritten,
-              metaDescriptionOriginal: rewriteResult.metaDescriptionRewritten,
+              focusKeyword: post.focusKeyword!,
+              metaTitleOriginal: post.metaTitleOriginal,
+              metaDescriptionOriginal: post.metaDescriptionOriginal,
               publishDate: post.publishDate,
               scheduledDate: post.scheduledDate,
               status: post.status,
             },
             businessContext,
             internalLinks,
-            failingPoints: retryFailing,
+            failingPoints,
             paaQuestion: input.paaQuestion,
             secondaryKeywords,
             rewriteMode: input.rewriteMode,
             preserveFaq: input.preserveFaq,
             preserveCta: input.preserveCta,
             userInstructions: input.userInstructions,
+            originalScore: typeof post.auditScore === 'number' ? post.auditScore : undefined,
           });
+        } catch (err) {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          const isRegression = errMsg.includes('Rewrite quality check failed');
+          await setRewriteStatus(post.id, isRegression ? 'pending' : 'failed');
+          void logError({
+            userId: input.iauditUserId,
+            businessId: post.businessId,
+            postId: post.id,
+            errorType: "rewrite_failed",
+            errorMessage: errMsg,
+            layer: "layer_7_rewrite",
+          });
+          return;
+        }
 
-          // Pick the best result between first attempt and retry
-          const bestResult = retryResult.rewriteScore >= rewriteResult.rewriteScore
-            ? retryResult
-            : rewriteResult;
+        // Deduct credit only after a successful result
+        await deductCredit(input.iauditUserId, post.id);
 
-          if (bestResult.rewriteScore >= 80) {
-            // Retry succeeded — save and return
-            // saveRewriteResult sets rewriteStatus to awaiting_review automatically
-            await saveRewriteResult(post.id, bestResult);
-            return {
-              success: true,
-              rewriteScore: bestResult.rewriteScore,
-              rewriteGrade: bestResult.rewriteGrade,
-              needsManualReview: false,
-              retried: true,
-            };
-          } else {
-            // Both attempts scored below 14 — still deliver the best version
-            // Refund credit since we didn't hit target, but ALWAYS show the article
+        // Fixer loop for smart_patch
+        if (input.rewriteMode === "smart_patch" && rewriteResult.rewriteScore < 90) {
+          try {
+            const fixerResult = await applyFixers({
+              bodyHtml: rewriteResult.bodyRewritten,
+              focusKeyword: post.focusKeyword!,
+              url: post.url,
+              metaTitle: rewriteResult.metaTitleRewritten,
+              metaDescription: rewriteResult.metaDescriptionRewritten,
+              businessName: business.businessName ?? undefined,
+              websiteUrl: business.websiteUrl ?? undefined,
+              internalLinks: internalLinks.map(l => ({ url: l.url, title: l.title })),
+              primaryCtaUrl: business.primaryCtaUrl ?? undefined,
+            }, 'adjust');
+            if (fixerResult.finalAuditResult.normalized_score > rewriteResult.rewriteScore) {
+              rewriteResult = {
+                ...rewriteResult,
+                bodyRewritten: fixerResult.output.bodyHtml,
+                metaTitleRewritten: fixerResult.output.metaTitle,
+                metaDescriptionRewritten: fixerResult.output.metaDescription,
+                rewriteScore: fixerResult.finalAuditResult.normalized_score,
+                rewriteGrade: fixerResult.finalAuditResult.grade as "optimised"|"strong"|"needs_work"|"poor"|"critical",
+                auditResult: fixerResult.finalAuditResult,
+              };
+            }
+          } catch (err) {
+            console.warn('[Rewrite] Fixer loop failed:', err instanceof Error ? err.message : err);
+          }
+        }
+
+        // Auto-retry if score < 80
+        if (rewriteResult.rewriteScore < 80) {
+          try {
+            const retryFailingPoints: string[] = [];
+            if (rewriteResult.auditResult?.points) {
+              for (const p of rewriteResult.auditResult.points) {
+                if (p.status === "fail") retryFailingPoints.push(`${p.point} — ${p.name}`);
+              }
+            }
+            const retryResult = await runFullRewrite({
+              post: {
+                id: post.id,
+                title: post.title,
+                bodyOriginal: rewriteResult.bodyRewritten,
+                url: post.url,
+                focusKeyword: post.focusKeyword!,
+                metaTitleOriginal: rewriteResult.metaTitleRewritten,
+                metaDescriptionOriginal: rewriteResult.metaDescriptionRewritten,
+                publishDate: post.publishDate,
+                scheduledDate: post.scheduledDate,
+                status: post.status,
+              },
+              businessContext,
+              internalLinks,
+              failingPoints: retryFailingPoints.length > 0 ? retryFailingPoints : failingPoints,
+              paaQuestion: input.paaQuestion,
+              secondaryKeywords,
+              rewriteMode: input.rewriteMode,
+              preserveFaq: input.preserveFaq,
+              preserveCta: input.preserveCta,
+              userInstructions: input.userInstructions,
+            });
+            if (retryResult.rewriteScore > rewriteResult.rewriteScore) {
+              rewriteResult = retryResult;
+            }
+          } catch {
+            // Retry failed — continue with first result
+          }
+
+          if (rewriteResult.rewriteScore < 80) {
             await refundCredit(input.iauditUserId, post.id);
-            await saveRewriteResult(post.id, bestResult);
+            await saveRewriteResult(post.id, rewriteResult);
             await setRewriteStatus(post.id, "needs_manual_review");
             await notifyOwner({
               title: "iAudit — Rewrite Needs Review",
-              content: `The rewrite for "${post.title}" scored ${bestResult.rewriteScore}/100 after two attempts. Credit refunded. The best version has been saved for manual review.`,
+              content: `The rewrite for "${post.title}" scored ${rewriteResult.rewriteScore}/100 after two attempts. Credit refunded.`,
             });
-            return {
-              success: true, // Still true — article IS delivered
-              rewriteScore: bestResult.rewriteScore,
-              rewriteGrade: bestResult.rewriteGrade,
-              needsManualReview: true,
-              retried: true,
-              message:
-                `The rewrite scored ${bestResult.rewriteScore}/100 after two attempts. Your credit has been refunded. The best version is shown below — please review and adjust the highlighted points before publishing.`,
-            };
+            return;
           }
-        } catch {
-          // Retry itself threw — save the first attempt result and still deliver it
-          await refundCredit(input.iauditUserId, post.id);
-          await saveRewriteResult(post.id, rewriteResult);
-          await setRewriteStatus(post.id, "needs_manual_review");
-          await notifyOwner({
-            title: "iAudit — Rewrite Needs Review",
-            content: `The auto-retry for "${post.title}" encountered an error. The first attempt (${rewriteResult.rewriteScore}/100) has been saved. Credit refunded.`,
-          });
-          return {
-            success: true, // Article IS delivered — first attempt result
-            rewriteScore: rewriteResult.rewriteScore,
-            rewriteGrade: rewriteResult.rewriteGrade,
-            needsManualReview: true,
-            retried: true,
-            message:
-              `The rewrite scored ${rewriteResult.rewriteScore}/100. Your credit has been refunded. The best version is shown below — please review the highlighted points before publishing.`,
-          };
         }
-      }
 
-      // --- Score ≥ 13 — save and return ---
-      await saveRewriteResult(post.id, rewriteResult);
-      return {
-        success: true,
-        rewriteScore: rewriteResult.rewriteScore,
-        rewriteGrade: rewriteResult.rewriteGrade,
-        needsManualReview: false,
-        retried: false,
-      };
+        await saveRewriteResult(post.id, rewriteResult);
+      })();
+
+      // Return immediately — frontend polls getRewriteResult for status
+      return { jobStarted: true };
     }),
 
   /**

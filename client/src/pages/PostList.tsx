@@ -1258,6 +1258,7 @@ export default function PostList() {
   // Layer 7 rewrite state
   const [rewritePost, setRewritePost] = useState<Post | null>(null);
   const [rewriteStep, setRewriteStep] = useState<"paa" | "running" | "result" | "view_result">("paa");
+  const [rewriteResultData, setRewriteResultData] = useState<{ rewriteScore: number; rewriteGrade: string; needsManualReview: boolean; message?: string } | null>(null);
   const [paaQuestion, setPaaQuestion] = useState("");
   const [paaLoading, setPaaLoading] = useState(false);
   const [paaSuggested, setPaaSuggested] = useState("");
@@ -1650,21 +1651,43 @@ export default function PostList() {
     if (!rewritePost || !iauditUserId || !paaQuestion.trim()) return;
     setRewriteMode(mode);
     setRewriteStep("running");
+    const postId = rewritePost.id;
     runRewriteMutation.mutate(
-      { postId: rewritePost.id, iauditUserId, paaQuestion: paaQuestion.trim(), rewriteMode: mode, preserveFaq, preserveCta, userInstructions: userInstructions.trim() || undefined },
+      { postId, iauditUserId, paaQuestion: paaQuestion.trim(), rewriteMode: mode, preserveFaq, preserveCta, userInstructions: userInstructions.trim() || undefined },
       {
-        onSuccess: (result) => {
-          refetch();
-          setRewriteStep("result");
-          if (result.needsManualReview) {
-            toast.warning(
-              result.message ?? "Rewrite needs manual review. Credit refunded."
-            );
-          } else {
-            toast.success(
-              `Rewrite complete — ${result.rewriteScore}/100 (${GRADE_CONFIG[result.rewriteGrade]?.label ?? result.rewriteGrade})`
-            );
-          }
+        onSuccess: () => {
+          // Server returns { jobStarted: true } immediately — poll until status changes from 'running'
+          const pollInterval = setInterval(async () => {
+            try {
+              const result = await trpcUtils.rewrite.getRewriteResult.fetch({ postId, iauditUserId });
+              if (result.rewriteStatus === "running") return; // still in progress
+              clearInterval(pollInterval);
+              refetch();
+              if (result.rewriteStatus === "failed") {
+                setRewriteStep("paa");
+                toast.error("Rewrite failed. No credit was charged. Please try again.");
+              } else {
+                const needsManualReview = result.rewriteStatus === "needs_manual_review";
+                setRewriteResultData({
+                  rewriteScore: result.rewriteScore ?? 0,
+                  rewriteGrade: result.rewriteGrade ?? "needs_work",
+                  needsManualReview,
+                });
+                setRewriteStep("result");
+                if (needsManualReview) {
+                  toast.warning("Rewrite needs manual review. Credit refunded.");
+                } else {
+                  toast.success(`Rewrite complete — ${result.rewriteScore}/100`);
+                }
+              }
+            } catch {
+              clearInterval(pollInterval);
+              setRewriteStep("paa");
+              toast.error("Rewrite failed. Please try again.");
+            }
+          }, 5000);
+          // Safety: stop polling after 5 minutes
+          setTimeout(() => clearInterval(pollInterval), 300_000);
         },
         onError: (err) => {
           setRewriteStep("paa");
@@ -2435,16 +2458,7 @@ export default function PostList() {
             setRewriteStep("paa");
           }
         }}
-        rewriteResult={
-          rewriteStep === "result" && runRewriteMutation.data
-            ? {
-                rewriteScore: runRewriteMutation.data.rewriteScore,
-                rewriteGrade: runRewriteMutation.data.rewriteGrade,
-                needsManualReview: runRewriteMutation.data.needsManualReview,
-                message: runRewriteMutation.data.message,
-              }
-            : null
-        }
+        rewriteResult={rewriteStep === "result" ? rewriteResultData : null}
       />
 
       {/* Blog Content Preview Panel */}
