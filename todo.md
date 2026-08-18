@@ -833,10 +833,11 @@
 
 ## Keyword Editing Features (June 15)
 
-- [ ] Inline keyword editing in Post Library — click chip to edit, save with source=manual
-- [ ] Editable Focus Keyword field in Review/Edit screen with warning about no content rewrite
-- [ ] Slug-source warning indicator (⚠️) on keyword chip with tooltip
-- [ ] Re-score SEO audit points on keyword change without rewriting content
+- [x] Inline keyword editing in Post Library — click chip to edit, save with source=manual
+- [x] Editable Focus Keyword field in Review/Edit screen with warning about no content rewrite
+- [x] Slug-source warning indicator (⚠️) on keyword chip with tooltip
+- [x] Re-score SEO audit points on keyword change without rewriting content
+- [x] Persist secondary-keyword edits made from the Review/Edit screen
 
 ## Bug Fix — Existing Account Sign-in (August 2026)
 

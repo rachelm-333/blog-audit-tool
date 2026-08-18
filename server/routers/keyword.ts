@@ -398,6 +398,7 @@ export const keywordRouter = router({
       z.object({
         postId: z.string().min(1),
         keyword: z.string().min(1).max(255).trim(),
+        secondaryKeywords: z.array(z.string().trim().min(1).max(255)).max(20).optional(),
         iauditUserId: z.string().min(1),
       })
     )
@@ -405,8 +406,19 @@ export const keywordRouter = router({
       // 1. Ownership check
       const post = await assertPostOwnership(input.postId, input.iauditUserId);
 
-      // 2. Save keyword as user_entered
-      await updatePostKeyword(input.postId, input.keyword, "user_entered");
+      // 2. Save keyword as user_entered. Preserve existing secondary keywords
+      // when the caller is editing only the primary keyword.
+      if (input.secondaryKeywords !== undefined) {
+        await saveKeyword(
+          input.postId,
+          input.keyword,
+          input.secondaryKeywords,
+          "user_entered",
+          false
+        );
+      } else {
+        await updatePostKeyword(input.postId, input.keyword, "user_entered");
+      }
 
       // 3. Re-score only if the post has been audited before
       const auditPost = await getPostForAudit(input.postId);

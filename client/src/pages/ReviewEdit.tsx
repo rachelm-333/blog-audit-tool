@@ -1710,6 +1710,10 @@ ${editor.getHTML()}
                           updateAndRescoreMutation.mutate({
                             postId,
                             keyword: keywordDraft.trim(),
+                            secondaryKeywords: secondaryKeywordsDraft
+                              .split(",")
+                              .map((keyword) => keyword.trim())
+                              .filter(Boolean),
                             iauditUserId,
                           });
                         }}
