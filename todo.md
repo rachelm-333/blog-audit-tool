@@ -847,6 +847,6 @@
 
 - [x] Pull the latest `main` branch from the configured user GitHub remote
 - [x] Run TypeScript and full test validation after synchronization
-- [ ] Save a publish-ready checkpoint
+- [x] Save a publish-ready checkpoint
 - [x] Align legacy 16-check audit tests with the current 27-check audit contract
 - [x] Fix the Layer 16 support-test timeout so the full suite runs reliably
