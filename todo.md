@@ -837,3 +837,16 @@
 - [ ] Editable Focus Keyword field in Review/Edit screen with warning about no content rewrite
 - [ ] Slug-source warning indicator (⚠️) on keyword chip with tooltip
 - [ ] Re-score SEO audit points on keyword change without rewriting content
+
+## Bug Fix — Existing Account Sign-in (August 2026)
+
+- [x] Verify the existing account record and reset the password for rachel.m@noize.com.au
+- [x] Confirm the sign-in screen and credentials successfully authenticate the existing account
+
+## Maintenance — GitHub Synchronization (August 2026)
+
+- [x] Pull the latest `main` branch from the configured user GitHub remote
+- [x] Run TypeScript and full test validation after synchronization
+- [ ] Save a publish-ready checkpoint
+- [x] Align legacy 16-check audit tests with the current 27-check audit contract
+- [x] Fix the Layer 16 support-test timeout so the full suite runs reliably

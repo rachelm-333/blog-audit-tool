@@ -38,6 +38,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { TRPCError } from "@trpc/server";
 import { appRouter } from "./routers";
+import { supportContactInputSchema } from "./routers/support";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -327,38 +328,24 @@ describe("Layer 16 — Support Centre", () => {
   // ─── Input boundary tests ────────────────────────────────────────────────
 
   describe("Input boundary tests", () => {
-    it("20. Zod passes message of exactly 20 characters (boundary — Resend call not asserted)", async () => {
-      // Verify Zod does NOT reject this input with BAD_REQUEST.
-      // The Resend call may succeed or fail (INTERNAL_SERVER_ERROR) — both are acceptable.
-      const caller = makeCaller();
-      try {
-        await caller.support.sendContactEmail({
-          name: "Test User",
-          email: "test@example.com",
-          subject: "Help",
-          message: "12345678901234567890", // exactly 20 chars
-        });
-        // Resolved successfully — pass
-      } catch (err: any) {
-        // INTERNAL_SERVER_ERROR from Resend is acceptable; BAD_REQUEST is not
-        expect(err?.code).not.toBe("BAD_REQUEST");
-      }
+    it("20. Zod passes message of exactly 20 characters", () => {
+      const result = supportContactInputSchema.safeParse({
+        name: "Test User",
+        email: "test@example.com",
+        subject: "Help",
+        message: "12345678901234567890", // exactly 20 chars
+      });
+      expect(result.success).toBe(true);
     });
 
-    it("21. Zod passes subject of exactly 200 characters (boundary — Resend call not asserted)", async () => {
-      const caller = makeCaller();
-      try {
-        await caller.support.sendContactEmail({
-          name: "Test User",
-          email: "test@example.com",
-          subject: "a".repeat(200), // exactly 200 chars
-          message: "This is a test message that is long enough to pass validation.",
-        });
-        // Resolved successfully — pass
-      } catch (err: any) {
-        // INTERNAL_SERVER_ERROR from Resend is acceptable; BAD_REQUEST is not
-        expect(err?.code).not.toBe("BAD_REQUEST");
-      }
+    it("21. Zod passes subject of exactly 200 characters", () => {
+      const result = supportContactInputSchema.safeParse({
+        name: "Test User",
+        email: "test@example.com",
+        subject: "a".repeat(200), // exactly 200 chars
+        message: "This is a test message that is long enough to pass validation.",
+      });
+      expect(result.success).toBe(true);
     });
 
     it("22. rejects message of exactly 19 characters (below boundary)", async () => {

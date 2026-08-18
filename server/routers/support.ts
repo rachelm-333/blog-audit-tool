@@ -19,6 +19,16 @@ function getFromEmail(): string {
   return process.env.RESEND_FROM_EMAIL ?? "noreply@iaudit.com.au";
 }
 
+export const supportContactInputSchema = z.object({
+  name: z.string().trim().min(1, "Name is required"),
+  email: z.string().email("Valid email is required"),
+  subject: z.string().min(1, "Subject is required").max(200),
+  message: z
+    .string()
+    .min(20, "Message must be at least 20 characters")
+    .max(5000),
+});
+
 export const supportRouter = router({
   /**
    * sendContactEmail
@@ -26,17 +36,7 @@ export const supportRouter = router({
    * Pre-filled name and email come from the frontend (from the user's session).
    */
   sendContactEmail: publicProcedure
-    .input(
-      z.object({
-        name: z.string().trim().min(1, "Name is required"),
-        email: z.string().email("Valid email is required"),
-        subject: z.string().min(1, "Subject is required").max(200),
-        message: z
-          .string()
-          .min(20, "Message must be at least 20 characters")
-          .max(5000),
-      })
-    )
+    .input(supportContactInputSchema)
     .mutation(async ({ input }) => {
       const { name, email, subject, message } = input;
 

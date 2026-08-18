@@ -78,29 +78,29 @@ vi.mock("./_core/llm", () => ({
 // ---------------------------------------------------------------------------
 
 describe("scoreToGrade", () => {
-  it("returns 'optimised' for score >= 15", () => {
-    expect(scoreToGrade(15)).toBe("optimised");
-    expect(scoreToGrade(16)).toBe("optimised");
+  it("returns 'optimised' for score >= 85", () => {
+    expect(scoreToGrade(85)).toBe("optimised");
+    expect(scoreToGrade(100)).toBe("optimised");
   });
 
-  it("returns 'strong' for score 13-14", () => {
-    expect(scoreToGrade(13)).toBe("strong");
-    expect(scoreToGrade(14)).toBe("strong");
+  it("returns 'strong' for score 70-84", () => {
+    expect(scoreToGrade(70)).toBe("strong");
+    expect(scoreToGrade(84)).toBe("strong");
   });
 
-  it("returns 'needs_work' for score 10-12", () => {
-    expect(scoreToGrade(10)).toBe("needs_work");
-    expect(scoreToGrade(12)).toBe("needs_work");
+  it("returns 'needs_work' for score 55-69", () => {
+    expect(scoreToGrade(55)).toBe("needs_work");
+    expect(scoreToGrade(69)).toBe("needs_work");
   });
 
-  it("returns 'poor' for score 6-9", () => {
-    expect(scoreToGrade(6)).toBe("poor");
-    expect(scoreToGrade(9)).toBe("poor");
+  it("returns 'poor' for score 35-54", () => {
+    expect(scoreToGrade(35)).toBe("poor");
+    expect(scoreToGrade(54)).toBe("poor");
   });
 
-  it("returns 'critical' for score <= 5", () => {
+  it("returns 'critical' for score below 35", () => {
     expect(scoreToGrade(0)).toBe("critical");
-    expect(scoreToGrade(5)).toBe("critical");
+    expect(scoreToGrade(34)).toBe("critical");
   });
 });
 
@@ -138,61 +138,62 @@ function makeInput(overrides: Partial<PostAuditInput> = {}): PostAuditInput {
 }
 
 describe("runMechanicalChecks", () => {
-  it("P1 fails when keyword appears < 4 times", () => {
+  it("MAC-04 fails when the keyword is missing from the meta description", () => {
     const input = makeInput({
-      bodyHtml: "<h1>Pool Installation Cost Sydney</h1><p>Short content.</p>",
+      metaDescription: "Find out the pool price homeowners pay. Get a free quote from licensed builders in the Sydney region today.",
     });
     const points = runMechanicalChecks(input);
-    const p1 = points.find((p) => p.point === "P1")!;
-    expect(p1.status).toBe("fail");
+    const mac04 = points.find((p) => p.point === "MAC-04")!;
+    expect(mac04.status).toBe("fail");
   });
 
-  it("P1 passes when keyword appears >= 4 times in density range", () => {
+  it("MAC-04 passes when the keyword is in both metadata fields", () => {
     const points = runMechanicalChecks(makeInput());
-    const p1 = points.find((p) => p.point === "P1")!;
-    expect(p1.status).toBe("pass");
+    const mac04 = points.find((p) => p.point === "MAC-04")!;
+    expect(mac04.status).toBe("pass");
   });
 
-  it("P2 fails when keyword missing from H1 and title", () => {
+  it("MIC-02 fails when the keyword is missing from the H1", () => {
     const input = makeInput({
       title: "About Our Services",
       bodyHtml: "<h1>About Our Services</h1><p>We offer great services.</p>",
     });
     const points = runMechanicalChecks(input);
-    const p2 = points.find((p) => p.point === "P2")!;
-    expect(p2.status).toBe("fail");
+    const mic02 = points.find((p) => p.point === "MIC-02")!;
+    expect(mic02.status).toBe("fail");
   });
 
-  it("P2 passes when keyword is in title", () => {
+  it("MIC-02 passes when the keyword is in the H1", () => {
     const points = runMechanicalChecks(makeInput());
-    const p2 = points.find((p) => p.point === "P2")!;
-    expect(p2.status).toBe("pass");
+    const mic02 = points.find((p) => p.point === "MIC-02")!;
+    expect(mic02.status).toBe("pass");
   });
 
-  it("P3 fails when no H2 headings present", () => {
+  it("MIC-03 fails when no H2 headings are present", () => {
     const input = makeInput({
       bodyHtml: "<h1>Pool Installation Cost Sydney</h1><p>Content here.</p>",
     });
     const points = runMechanicalChecks(input);
-    const p3 = points.find((p) => p.point === "P3")!;
-    expect(p3.status).toBe("fail");
+    const mic03 = points.find((p) => p.point === "MIC-03")!;
+    expect(mic03.status).toBe("fail");
   });
 
-  it("P3 passes when keyword appears in an H2", () => {
+  it("MIC-03 passes when at least half of H2 headings are questions", () => {
+    const input = makeInput({
+      bodyHtml: "<h1>Pool Installation Cost Sydney</h1><h2>How much does pool installation cost in Sydney?</h2><p>Short answer.</p>",
+    });
+    const points = runMechanicalChecks(input);
+    const mic03 = points.find((p) => p.point === "MIC-03")!;
+    expect(mic03.status).toBe("pass");
+  });
+
+  it("MIC-04 fails when no H3 headings are present", () => {
     const points = runMechanicalChecks(makeInput());
-    const p3 = points.find((p) => p.point === "P3")!;
-    expect(p3.status).toBe("pass");
+    const mic04 = points.find((p) => p.point === "MIC-04")!;
+    expect(mic04.status).toBe("fail");
   });
 
-  // P4 = Keyword in H3 (N/A when no H3s present)
-  it("P4 is 'na' when no H3 headings present", () => {
-    const points = runMechanicalChecks(makeInput());
-    const p4 = points.find((p) => p.point === "P4")!;
-    // Our makeInput has no H3s, so P4 should be 'na'
-    expect(p4.status).toBe("na");
-  });
-
-  it("P4 passes when keyword appears in an H3", () => {
+  it("MIC-04 passes when an H3 heading is present", () => {
     const input = makeInput({
       bodyHtml: `<h1>Pool Installation Cost Sydney</h1>
         <h2>How much does pool installation cost in Sydney?</h2>
@@ -203,116 +204,111 @@ describe("runMechanicalChecks", () => {
         <img src="pool.jpg" alt="pool" />`,
     });
     const points = runMechanicalChecks(input);
-    const p4 = points.find((p) => p.point === "P4")!;
-    expect(p4.status).toBe("pass");
+    const mic04 = points.find((p) => p.point === "MIC-04")!;
+    expect(mic04.status).toBe("pass");
   });
 
-  // P5 = Keyword in First 100 Words
-  it("P5 fails when keyword missing from first 100 words", () => {
-    const filler = Array.from({ length: 200 }, (_, i) => `word${i}`).join(" ");
+  it("MIC-05 fails when the first paragraph after an H2 exceeds 60 words", () => {
+    const filler = Array.from({ length: 61 }, (_, i) => `word${i}`).join(" ");
     const input = makeInput({
-      bodyHtml: `<h1>About Our Services</h1><p>${filler}</p><p>Pool installation cost Sydney is mentioned here.</p>`,
+      bodyHtml: `<h1>Pool Installation Cost Sydney</h1><h2>How much does pool installation cost in Sydney?</h2><p>${filler}</p>`,
     });
     const points = runMechanicalChecks(input);
-    const p5 = points.find((p) => p.point === "P5")!;
-    expect(p5.status).toBe("fail");
+    const mic05 = points.find((p) => p.point === "MIC-05")!;
+    expect(mic05.status).toBe("fail");
   });
 
-  it("P5 passes when keyword in first 100 words", () => {
-    const points = runMechanicalChecks(makeInput());
-    const p5 = points.find((p) => p.point === "P5")!;
-    expect(p5.status).toBe("pass");
-  });
-
-  it("P6 fails when keyword missing from URL slug", () => {
-    const input = makeInput({ url: "https://example.com/blog/post-123" });
+  it("MIC-05 passes when the first paragraph after each H2 is within 60 words", () => {
+    const input = makeInput({
+      bodyHtml: "<h1>Pool Installation Cost Sydney</h1><h2>How much does pool installation cost in Sydney?</h2><p>Short answer.</p>",
+    });
     const points = runMechanicalChecks(input);
-    const p6 = points.find((p) => p.point === "P6")!;
-    expect(p6.status).toBe("fail");
+    const mic05 = points.find((p) => p.point === "MIC-05")!;
+    expect(mic05.status).toBe("pass");
   });
 
-  it("P6 passes when keyword words appear in URL slug", () => {
+  it("MAC-01 fails when the URL contains a date pattern", () => {
+    const input = makeInput({ url: "https://example.com/2026/08/pool-installation-cost-sydney" });
+    const points = runMechanicalChecks(input);
+    const mac01 = points.find((p) => p.point === "MAC-01")!;
+    expect(mac01.status).toBe("fail");
+  });
+
+  it("MAC-01 passes when the URL path has no date pattern", () => {
     const points = runMechanicalChecks(makeInput());
-    const p6 = points.find((p) => p.point === "P6")!;
-    expect(p6.status).toBe("pass");
+    const mac01 = points.find((p) => p.point === "MAC-01")!;
+    expect(mac01.status).toBe("pass");
   });
 
-  // P7 = Meta Title
-  it("P7 fails when meta title is missing", () => {
+  it("MAC-02 fails when the meta title is missing", () => {
     const input = makeInput({ metaTitle: null });
     const points = runMechanicalChecks(input);
-    const p7 = points.find((p) => p.point === "P7")!;
-    expect(p7.status).toBe("fail");
+    const mac02 = points.find((p) => p.point === "MAC-02")!;
+    expect(mac02.status).toBe("fail");
   });
 
-  it("P7 passes when meta title contains keyword and is under 60 chars", () => {
+  it("MAC-02 passes when the meta title is within 60 characters", () => {
     const input = makeInput({ metaTitle: "Pool Installation Cost Sydney" });
     const points = runMechanicalChecks(input);
-    const p7 = points.find((p) => p.point === "P7")!;
-    expect(p7.status).toBe("pass");
+    const mac02 = points.find((p) => p.point === "MAC-02")!;
+    expect(mac02.status).toBe("pass");
   });
 
-  // P8 = Meta Description
-  it("P8 fails when meta description is missing", () => {
+  it("MAC-03 fails when the meta description is missing", () => {
     const input = makeInput({ metaDescription: null });
     const points = runMechanicalChecks(input);
-    const p8 = points.find((p) => p.point === "P8")!;
-    expect(p8.status).toBe("fail");
+    const mac03 = points.find((p) => p.point === "MAC-03")!;
+    expect(mac03.status).toBe("fail");
   });
 
-  it("P8 passes when meta description is 140-160 characters", () => {
+  it("MAC-03 passes when the meta description is within 160 characters", () => {
     const desc = "A" .repeat(150);
     const input = makeInput({ metaDescription: desc });
     const points = runMechanicalChecks(input);
-    const p8 = points.find((p) => p.point === "P8")!;
-    expect(p8.status).toBe("pass");
+    const mac03 = points.find((p) => p.point === "MAC-03")!;
+    expect(mac03.status).toBe("pass");
   });
 
-  // P13 = Schema Markup
-  it("P13 fails when no JSON-LD schema in body", () => {
+  it("MAC-05 fails when no Article JSON-LD schema is present", () => {
     const input = makeInput({
       bodyHtml: "<h1>Pool Installation Cost Sydney</h1><p>No schema here.</p>",
     });
     const points = runMechanicalChecks(input);
-    const p13 = points.find((p) => p.point === "P13")!;
-    expect(p13.status).toBe("fail");
+    const mac05 = points.find((p) => p.point === "MAC-05")!;
+    expect(mac05.status).toBe("fail");
   });
 
-  it("P13 passes when JSON-LD schema is present", () => {
+  it("MAC-05 passes when Article JSON-LD schema is present", () => {
     const input = makeInput({
       bodyHtml: `<h1>Pool Installation Cost Sydney</h1>
         <p>Content here.</p>
         <script type="application/ld+json">{"@type":"Article"}</script>`,
     });
     const points = runMechanicalChecks(input);
-    const p13 = points.find((p) => p.point === "P13")!;
-    expect(p13.status).toBe("pass");
+    const mac05 = points.find((p) => p.point === "MAC-05")!;
+    expect(mac05.status).toBe("pass");
   });
 
-  // P16 = Article Type Structure (word count vs article type target)
-  it("P16 fails when word count is below minimum for article type", () => {
+  it("EAT-05 fails when no government or education outbound link is present", () => {
     const input = makeInput({
       bodyHtml: "<p>Short post.</p>",
     });
     const points = runMechanicalChecks(input);
-    const p16 = points.find((p) => p.point === "P16")!;
-    expect(p16.status).toBe("fail");
+    const eat05 = points.find((p) => p.point === "EAT-05")!;
+    expect(eat05.status).toBe("fail");
   });
 
-  it("returns exactly 10 points (P1-P8, P13, P16)", () => {
+  it("returns the 22 deterministic checks in the current audit contract", () => {
     const points = runMechanicalChecks(makeInput());
-    expect(points).toHaveLength(10);
+    expect(points).toHaveLength(22);
     const pointIds = points.map((p) => p.point);
-    expect(pointIds).toContain("P1");
-    expect(pointIds).toContain("P2");
-    expect(pointIds).toContain("P3");
-    expect(pointIds).toContain("P4");
-    expect(pointIds).toContain("P5");
-    expect(pointIds).toContain("P6");
-    expect(pointIds).toContain("P7");
-    expect(pointIds).toContain("P8");
-    expect(pointIds).toContain("P13");
-    expect(pointIds).toContain("P16");
+    expect(pointIds).toContain("MAC-01");
+    expect(pointIds).toContain("MAC-11");
+    expect(pointIds).toContain("MIC-01");
+    expect(pointIds).toContain("MIC-08");
+    expect(pointIds).toContain("EAT-05");
+    expect(pointIds).toContain("EAT-06");
+    expect(pointIds).toContain("EAT-08");
   });
 });
 
